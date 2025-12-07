@@ -1,10 +1,11 @@
 #include "../config.h"
+#include "../types.h"
 
 void updateFluidCells( 	CellGroupStruct& cells,
 						DistributionFunctionStruct& F, 
-						RhoUGStruct& rhoUG, )
+						RhoUGStruct& rhoUG )
 {
-	size_t groupSize = cells.groupSize();
+	size_t groupSize = cells.groupSize;
 	auto indexArrayView = cells.indexArray.getConstView();
 	
 	auto shifterView = F.shifter.getConstView();

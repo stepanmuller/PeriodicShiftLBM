@@ -25,7 +25,7 @@ if (outerNormalX == 1 && outerNormalY == 0 && outerNormalZ == 0)
 	float f23 = f23ArrayView[shiftedIndex[23]];
 	float f26 = f26ArrayView[shiftedIndex[26]];
 }
-elif (outerNormalX == 0 && outerNormalY == 1 && outerNormalZ == 0)
+else if (outerNormalX == 0 && outerNormalY == 1 && outerNormalZ == 0)
 {
 	// Reading known distributions
 	float f0 = f0ArrayView[shiftedIndex[0]];
@@ -47,7 +47,7 @@ elif (outerNormalX == 0 && outerNormalY == 1 && outerNormalZ == 0)
 	float f24 = f24ArrayView[shiftedIndex[24]];
 	float f26 = f26ArrayView[shiftedIndex[26]];
 }
-elif (outerNormalX == 0 && outerNormalY == 0 && outerNormalZ == 1)
+else if (outerNormalX == 0 && outerNormalY == 0 && outerNormalZ == 1)
 {
 	// Reading known distributions
 	float f0 = f0ArrayView[shiftedIndex[0]];
@@ -69,7 +69,7 @@ elif (outerNormalX == 0 && outerNormalY == 0 && outerNormalZ == 1)
 	float f24 = f24ArrayView[shiftedIndex[24]];
 	float f26 = f26ArrayView[shiftedIndex[26]];
 }
-elif (outerNormalX == -1 && outerNormalY == 0 && outerNormalZ == 0)
+else if (outerNormalX == -1 && outerNormalY == 0 && outerNormalZ == 0)
 {
 	// Reading known distributions
 	float f0 = f0ArrayView[shiftedIndex[0]];
@@ -91,7 +91,7 @@ elif (outerNormalX == -1 && outerNormalY == 0 && outerNormalZ == 0)
 	float f24 = f24ArrayView[shiftedIndex[24]];
 	float f25 = f25ArrayView[shiftedIndex[25]];
 }
-elif (outerNormalX == 0 && outerNormalY == -1 && outerNormalZ == 0)
+else if (outerNormalX == 0 && outerNormalY == -1 && outerNormalZ == 0)
 {
 	// Reading known distributions
 	float f0 = f0ArrayView[shiftedIndex[0]];
@@ -113,7 +113,7 @@ elif (outerNormalX == 0 && outerNormalY == -1 && outerNormalZ == 0)
 	float f23 = f23ArrayView[shiftedIndex[23]];
 	float f25 = f25ArrayView[shiftedIndex[25]];
 }
-elif (outerNormalX == 0 && outerNormalY == 0 && outerNormalZ == -1)
+else if (outerNormalX == 0 && outerNormalY == 0 && outerNormalZ == -1)
 {
 	// Reading known distributions
 	float f0 = f0ArrayView[shiftedIndex[0]];
@@ -135,7 +135,7 @@ elif (outerNormalX == 0 && outerNormalY == 0 && outerNormalZ == -1)
 	float f23 = f23ArrayView[shiftedIndex[23]];
 	float f25 = f25ArrayView[shiftedIndex[25]];
 }
-elif (outerNormalX == 0 && outerNormalY == 1 && outerNormalZ == 1)
+else if (outerNormalX == 0 && outerNormalY == 1 && outerNormalZ == 1)
 {
 	// Reading known distributions
 	float f0 = f0ArrayView[shiftedIndex[0]];
@@ -151,7 +151,7 @@ elif (outerNormalX == 0 && outerNormalY == 1 && outerNormalZ == 1)
 	float f24 = f24ArrayView[shiftedIndex[24]];
 	float f26 = f26ArrayView[shiftedIndex[26]];
 }
-elif (outerNormalX == 1 && outerNormalY == 0 && outerNormalZ == 1)
+else if (outerNormalX == 1 && outerNormalY == 0 && outerNormalZ == 1)
 {
 	// Reading known distributions
 	float f0 = f0ArrayView[shiftedIndex[0]];
@@ -167,7 +167,7 @@ elif (outerNormalX == 1 && outerNormalY == 0 && outerNormalZ == 1)
 	float f20 = f20ArrayView[shiftedIndex[20]];
 	float f26 = f26ArrayView[shiftedIndex[26]];
 }
-elif (outerNormalX == 1 && outerNormalY == 1 && outerNormalZ == 0)
+else if (outerNormalX == 1 && outerNormalY == 1 && outerNormalZ == 0)
 {
 	// Reading known distributions
 	float f0 = f0ArrayView[shiftedIndex[0]];
@@ -183,7 +183,7 @@ elif (outerNormalX == 1 && outerNormalY == 1 && outerNormalZ == 0)
 	float f22 = f22ArrayView[shiftedIndex[22]];
 	float f26 = f26ArrayView[shiftedIndex[26]];
 }
-elif (outerNormalX == 0 && outerNormalY == -1 && outerNormalZ == -1)
+else if (outerNormalX == 0 && outerNormalY == -1 && outerNormalZ == -1)
 {
 	// Reading known distributions
 	float f0 = f0ArrayView[shiftedIndex[0]];
@@ -199,7 +199,7 @@ elif (outerNormalX == 0 && outerNormalY == -1 && outerNormalZ == -1)
 	float f23 = f23ArrayView[shiftedIndex[23]];
 	float f25 = f25ArrayView[shiftedIndex[25]];
 }
-elif (outerNormalX == -1 && outerNormalY == 0 && outerNormalZ == -1)
+else if (outerNormalX == -1 && outerNormalY == 0 && outerNormalZ == -1)
 {
 	// Reading known distributions
 	float f0 = f0ArrayView[shiftedIndex[0]];
@@ -215,7 +215,7 @@ elif (outerNormalX == -1 && outerNormalY == 0 && outerNormalZ == -1)
 	float f19 = f19ArrayView[shiftedIndex[19]];
 	float f25 = f25ArrayView[shiftedIndex[25]];
 }
-elif (outerNormalX == -1 && outerNormalY == -1 && outerNormalZ == 0)
+else if (outerNormalX == -1 && outerNormalY == -1 && outerNormalZ == 0)
 {
 	// Reading known distributions
 	float f0 = f0ArrayView[shiftedIndex[0]];
@@ -231,7 +231,7 @@ elif (outerNormalX == -1 && outerNormalY == -1 && outerNormalZ == 0)
 	float f21 = f21ArrayView[shiftedIndex[21]];
 	float f25 = f25ArrayView[shiftedIndex[25]];
 }
-elif (outerNormalX == 0 && outerNormalY == 1 && outerNormalZ == -1)
+else if (outerNormalX == 0 && outerNormalY == 1 && outerNormalZ == -1)
 {
 	// Reading known distributions
 	float f0 = f0ArrayView[shiftedIndex[0]];
@@ -247,7 +247,7 @@ elif (outerNormalX == 0 && outerNormalY == 1 && outerNormalZ == -1)
 	float f19 = f19ArrayView[shiftedIndex[19]];
 	float f22 = f22ArrayView[shiftedIndex[22]];
 }
-elif (outerNormalX == 1 && outerNormalY == 0 && outerNormalZ == -1)
+else if (outerNormalX == 1 && outerNormalY == 0 && outerNormalZ == -1)
 {
 	// Reading known distributions
 	float f0 = f0ArrayView[shiftedIndex[0]];
@@ -263,7 +263,7 @@ elif (outerNormalX == 1 && outerNormalY == 0 && outerNormalZ == -1)
 	float f22 = f22ArrayView[shiftedIndex[22]];
 	float f23 = f23ArrayView[shiftedIndex[23]];
 }
-elif (outerNormalX == 1 && outerNormalY == -1 && outerNormalZ == 0)
+else if (outerNormalX == 1 && outerNormalY == -1 && outerNormalZ == 0)
 {
 	// Reading known distributions
 	float f0 = f0ArrayView[shiftedIndex[0]];
@@ -279,7 +279,7 @@ elif (outerNormalX == 1 && outerNormalY == -1 && outerNormalZ == 0)
 	float f20 = f20ArrayView[shiftedIndex[20]];
 	float f23 = f23ArrayView[shiftedIndex[23]];
 }
-elif (outerNormalX == 0 && outerNormalY == -1 && outerNormalZ == 1)
+else if (outerNormalX == 0 && outerNormalY == -1 && outerNormalZ == 1)
 {
 	// Reading known distributions
 	float f0 = f0ArrayView[shiftedIndex[0]];
@@ -295,7 +295,7 @@ elif (outerNormalX == 0 && outerNormalY == -1 && outerNormalZ == 1)
 	float f20 = f20ArrayView[shiftedIndex[20]];
 	float f21 = f21ArrayView[shiftedIndex[21]];
 }
-elif (outerNormalX == -1 && outerNormalY == 0 && outerNormalZ == 1)
+else if (outerNormalX == -1 && outerNormalY == 0 && outerNormalZ == 1)
 {
 	// Reading known distributions
 	float f0 = f0ArrayView[shiftedIndex[0]];
@@ -311,7 +311,7 @@ elif (outerNormalX == -1 && outerNormalY == 0 && outerNormalZ == 1)
 	float f21 = f21ArrayView[shiftedIndex[21]];
 	float f24 = f24ArrayView[shiftedIndex[24]];
 }
-elif (outerNormalX == -1 && outerNormalY == 1 && outerNormalZ == 0)
+else if (outerNormalX == -1 && outerNormalY == 1 && outerNormalZ == 0)
 {
 	// Reading known distributions
 	float f0 = f0ArrayView[shiftedIndex[0]];
@@ -327,7 +327,7 @@ elif (outerNormalX == -1 && outerNormalY == 1 && outerNormalZ == 0)
 	float f19 = f19ArrayView[shiftedIndex[19]];
 	float f24 = f24ArrayView[shiftedIndex[24]];
 }
-elif (outerNormalX == 1 && outerNormalY == 1 && outerNormalZ == 1)
+else if (outerNormalX == 1 && outerNormalY == 1 && outerNormalZ == 1)
 {
 	// Reading known distributions
 	float f0 = f0ArrayView[shiftedIndex[0]];
@@ -339,7 +339,7 @@ elif (outerNormalX == 1 && outerNormalY == 1 && outerNormalZ == 1)
 	float f17 = f17ArrayView[shiftedIndex[17]];
 	float f26 = f26ArrayView[shiftedIndex[26]];
 }
-elif (outerNormalX == -1 && outerNormalY == -1 && outerNormalZ == -1)
+else if (outerNormalX == -1 && outerNormalY == -1 && outerNormalZ == -1)
 {
 	// Reading known distributions
 	float f0 = f0ArrayView[shiftedIndex[0]];
@@ -351,7 +351,7 @@ elif (outerNormalX == -1 && outerNormalY == -1 && outerNormalZ == -1)
 	float f18 = f18ArrayView[shiftedIndex[18]];
 	float f25 = f25ArrayView[shiftedIndex[25]];
 }
-elif (outerNormalX == -1 && outerNormalY == 1 && outerNormalZ == 1)
+else if (outerNormalX == -1 && outerNormalY == 1 && outerNormalZ == 1)
 {
 	// Reading known distributions
 	float f0 = f0ArrayView[shiftedIndex[0]];
@@ -363,7 +363,7 @@ elif (outerNormalX == -1 && outerNormalY == 1 && outerNormalZ == 1)
 	float f17 = f17ArrayView[shiftedIndex[17]];
 	float f24 = f24ArrayView[shiftedIndex[24]];
 }
-elif (outerNormalX == 1 && outerNormalY == -1 && outerNormalZ == 1)
+else if (outerNormalX == 1 && outerNormalY == -1 && outerNormalZ == 1)
 {
 	// Reading known distributions
 	float f0 = f0ArrayView[shiftedIndex[0]];
@@ -375,7 +375,7 @@ elif (outerNormalX == 1 && outerNormalY == -1 && outerNormalZ == 1)
 	float f16 = f16ArrayView[shiftedIndex[16]];
 	float f20 = f20ArrayView[shiftedIndex[20]];
 }
-elif (outerNormalX == 1 && outerNormalY == 1 && outerNormalZ == -1)
+else if (outerNormalX == 1 && outerNormalY == 1 && outerNormalZ == -1)
 {
 	// Reading known distributions
 	float f0 = f0ArrayView[shiftedIndex[0]];
@@ -387,7 +387,7 @@ elif (outerNormalX == 1 && outerNormalY == 1 && outerNormalZ == -1)
 	float f13 = f13ArrayView[shiftedIndex[13]];
 	float f22 = f22ArrayView[shiftedIndex[22]];
 }
-elif (outerNormalX == 1 && outerNormalY == -1 && outerNormalZ == -1)
+else if (outerNormalX == 1 && outerNormalY == -1 && outerNormalZ == -1)
 {
 	// Reading known distributions
 	float f0 = f0ArrayView[shiftedIndex[0]];
@@ -399,7 +399,7 @@ elif (outerNormalX == 1 && outerNormalY == -1 && outerNormalZ == -1)
 	float f18 = f18ArrayView[shiftedIndex[18]];
 	float f23 = f23ArrayView[shiftedIndex[23]];
 }
-elif (outerNormalX == -1 && outerNormalY == 1 && outerNormalZ == -1)
+else if (outerNormalX == -1 && outerNormalY == 1 && outerNormalZ == -1)
 {
 	// Reading known distributions
 	float f0 = f0ArrayView[shiftedIndex[0]];
@@ -411,7 +411,7 @@ elif (outerNormalX == -1 && outerNormalY == 1 && outerNormalZ == -1)
 	float f15 = f15ArrayView[shiftedIndex[15]];
 	float f19 = f19ArrayView[shiftedIndex[19]];
 }
-elif (outerNormalX == -1 && outerNormalY == -1 && outerNormalZ == 1)
+else if (outerNormalX == -1 && outerNormalY == -1 && outerNormalZ == 1)
 {
 	// Reading known distributions
 	float f0 = f0ArrayView[shiftedIndex[0]];

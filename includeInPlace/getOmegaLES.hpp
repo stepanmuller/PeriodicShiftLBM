@@ -1,4 +1,4 @@
-#include "config.h"
+#include "../config.h"
 
 // Calculate float omegaLES from fneq0, fneq1 ... and rho
 // Floats fneq0, fneq1 ... and rho must be defined above

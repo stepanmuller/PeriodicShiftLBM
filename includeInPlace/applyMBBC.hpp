@@ -56,7 +56,7 @@ if (outerNormalX == 1 && outerNormalY == 0 && outerNormalZ == 0)
 	float f24 = + 0.25f * s5 + 0.25f * s6 + 0.25f * s7 + 0.25f * s8;
 	float f25 = + 0.25f * s5 - 0.25f * s6 - 0.25f * s7 + 0.25f * s8;
 }
-elif (outerNormalX == 0 && outerNormalY == 1 && outerNormalZ == 0)
+else if (outerNormalX == 0 && outerNormalY == 1 && outerNormalZ == 0)
 {
 	// Multiply K fk
 	const float kf0 = + f0 + f1 + f2 + f3 + f4 + f6 + f7 + f8 + f9 + f10 + f12 + f13 + f15 + f17 + f19 + f22 + f24 + f26;
@@ -102,7 +102,7 @@ elif (outerNormalX == 0 && outerNormalY == 1 && outerNormalZ == 0)
 	float f23 = - 0.25f * s5 - 0.25f * s6 + 0.25f * s7 + 0.25f * s8;
 	float f25 = + 0.25f * s5 - 0.25f * s6 - 0.25f * s7 + 0.25f * s8;
 }
-elif (outerNormalX == 0 && outerNormalY == 0 && outerNormalZ == 1)
+else if (outerNormalX == 0 && outerNormalY == 0 && outerNormalZ == 1)
 {
 	// Multiply K fk
 	const float kf0 = + f0 + f1 + f2 + f4 + f5 + f6 + f8 + f9 + f11 + f12 + f14 + f15 + f16 + f17 + f20 + f21 + f24 + f26;
@@ -148,7 +148,7 @@ elif (outerNormalX == 0 && outerNormalY == 0 && outerNormalZ == 1)
 	float f23 = - 0.25f * s5 - 0.25f * s6 + 0.25f * s7 + 0.25f * s8;
 	float f25 = + 0.25f * s5 - 0.25f * s6 - 0.25f * s7 + 0.25f * s8;
 }
-elif (outerNormalX == -1 && outerNormalY == 0 && outerNormalZ == 0)
+else if (outerNormalX == -1 && outerNormalY == 0 && outerNormalZ == 0)
 {
 	// Multiply K fk
 	const float kf0 = + f0 + f2 + f3 + f4 + f5 + f6 + f8 + f10 + f11 + f13 + f14 + f15 + f17 + f18 + f19 + f21 + f24 + f25;
@@ -194,7 +194,7 @@ elif (outerNormalX == -1 && outerNormalY == 0 && outerNormalZ == 0)
 	float f23 = + 0.25f * s5 - 0.25f * s6 - 0.25f * s7 + 0.25f * s8;
 	float f26 = + 0.25f * s5 + 0.25f * s6 + 0.25f * s7 + 0.25f * s8;
 }
-elif (outerNormalX == 0 && outerNormalY == -1 && outerNormalZ == 0)
+else if (outerNormalX == 0 && outerNormalY == -1 && outerNormalZ == 0)
 {
 	// Multiply K fk
 	const float kf0 = + f0 + f1 + f2 + f3 + f4 + f5 + f7 + f8 + f9 + f10 + f11 + f14 + f16 + f18 + f20 + f21 + f23 + f25;
@@ -240,7 +240,7 @@ elif (outerNormalX == 0 && outerNormalY == -1 && outerNormalZ == 0)
 	float f24 = - 0.25f * s5 + 0.25f * s6 - 0.25f * s7 + 0.25f * s8;
 	float f26 = + 0.25f * s5 + 0.25f * s6 + 0.25f * s7 + 0.25f * s8;
 }
-elif (outerNormalX == 0 && outerNormalY == 0 && outerNormalZ == -1)
+else if (outerNormalX == 0 && outerNormalY == 0 && outerNormalZ == -1)
 {
 	// Multiply K fk
 	const float kf0 = + f0 + f1 + f2 + f3 + f5 + f6 + f7 + f10 + f11 + f12 + f13 + f15 + f16 + f18 + f19 + f22 + f23 + f25;
@@ -286,7 +286,7 @@ elif (outerNormalX == 0 && outerNormalY == 0 && outerNormalZ == -1)
 	float f24 = - 0.25f * s5 + 0.25f * s6 - 0.25f * s7 + 0.25f * s8;
 	float f26 = + 0.25f * s5 + 0.25f * s6 + 0.25f * s7 + 0.25f * s8;
 }
-elif (outerNormalX == 0 && outerNormalY == 1 && outerNormalZ == 1)
+else if (outerNormalX == 0 && outerNormalY == 1 && outerNormalZ == 1)
 {
 	// Multiply K fk
 	const float kf0 = + f0 + f1 + f2 + f4 + f6 + f8 + f9 + f12 + f15 + f17 + f24 + f26;
@@ -356,7 +356,7 @@ elif (outerNormalX == 0 && outerNormalY == 1 && outerNormalZ == 1)
 	float f23 = - 0.5f * s1 - 0.5f * s4 - 0.25f * s7 - 0.25f * s8 - 0.25f * s9 - 0.25f * s10 + 0.25f * s11 + 0.25f * s12 + 0.25f * s13 + 0.25f * s14;
 	float f25 = + 0.5f * s1 - 0.5f * s4 + 0.25f * s7 + 0.25f * s8 - 0.25f * s9 - 0.25f * s10 - 0.25f * s11 - 0.25f * s12 + 0.25f * s13 + 0.25f * s14;
 }
-elif (outerNormalX == 1 && outerNormalY == 0 && outerNormalZ == 1)
+else if (outerNormalX == 1 && outerNormalY == 0 && outerNormalZ == 1)
 {
 	// Multiply K fk
 	const float kf0 = + f0 + f1 + f4 + f5 + f6 + f9 + f12 + f14 + f16 + f17 + f20 + f26;
@@ -426,7 +426,7 @@ elif (outerNormalX == 1 && outerNormalY == 0 && outerNormalZ == 1)
 	float f24 = + 0.25f * s7 + 0.25f * s11 + 0.25f * s12 + 0.25f * s13;
 	float f25 = + 0.5f * s2 - 0.5f * s5 + 0.25f * s7 + 0.25f * s8 - 0.25f * s9 - 0.25f * s10 - 0.25f * s11 - 0.25f * s12 + 0.25f * s13 + 0.25f * s14;
 }
-elif (outerNormalX == 1 && outerNormalY == 1 && outerNormalZ == 0)
+else if (outerNormalX == 1 && outerNormalY == 1 && outerNormalZ == 0)
 {
 	// Multiply K fk
 	const float kf0 = + f0 + f1 + f3 + f4 + f6 + f7 + f9 + f12 + f13 + f17 + f22 + f26;
@@ -496,7 +496,7 @@ elif (outerNormalX == 1 && outerNormalY == 1 && outerNormalZ == 0)
 	float f24 = + 0.25f * s7 + 0.25f * s10 + 0.25f * s12 + 0.25f * s13;
 	float f25 = + 0.5f * s3 - 0.5f * s6 + 0.25f * s7 + 0.25f * s8 - 0.25f * s9 - 0.25f * s10 - 0.25f * s11 - 0.25f * s12 + 0.25f * s13 + 0.25f * s14;
 }
-elif (outerNormalX == 0 && outerNormalY == -1 && outerNormalZ == -1)
+else if (outerNormalX == 0 && outerNormalY == -1 && outerNormalZ == -1)
 {
 	// Multiply K fk
 	const float kf0 = + f0 + f1 + f2 + f3 + f5 + f7 + f10 + f11 + f16 + f18 + f23 + f25;
@@ -566,7 +566,7 @@ elif (outerNormalX == 0 && outerNormalY == -1 && outerNormalZ == -1)
 	float f24 = + 0.5f * s1 - 0.5f * s4 - 0.25f * s7 - 0.25f * s8 + 0.25f * s9 + 0.25f * s10 - 0.25f * s11 - 0.25f * s12 + 0.25f * s13 + 0.25f * s14;
 	float f26 = - 0.5f * s1 - 0.5f * s4 + 0.25f * s7 + 0.25f * s8 + 0.25f * s9 + 0.25f * s10 + 0.25f * s11 + 0.25f * s12 + 0.25f * s13 + 0.25f * s14;
 }
-elif (outerNormalX == -1 && outerNormalY == 0 && outerNormalZ == -1)
+else if (outerNormalX == -1 && outerNormalY == 0 && outerNormalZ == -1)
 {
 	// Multiply K fk
 	const float kf0 = + f0 + f2 + f3 + f5 + f6 + f10 + f11 + f13 + f15 + f18 + f19 + f25;
@@ -636,7 +636,7 @@ elif (outerNormalX == -1 && outerNormalY == 0 && outerNormalZ == -1)
 	float f24 = - 0.25f * s8 + 0.25f * s9 - 0.25f * s10 + 0.25f * s14;
 	float f26 = - 0.5f * s2 - 0.5f * s5 + 0.25f * s7 + 0.25f * s8 + 0.25f * s9 + 0.25f * s10 + 0.25f * s11 + 0.25f * s12 + 0.25f * s13 + 0.25f * s14;
 }
-elif (outerNormalX == -1 && outerNormalY == -1 && outerNormalZ == 0)
+else if (outerNormalX == -1 && outerNormalY == -1 && outerNormalZ == 0)
 {
 	// Multiply K fk
 	const float kf0 = + f0 + f2 + f3 + f4 + f5 + f8 + f10 + f11 + f14 + f18 + f21 + f25;
@@ -706,7 +706,7 @@ elif (outerNormalX == -1 && outerNormalY == -1 && outerNormalZ == 0)
 	float f24 = - 0.25f * s8 + 0.25f * s9 - 0.25f * s11 + 0.25f * s14;
 	float f26 = - 0.5f * s3 - 0.5f * s6 + 0.25f * s7 + 0.25f * s8 + 0.25f * s9 + 0.25f * s10 + 0.25f * s11 + 0.25f * s12 + 0.25f * s13 + 0.25f * s14;
 }
-elif (outerNormalX == 0 && outerNormalY == 1 && outerNormalZ == -1)
+else if (outerNormalX == 0 && outerNormalY == 1 && outerNormalZ == -1)
 {
 	// Multiply K fk
 	const float kf0 = + f0 + f1 + f2 + f3 + f6 + f7 + f10 + f12 + f13 + f15 + f19 + f22;
@@ -776,7 +776,7 @@ elif (outerNormalX == 0 && outerNormalY == 1 && outerNormalZ == -1)
 	float f25 = + 0.25f * s7 - 0.25f * s10 - 0.25f * s12 + 0.25f * s13;
 	float f26 = + 0.25f * s8 + 0.25f * s9 + 0.25f * s11 + 0.25f * s14;
 }
-elif (outerNormalX == 1 && outerNormalY == 0 && outerNormalZ == -1)
+else if (outerNormalX == 1 && outerNormalY == 0 && outerNormalZ == -1)
 {
 	// Multiply K fk
 	const float kf0 = + f0 + f1 + f3 + f5 + f6 + f7 + f12 + f13 + f16 + f18 + f22 + f23;
@@ -846,7 +846,7 @@ elif (outerNormalX == 1 && outerNormalY == 0 && outerNormalZ == -1)
 	float f25 = + 0.25f * s7 - 0.25f * s11 - 0.25f * s12 + 0.25f * s13;
 	float f26 = + 0.25f * s8 + 0.25f * s9 + 0.25f * s10 + 0.25f * s14;
 }
-elif (outerNormalX == 1 && outerNormalY == -1 && outerNormalZ == 0)
+else if (outerNormalX == 1 && outerNormalY == -1 && outerNormalZ == 0)
 {
 	// Multiply K fk
 	const float kf0 = + f0 + f1 + f3 + f4 + f5 + f7 + f9 + f14 + f16 + f18 + f20 + f23;
@@ -916,7 +916,7 @@ elif (outerNormalX == 1 && outerNormalY == -1 && outerNormalZ == 0)
 	float f25 = + 0.25f * s7 - 0.25f * s10 - 0.25f * s12 + 0.25f * s13;
 	float f26 = + 0.25f * s8 + 0.25f * s9 + 0.25f * s11 + 0.25f * s14;
 }
-elif (outerNormalX == 0 && outerNormalY == -1 && outerNormalZ == 1)
+else if (outerNormalX == 0 && outerNormalY == -1 && outerNormalZ == 1)
 {
 	// Multiply K fk
 	const float kf0 = + f0 + f1 + f2 + f4 + f5 + f8 + f9 + f11 + f14 + f16 + f20 + f21;
@@ -986,7 +986,7 @@ elif (outerNormalX == 0 && outerNormalY == -1 && outerNormalZ == 1)
 	float f25 = + 0.25f * s8 - 0.25f * s9 - 0.25f * s11 + 0.25f * s14;
 	float f26 = + 0.25f * s7 + 0.25f * s10 + 0.25f * s12 + 0.25f * s13;
 }
-elif (outerNormalX == -1 && outerNormalY == 0 && outerNormalZ == 1)
+else if (outerNormalX == -1 && outerNormalY == 0 && outerNormalZ == 1)
 {
 	// Multiply K fk
 	const float kf0 = + f0 + f2 + f4 + f5 + f6 + f8 + f11 + f14 + f15 + f17 + f21 + f24;
@@ -1056,7 +1056,7 @@ elif (outerNormalX == -1 && outerNormalY == 0 && outerNormalZ == 1)
 	float f25 = + 0.25f * s8 - 0.25f * s9 - 0.25f * s10 + 0.25f * s14;
 	float f26 = + 0.25f * s7 + 0.25f * s11 + 0.25f * s12 + 0.25f * s13;
 }
-elif (outerNormalX == -1 && outerNormalY == 1 && outerNormalZ == 0)
+else if (outerNormalX == -1 && outerNormalY == 1 && outerNormalZ == 0)
 {
 	// Multiply K fk
 	const float kf0 = + f0 + f2 + f3 + f4 + f6 + f8 + f10 + f13 + f15 + f17 + f19 + f24;
@@ -1126,7 +1126,7 @@ elif (outerNormalX == -1 && outerNormalY == 1 && outerNormalZ == 0)
 	float f25 = + 0.25f * s8 - 0.25f * s9 - 0.25f * s11 + 0.25f * s14;
 	float f26 = + 0.25f * s7 + 0.25f * s10 + 0.25f * s12 + 0.25f * s13;
 }
-elif (outerNormalX == 1 && outerNormalY == 1 && outerNormalZ == 1)
+else if (outerNormalX == 1 && outerNormalY == 1 && outerNormalZ == 1)
 {
 	// Multiply K fk
 	const float kf0 = + f0 + f1 + f4 + f6 + f9 + f12 + f17 + f26;
@@ -1212,7 +1212,7 @@ elif (outerNormalX == 1 && outerNormalY == 1 && outerNormalZ == 1)
 	float f24 = + 0.25f * s7 + 0.25f * s13 + 0.25f * s15 + 0.25f * s16;
 	float f25 = + s0 + 0.5f * s1 + 0.5f * s2 + 0.5f * s3 - 0.5f * s4 - 0.5f * s5 - 0.5f * s6 + 0.25f * s7 + 0.25f * s8 + 0.25f * s9 - 0.25f * s10 - 0.25f * s11 - 0.25f * s12 - 0.25f * s13 - 0.25f * s14 - 0.25f * s15 + 0.25f * s16 + 0.25f * s17 + 0.25f * s18;
 }
-elif (outerNormalX == -1 && outerNormalY == -1 && outerNormalZ == -1)
+else if (outerNormalX == -1 && outerNormalY == -1 && outerNormalZ == -1)
 {
 	// Multiply K fk
 	const float kf0 = + f0 + f2 + f3 + f5 + f10 + f11 + f18 + f25;
@@ -1298,7 +1298,7 @@ elif (outerNormalX == -1 && outerNormalY == -1 && outerNormalZ == -1)
 	float f24 = + 0.5f * s1 - 0.5f * s4 - 0.25f * s8 - 0.25f * s9 + 0.25f * s10 + 0.25f * s11 - 0.25f * s12 - 0.25f * s14 + 0.25f * s17 + 0.25f * s18;
 	float f26 = + s0 - 0.5f * s1 - 0.5f * s2 - 0.5f * s3 - 0.5f * s4 - 0.5f * s5 - 0.5f * s6 + 0.25f * s7 + 0.25f * s8 + 0.25f * s9 + 0.25f * s10 + 0.25f * s11 + 0.25f * s12 + 0.25f * s13 + 0.25f * s14 + 0.25f * s15 + 0.25f * s16 + 0.25f * s17 + 0.25f * s18;
 }
-elif (outerNormalX == -1 && outerNormalY == 1 && outerNormalZ == 1)
+else if (outerNormalX == -1 && outerNormalY == 1 && outerNormalZ == 1)
 {
 	// Multiply K fk
 	const float kf0 = + f0 + f2 + f4 + f6 + f8 + f15 + f17 + f24;
@@ -1384,7 +1384,7 @@ elif (outerNormalX == -1 && outerNormalY == 1 && outerNormalZ == 1)
 	float f25 = + 0.5f * s1 - 0.5f * s4 + 0.25f * s8 + 0.25f * s9 - 0.25f * s10 - 0.25f * s11 - 0.25f * s12 - 0.25f * s14 + 0.25f * s17 + 0.25f * s18;
 	float f26 = + 0.25f * s7 + 0.25f * s13 + 0.25f * s15 + 0.25f * s16;
 }
-elif (outerNormalX == 1 && outerNormalY == -1 && outerNormalZ == 1)
+else if (outerNormalX == 1 && outerNormalY == -1 && outerNormalZ == 1)
 {
 	// Multiply K fk
 	const float kf0 = + f0 + f1 + f4 + f5 + f9 + f14 + f16 + f20;
@@ -1470,7 +1470,7 @@ elif (outerNormalX == 1 && outerNormalY == -1 && outerNormalZ == 1)
 	float f25 = + 0.5f * s2 - 0.5f * s5 + 0.25f * s7 + 0.25f * s9 - 0.25f * s10 - 0.25f * s12 - 0.25f * s13 - 0.25f * s15 + 0.25f * s16 + 0.25f * s18;
 	float f26 = + 0.25f * s8 + 0.25f * s11 + 0.25f * s14 + 0.25f * s17;
 }
-elif (outerNormalX == 1 && outerNormalY == 1 && outerNormalZ == -1)
+else if (outerNormalX == 1 && outerNormalY == 1 && outerNormalZ == -1)
 {
 	// Multiply K fk
 	const float kf0 = + f0 + f1 + f3 + f6 + f7 + f12 + f13 + f22;
@@ -1556,7 +1556,7 @@ elif (outerNormalX == 1 && outerNormalY == 1 && outerNormalZ == -1)
 	float f25 = + 0.5f * s3 - 0.5f * s6 + 0.25f * s7 + 0.25f * s8 - 0.25f * s11 - 0.25f * s13 - 0.25f * s14 - 0.25f * s15 + 0.25f * s16 + 0.25f * s17;
 	float f26 = + 0.25f * s9 + 0.25f * s10 + 0.25f * s12 + 0.25f * s18;
 }
-elif (outerNormalX == 1 && outerNormalY == -1 && outerNormalZ == -1)
+else if (outerNormalX == 1 && outerNormalY == -1 && outerNormalZ == -1)
 {
 	// Multiply K fk
 	const float kf0 = + f0 + f1 + f3 + f5 + f7 + f16 + f18 + f23;
@@ -1642,7 +1642,7 @@ elif (outerNormalX == 1 && outerNormalY == -1 && outerNormalZ == -1)
 	float f25 = + 0.25f * s7 - 0.25f * s13 - 0.25f * s15 + 0.25f * s16;
 	float f26 = - 0.5f * s1 - 0.5f * s4 + 0.25f * s8 + 0.25f * s9 + 0.25f * s10 + 0.25f * s11 + 0.25f * s12 + 0.25f * s14 + 0.25f * s17 + 0.25f * s18;
 }
-elif (outerNormalX == -1 && outerNormalY == 1 && outerNormalZ == -1)
+else if (outerNormalX == -1 && outerNormalY == 1 && outerNormalZ == -1)
 {
 	// Multiply K fk
 	const float kf0 = + f0 + f2 + f3 + f6 + f10 + f13 + f15 + f19;
@@ -1728,7 +1728,7 @@ elif (outerNormalX == -1 && outerNormalY == 1 && outerNormalZ == -1)
 	float f25 = + 0.25f * s8 - 0.25f * s11 - 0.25f * s14 + 0.25f * s17;
 	float f26 = - 0.5f * s2 - 0.5f * s5 + 0.25f * s7 + 0.25f * s9 + 0.25f * s10 + 0.25f * s12 + 0.25f * s13 + 0.25f * s15 + 0.25f * s16 + 0.25f * s18;
 }
-elif (outerNormalX == -1 && outerNormalY == -1 && outerNormalZ == 1)
+else if (outerNormalX == -1 && outerNormalY == -1 && outerNormalZ == 1)
 {
 	// Multiply K fk
 	const float kf0 = + f0 + f2 + f4 + f5 + f8 + f11 + f14 + f21;

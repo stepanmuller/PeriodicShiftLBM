@@ -1,10 +1,11 @@
 #include "../config.h"
+#include "../types.h"
 
 void updateBouncebackCells( CellGroupStruct& cells,
 							DistributionFunctionStruct& F, 
-							RhoUGSturct& rhoUG, )
+							RhoUGStruct& rhoUG )
 {
-	size_t groupSize = cells.groupSize();
+	size_t groupSize = cells.groupSize;
 	auto indexArrayView = cells.indexArray.getConstView();
 	
 	auto shifterView = F.shifter.getConstView();
@@ -37,8 +38,7 @@ void updateBouncebackCells( CellGroupStruct& cells,
 	auto f25ArrayView = F.fArray[25].getView();
 	auto f26ArrayView = F.fArray[26].getView();
 	
-	auto rhoArrayView = rhoArray.getView();
-	
+	auto rhoArrayView = rhoUG.rhoArray.getView();
 	auto uxArrayView = rhoUG.uxArray.getView();
 	auto uyArrayView = rhoUG.uyArray.getView();
 	auto uzArrayView = rhoUG.uzArray.getView();

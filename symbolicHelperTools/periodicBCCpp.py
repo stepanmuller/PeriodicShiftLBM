@@ -20,7 +20,7 @@ def periodicBCCpp(i, normal, fu):
 		lines.append("")
 		lines.append("if (outerNormalX == " + str(normal[0]) + " && outerNormalY == " + str(normal[1]) + " && outerNormalZ == " + str(normal[2]) + ")")
 	else:
-		lines.append("elif (outerNormalX == " + str(normal[0]) + " && outerNormalY == " + str(normal[1]) + " && outerNormalZ == " + str(normal[2]) + ")")
+		lines.append("else if (outerNormalX == " + str(normal[0]) + " && outerNormalY == " + str(normal[1]) + " && outerNormalZ == " + str(normal[2]) + ")")
 	lines.append("{")
 	lines.append("	// Reading unknown distributions from source cell")
 	for k in fu:
@@ -36,7 +36,9 @@ def periodicBCCpp(i, normal, fu):
 	lines.append("	// Writing them into local cell")
 	for k in fu:
 		number = stringToNumber(k)
-		line = "	ArrayView[shiftedIndex["
+		line = "	f"
+		line += str(number)
+		line += "ArrayView[shiftedIndex["
 		line += str(number)
 		line += "]] = f"
 		line += str(number)

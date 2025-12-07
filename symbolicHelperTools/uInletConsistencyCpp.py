@@ -22,7 +22,7 @@ def uInletConsistencyCpp(i, normal, fk, mfkRows):
 		lines.append("")
 		lines.append("if (outerNormalX == " + str(normal[0]) + " && outerNormalY == " + str(normal[1]) + " && outerNormalZ == " + str(normal[2]) + ")")
 	else:
-		lines.append("elif (outerNormalX == " + str(normal[0]) + " && outerNormalY == " + str(normal[1]) + " && outerNormalZ == " + str(normal[2]) + ")")
+		lines.append("else if (outerNormalX == " + str(normal[0]) + " && outerNormalY == " + str(normal[1]) + " && outerNormalZ == " + str(normal[2]) + ")")
 	lines.append("{")
 	
 	momentIndex = np.where(np.array(normal) != 0)[0][0] + 1

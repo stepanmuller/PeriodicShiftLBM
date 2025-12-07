@@ -24,7 +24,7 @@ def runMBBCCpp(i, normal, fk, fu, chosenMoments, K, UInv, meqDict):
 		lines.append("")
 		lines.append("if (outerNormalX == " + str(normal[0]) + " && outerNormalY == " + str(normal[1]) + " && outerNormalZ == " + str(normal[2]) + ")")
 	else:
-		lines.append("elif (outerNormalX == " + str(normal[0]) + " && outerNormalY == " + str(normal[1]) + " && outerNormalZ == " + str(normal[2]) + ")")
+		lines.append("else if (outerNormalX == " + str(normal[0]) + " && outerNormalY == " + str(normal[1]) + " && outerNormalZ == " + str(normal[2]) + ")")
 	lines.append("{")
 	lines.append("	// Multiply K fk")
 	for i, row in enumerate(K):

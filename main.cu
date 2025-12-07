@@ -7,21 +7,18 @@
 
 #include "config.h"
 
-using ArrayType = TNL::Containers::Array< float, TNL::Devices::Cuda, size_t >;
-using IndexArrayType = TNL::Containers::Array< size_t, TNL::Devices::Cuda, size_t >;
-using normalArrayType = TNL::Containers::Array< uint8_t, TNL::Devices::Cuda, size_t >;
-
-struct DistributionFunctionStruct { IndexArrayType shifter; ArrayType fArray[27]; };
-
-struct RhoUGStruct { 	ArrayType rhoArray; 
-						ArrayType uxArray; ArrayType uyArray; ArrayType uzArray; 
-						ArrayType gxArray; ArrayType gyArray; ArrayType gzArray };
-
-struct CellGroupStruct { size_t groupSize = 0; size_t temp = 0; IndexArrayType indexArray; IndexArrayType sourceIndexArray; normalArrayType normalArray };
+#include "types.h"
 
 #include "applyInitialization.h"
 #include "applyStreaming.h"
 #include "convertIndex.h"
+#include "convertNormal.h"
+
+#include "updateCells/updateFluidCells.h"
+#include "updateCells/updateBouncebackCells.h"
+#include "updateCells/updateInletCells.h"
+#include "updateCells/updateOutletCells.h"
+#include "updateCells/updatePeriodicCells.h"
 
 int main(int argc, char **argv)
 {
@@ -38,65 +35,30 @@ int main(int argc, char **argv)
 	RhoUG.gyArray = ArrayType( cellCount, 0.f );
 	RhoUG.gzArray = ArrayType( cellCount, 0.f );
 	
+	CellGroupStruct fluidCells;
+	CellGroupStruct bouncebackCells;
+	CellGroupStruct inletCells;
+	CellGroupStruct outletCells;
+	CellGroupStruct periodicCells;
+	
 	for (size_t k = 0; k < cellCountZ; k++)
 	{
-		for (size_t i = 0; i < cellCountX; i++)
-		{
-			size_t j = 0;
-			size_t cell = convertIndex(i, j, k);
-			solidmask.setElement(cell, 1);
-			j = cellCountY-1;
-			cell = convertIndex(i, j, k);
-			solidmask.setElement(cell, 1);
-		}
 		for (size_t j = 0; j < cellCountY; j++)
 		{
-			size_t i = 0;
-			size_t cell = convertIndex(i, j, k);
-			solidmask.setElement(cell, 1);
-			i = cellCountX-1;
-			cell = convertIndex(i, j, k);
-			solidmask.setElement(cell, 1);
-		}
-	}
-	for (size_t i = 0; i < cellCountX; i++)
-	{
-		for (size_t j = 350; j < 451; j++)
-		{
-			for (size_t k = 250; k < 351; k++)
+			for (size_t i = 0; i < cellCountX; i++)
 			{
 				size_t cell = convertIndex(i, j, k);
-				solidmask.setElement(cell, 1);
+				if ( j>=350 && j<=450 && k>=250 && k<=350 ) bouncebackCells.groupSize++;
+				else if ( i==0 || i==cellCountX-1 || j==0 || j==cellCountY-1 ) periodicCells.groupSize++;
+				else if ( k==0 ) inletCells.groupSize++;
+				else if ( k==cellCountZ-1 ) outletCells.groupSize++;
+				else fluidCells.groupSize++;
 			}
 		}
 	}
+	std::cout << fluidCells.groupSize << std::endl;
 	
-	IndexArrayType inletIndexArray( cellCountX * cellCountY );
-	size_t counter = 0;
-	for (size_t i = 1; i < cellCountX-1; i++)
-	{
-		for (size_t j = 1; j < cellCountY-1; j++)
-		{
-			size_t k = 0; //first cell layer in Z direction
-			size_t cell = convertIndex(i, j, k);
-			inletIndexArray.setElement(counter, cell);
-			counter++;
-		}
-	}
-	
-	IndexArrayType outletIndexArray( (cellCountX-2) * (cellCountY-2) );
-	counter = 0;
-	for (size_t i = 1; i < cellCountX-1; i++)
-	{
-		for (size_t j = 1; j < cellCountY-1; j++)
-		{
-			size_t k = cellCountZ - 1; //last cell layer in Z direction
-			size_t cell = convertIndex(i, j, k);
-			outletIndexArray.setElement(counter, cell);
-			counter++;
-		}
-	}
-	
+	/*
 	applyInitialization( F, rhoUG );
 	
 	#ifdef __CUDACC__
@@ -137,6 +99,6 @@ int main(int argc, char **argv)
 		out << "\n";   // new row
 	}
 	out.close();
-	
+	*/
 	return EXIT_SUCCESS;
 }

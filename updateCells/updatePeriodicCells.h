@@ -1,11 +1,12 @@
 #include "../config.h"
 #include "../convertNormal.h"
+#include "../types.h"
 
 void updatePeriodicCells( 	CellGroupStruct& cells,
 							DistributionFunctionStruct& F, 
-							RhoUGStruct& rhoUG, )
+							RhoUGStruct& rhoUG )
 {
-	size_t groupSize = cells.groupSize();
+	size_t groupSize = cells.groupSize;
 	auto indexArrayView = cells.indexArray.getConstView();
 	auto sourceIndexArrayView = cells.sourceIndexArray.getConstView();
 	auto normalArrayView = cells.normalArray.getConstView();

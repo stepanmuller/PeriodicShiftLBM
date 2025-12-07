@@ -1,7 +1,8 @@
 #include "config.h"
+#include "types.h"
 
 void applyInitialization( 	DistributionFunctionStruct& F, 
-							rhoUGStruct& rhoUG )
+							RhoUGStruct& rhoUG )
 {
 	auto shifterView = F.shifter.getConstView();
 	
@@ -53,7 +54,7 @@ void applyInitialization( 	DistributionFunctionStruct& F,
 		const float uy = uyArrayView[cell];
 		const float uz = uzArrayView[cell];
 		
-		#include "getFeq.hpp"
+		#include "includeInPlace/getFeq.hpp"
 		
 		f0ArrayView[shiftedIndex[0]]   = feq0;
 		f1ArrayView[shiftedIndex[1]]   = feq1;

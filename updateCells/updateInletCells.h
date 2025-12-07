@@ -1,11 +1,12 @@
 #include "../config.h"
 #include "../convertNormal.h"
+#include "../types.h"
 
 void updateInletCells( 	CellGroupStruct& cells,
 						DistributionFunctionStruct& F, 
-						RhoUGStruct& rhoUG, )
+						RhoUGStruct& rhoUG )
 {
-	size_t groupSize = cells.groupSize();
+	size_t groupSize = cells.groupSize;
 	auto indexArrayView = cells.indexArray.getConstView();
 	auto normalArrayView = cells.normalArray.getConstView();
 	
@@ -62,12 +63,13 @@ void updateInletCells( 	CellGroupStruct& cells,
 		int outerNormalX, outerNormalY, outerNormalZ;
 		decodeNormal( normalCode, outerNormalX, outerNormalY, outerNormalZ );
 		
+		#include "../includeInPlace/declareF.hpp"
 		#include "../includeInPlace/readFKnown.hpp"
 		#include "../includeInPlace/getInletConsistency.hpp"
 		#include "../includeInPlace/applyMBBC.hpp"
 		#include "../includeInPlace/applyCollision.hpp"
 		#include "../includeInPlace/writeF.hpp"
-		#include "../includeInPlace/writeRho".hpp
+		#include "../includeInPlace/writeRho.hpp"
 	};
 	TNL::Algorithms::parallelFor<TNL::Devices::Cuda>(0, groupSize, cellLambda );
 }
