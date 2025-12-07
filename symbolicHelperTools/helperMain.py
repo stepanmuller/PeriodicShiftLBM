@@ -160,7 +160,7 @@ for i, normal in enumerate(allNormals):
 	fk, fu, mLabels, mfkRows, mfuRows, uniqueMfuRows, mGroups, chosenMoments, K, U, UInv, meqDict = getBCdata(normal)
 	allLines += uInletConsistencyCpp(i, normal, fk, mfkRows)
 
-with open("results/uInletConsistency.hpp", "w") as file:
+with open("results/getInletConsistency.hpp", "w") as file:
     file.write("\n".join(allLines))
     
 #### pOutletConsistency
@@ -169,7 +169,7 @@ for i, normal in enumerate(allNormals):
 	fk, fu, mLabels, mfkRows, mfuRows, uniqueMfuRows, mGroups, chosenMoments, K, U, UInv, meqDict = getBCdata(normal)
 	allLines += pOutletConsistencyCpp(i, normal, fk, mLabels, mfkRows)
 
-with open("results/pOutletConsistency.hpp", "w") as file:
+with open("results/getOutletConsistency.hpp", "w") as file:
     file.write("\n".join(allLines))
     
 #### Periodic BC

@@ -1,8 +1,14 @@
-#include "config.h"
+#include "../config.h"
+#include "../convertNormal.h"
 
-void applyInitialization( 	DistributionFunctionStruct& F, 
-							rhoUGStruct& rhoUG )
+void updateInletCells( 	CellGroupStruct& cells,
+						DistributionFunctionStruct& F, 
+						RhoUGStruct& rhoUG, )
 {
+	size_t groupSize = cells.groupSize();
+	auto indexArrayView = cells.indexArray.getConstView();
+	auto normalArrayView = cells.normalArray.getConstView();
+	
 	auto shifterView = F.shifter.getConstView();
 	
 	auto f0ArrayView  = F.fArray[0].getView();
@@ -37,9 +43,13 @@ void applyInitialization( 	DistributionFunctionStruct& F,
 	auto uxArrayView = rhoUG.uxArray.getView();
 	auto uyArrayView = rhoUG.uyArray.getView();
 	auto uzArrayView = rhoUG.uzArray.getView();
+	auto gxArrayView = rhoUG.gxArray.getView();
+	auto gyArrayView = rhoUG.gyArray.getView();
+	auto gzArrayView = rhoUG.gzArray.getView();
 
-	auto initializeLambda = [=] __cuda_callable__ (size_t cell) mutable
+	auto cellLambda = [=] __cuda_callable__ (size_t index) mutable
 	{
+		size_t cell = indexArrayView[index];
 		size_t shiftedIndex[27];
 		for (size_t i = 0; i < 27; i++) 
 		{
@@ -48,40 +58,16 @@ void applyInitialization( 	DistributionFunctionStruct& F,
 			if (shiftedIndex[i] >= cellCount) { shiftedIndex[i] -= cellCount; }
 		}
 		
-		const float rho = rhoArrayView[cell];
-		const float ux = uxArrayView[cell];
-		const float uy = uyArrayView[cell];
-		const float uz = uzArrayView[cell];
+		uint8_t normalCode = normalArrayView[index];
+		int outerNormalX, outerNormalY, outerNormalZ;
+		decodeNormal( normalCode, outerNormalX, outerNormalY, outerNormalZ );
 		
-		#include "getFeq.hpp"
-		
-		f0ArrayView[shiftedIndex[0]]   = feq0;
-		f1ArrayView[shiftedIndex[1]]   = feq1;
-		f2ArrayView[shiftedIndex[2]]   = feq2;
-		f3ArrayView[shiftedIndex[3]]   = feq3;
-		f4ArrayView[shiftedIndex[4]]   = feq4;
-		f5ArrayView[shiftedIndex[5]]   = feq5;
-		f6ArrayView[shiftedIndex[6]]   = feq6;
-		f7ArrayView[shiftedIndex[7]]   = feq7;
-		f8ArrayView[shiftedIndex[8]]   = feq8;
-		f9ArrayView[shiftedIndex[9]]   = feq9;
-		f10ArrayView[shiftedIndex[10]] = feq10;
-		f11ArrayView[shiftedIndex[11]] = feq11;
-		f12ArrayView[shiftedIndex[12]] = feq12;
-		f13ArrayView[shiftedIndex[13]] = feq13;
-		f14ArrayView[shiftedIndex[14]] = feq14;
-		f15ArrayView[shiftedIndex[15]] = feq15;
-		f16ArrayView[shiftedIndex[16]] = feq16;
-		f17ArrayView[shiftedIndex[17]] = feq17;
-		f18ArrayView[shiftedIndex[18]] = feq18;
-		f19ArrayView[shiftedIndex[19]] = feq19;
-		f20ArrayView[shiftedIndex[20]] = feq20;
-		f21ArrayView[shiftedIndex[21]] = feq21;
-		f22ArrayView[shiftedIndex[22]] = feq22;
-		f23ArrayView[shiftedIndex[23]] = feq23;
-		f24ArrayView[shiftedIndex[24]] = feq24;
-		f25ArrayView[shiftedIndex[25]] = feq25;
-		f26ArrayView[shiftedIndex[26]] = feq26;
+		#include "../includeInPlace/readFKnown.hpp"
+		#include "../includeInPlace/getInletConsistency.hpp"
+		#include "../includeInPlace/applyMBBC.hpp"
+		#include "../includeInPlace/applyCollision.hpp"
+		#include "../includeInPlace/writeF.hpp"
+		#include "../includeInPlace/writeRho".hpp
 	};
-	TNL::Algorithms::parallelFor<TNL::Devices::Cuda>(0, cellCount, initializeLambda );
+	TNL::Algorithms::parallelFor<TNL::Devices::Cuda>(0, groupSize, cellLambda );
 }

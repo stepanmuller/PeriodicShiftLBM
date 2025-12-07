@@ -9,15 +9,18 @@
 
 using ArrayType = TNL::Containers::Array< float, TNL::Devices::Cuda, size_t >;
 using IndexArrayType = TNL::Containers::Array< size_t, TNL::Devices::Cuda, size_t >;
-using SolidmaskType = TNL::Containers::Array< bool, TNL::Devices::Cuda, size_t >;
+using normalArrayType = TNL::Containers::Array< uint8_t, TNL::Devices::Cuda, size_t >;
 
 struct DistributionFunctionStruct { IndexArrayType shifter; ArrayType fArray[27]; };
 
+struct RhoUGStruct { 	ArrayType rhoArray; 
+						ArrayType uxArray; ArrayType uyArray; ArrayType uzArray; 
+						ArrayType gxArray; ArrayType gyArray; ArrayType gzArray };
+
+struct CellGroupStruct { size_t groupSize = 0; size_t temp = 0; IndexArrayType indexArray; IndexArrayType sourceIndexArray; normalArrayType normalArray };
+
 #include "applyInitialization.h"
-#include "applyCollision.h"
 #include "applyStreaming.h"
-#include "applyBCInlet.h"
-#include "applyBCOutlet.h"
 #include "convertIndex.h"
 
 int main(int argc, char **argv)
@@ -26,16 +29,15 @@ int main(int argc, char **argv)
 	F.shifter = IndexArrayType( 27, 0 );
 	for (size_t i = 0; i < 27; i++) { F.fArray[i] = ArrayType(cellCount, 1.f); }
 	
-	ArrayType rhoArray( cellCount, 1.f );
-	ArrayType uxArray( cellCount, 0.f );
-	ArrayType uyArray( cellCount, 0.f );
-	ArrayType uzArray( cellCount, 0.f );
+	RhoUGStruct RhoUG;
+	RhoUG.rhoArray = ArrayType( cellCount, 1.f );
+	RhoUG.uxArray = ArrayType( cellCount, 0.f );
+	RhoUG.uyArray = ArrayType( cellCount, 0.f );
+	RhoUG.uzArray = ArrayType( cellCount, 0.f );
+	RhoUG.gxArray = ArrayType( cellCount, 0.f );
+	RhoUG.gyArray = ArrayType( cellCount, 0.f );
+	RhoUG.gzArray = ArrayType( cellCount, 0.f );
 	
-	ArrayType gxArray( cellCount, 0.f );
-	ArrayType gyArray( cellCount, 0.f );
-	ArrayType gzArray( cellCount, 0.f );
-	
-	SolidmaskType solidmask( cellCount, 0 );
 	for (size_t k = 0; k < cellCountZ; k++)
 	{
 		for (size_t i = 0; i < cellCountX; i++)
@@ -95,7 +97,7 @@ int main(int argc, char **argv)
 		}
 	}
 	
-	applyInitialization( F, rhoArray, uxArray, uyArray, uzArray );
+	applyInitialization( F, rhoUG );
 	
 	#ifdef __CUDACC__
 	std::cout << "Tnl periodic shift streaming + cummulant collision" << std::endl;
