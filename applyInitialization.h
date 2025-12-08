@@ -1,8 +1,8 @@
 #include "config.h"
-#include "types.h"
 
 void applyInitialization( 	DistributionFunctionStruct& F, 
-							RhoUGStruct& rhoUG )
+							ArrayType& rhoArray, 
+							ArrayType& uxArray, ArrayType& uyArray, ArrayType& uzArray )
 {
 	auto shifterView = F.shifter.getConstView();
 	
@@ -34,10 +34,10 @@ void applyInitialization( 	DistributionFunctionStruct& F,
 	auto f25ArrayView = F.fArray[25].getView();
 	auto f26ArrayView = F.fArray[26].getView();
 	
-	auto rhoArrayView = rhoUG.rhoArray.getView();
-	auto uxArrayView = rhoUG.uxArray.getView();
-	auto uyArrayView = rhoUG.uyArray.getView();
-	auto uzArrayView = rhoUG.uzArray.getView();
+	auto rhoArrayView = rhoArray.getView();
+	auto uxArrayView = uxArray.getView();
+	auto uyArrayView = uyArray.getView();
+	auto uzArrayView = uzArray.getView();
 
 	auto initializeLambda = [=] __cuda_callable__ (size_t cell) mutable
 	{
@@ -54,7 +54,7 @@ void applyInitialization( 	DistributionFunctionStruct& F,
 		const float uy = uyArrayView[cell];
 		const float uz = uzArrayView[cell];
 		
-		#include "includeInPlace/getFeq.hpp"
+		#include "inPlaceInclude/getFeq.hpp"
 		
 		f0ArrayView[shiftedIndex[0]]   = feq0;
 		f1ArrayView[shiftedIndex[1]]   = feq1;
