@@ -3,11 +3,8 @@ import copy
 import sympy as sp
 import os
 
-from readKnownDistributionsCpp import *
-from periodicBCCpp import *
-from runMBBCCpp import *
-from uInletConsistencyCpp import *
-from pOutletConsistencyCpp import *
+from applyVelocityInlet import *
+from applyPressureOutlet import *
 from getLatex import *
 
 f    =  [ f"f_{{{i}}}" for i in range(27) ]
@@ -128,63 +125,38 @@ def getBCdata(normal):
 
 os.makedirs("results", exist_ok=True)
 
+"""
 allNormals = [	[1,0,0], [0,1,0], [0,0,1], [-1,0,0], [0,-1,0], [0,0,-1],
 				[0,1,1], [1,0,1], [1,1,0], [0,-1,-1], [-1,0,-1], [-1,-1,0],
 				[0,1,-1], [1,0,-1], [1,-1,0], [0,-1,1], [-1,0,1], [-1,1,0],
 				[1,1,1], [-1,-1,-1], 
 				[-1,1,1], [1,-1,1], [1,1,-1], [1,-1,-1], [-1,1,-1], [-1,-1,1] ]
-
-#### Read known distributions
-allLines = []
-for i, normal in enumerate(allNormals):
-	fk, fu, mLabels, mfkRows, mfuRows, uniqueMfuRows, mGroups, chosenMoments, K, U, UInv, meqDict = getBCdata(normal)
-	allLines += readKnownDistributionsCpp(i, normal, fk, fu, chosenMoments, K, UInv, meqDict)
-
-with open("results/readFKnown.hpp", "w") as file:
-    file.write("\n".join(allLines))
-
-#### MBBC
-allLines = []
-for i, normal in enumerate(allNormals):
-	fk, fu, mLabels, mfkRows, mfuRows, uniqueMfuRows, mGroups, chosenMoments, K, U, UInv, meqDict = getBCdata(normal)
-	allLines += runMBBCCpp(i, normal, fk, fu, chosenMoments, K, UInv, meqDict)
-
-with open("results/applyMBBC.hpp", "w") as file:
-    file.write("\n".join(allLines))
+"""
 
 allNormals = [	[1,0,0], [0,1,0], [0,0,1], [-1,0,0], [0,-1,0], [0,0,-1] ]
 
-#### uInletConsistency
+#### applyVelocityInlet
 allLines = []
 for i, normal in enumerate(allNormals):
 	fk, fu, mLabels, mfkRows, mfuRows, uniqueMfuRows, mGroups, chosenMoments, K, U, UInv, meqDict = getBCdata(normal)
-	allLines += uInletConsistencyCpp(i, normal, fk, mfkRows)
+	allLines += applyVelocityInlet(i, normal, fk, fu, mLabels, mfkRows, mfuRows, uniqueMfuRows, mGroups, chosenMoments, K, U, UInv, meqDict)
 
-with open("results/getInletConsistency.hpp", "w") as file:
+with open("results/applyVelocityInlet.hpp", "w") as file:
     file.write("\n".join(allLines))
     
-#### pOutletConsistency
+
+#### applyPressureOutlet
 allLines = []
 for i, normal in enumerate(allNormals):
 	fk, fu, mLabels, mfkRows, mfuRows, uniqueMfuRows, mGroups, chosenMoments, K, U, UInv, meqDict = getBCdata(normal)
-	allLines += pOutletConsistencyCpp(i, normal, fk, mLabels, mfkRows)
+	allLines += applyPressureOutlet(i, normal, fk, fu, mLabels, mfkRows, mfuRows, uniqueMfuRows, mGroups, chosenMoments, K, U, UInv, meqDict)
 
-with open("results/getOutletConsistency.hpp", "w") as file:
-    file.write("\n".join(allLines))
-    
-#### Periodic BC
-allLines = []
-for i, normal in enumerate(allNormals):
-	fk, fu, mLabels, mfkRows, mfuRows, uniqueMfuRows, mGroups, chosenMoments, K, U, UInv, meqDict = getBCdata(normal)
-	allLines += periodicBCCpp(i, normal, fu)
-
-with open("results/applyPeriodicBC.hpp", "w") as file:
+with open("results/applyPressureOutlet.hpp", "w") as file:
     file.write("\n".join(allLines))
 
-
-
+"""
 #### Latex Tables
 normal = [0, 0, 1]
 fk, fu, mLabels, mfkRows, mfuRows, uniqueMfuRows, mGroups, chosenMoments, K, U, UInv, meqDict = getBCdata(normal)
 latexCode = getLatex(f, cx, cy, cz, w, normal, fk, fu, mLabels,	mfkRows, mfuRows, uniqueMfuRows, mGroups, chosenMoments, K, U, UInv, meqDict)
-
+"""

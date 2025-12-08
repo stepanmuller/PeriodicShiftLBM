@@ -1,12 +1,12 @@
 #include "../config.h"
-#include "../types.h"
 
-void updateFluidCells( 	CellGroupStruct& cells,
-						DistributionFunctionStruct& F, 
-						RhoUGStruct& rhoUG )
+void applyLocalCellUpdate( 	flagArrayType& flagArray,
+							DistributionFunctionStruct& F, 
+							ArrayType& rhoArray, 
+							ArrayType& uxArray, ArrayType& uyArray, ArrayType& uzArray,
+							ArrayType& gxArray, ArrayType& gyArray, ArrayType& gzArray )
 {
-	size_t groupSize = cells.groupSize;
-	auto indexArrayView = cells.indexArray.getConstView();
+	auto flagArrayView = flagArray.getConstView();
 	
 	auto shifterView = F.shifter.getConstView();
 	
@@ -38,17 +38,16 @@ void updateFluidCells( 	CellGroupStruct& cells,
 	auto f25ArrayView = F.fArray[25].getView();
 	auto f26ArrayView = F.fArray[26].getView();
 	
-	auto rhoArrayView = rhoUG.rhoArray.getView();
-	auto uxArrayView = rhoUG.uxArray.getView();
-	auto uyArrayView = rhoUG.uyArray.getView();
-	auto uzArrayView = rhoUG.uzArray.getView();
-	auto gxArrayView = rhoUG.gxArray.getView();
-	auto gyArrayView = rhoUG.gyArray.getView();
-	auto gzArrayView = rhoUG.gzArray.getView();
+	auto rhoArrayView = rhoArray.getView();
+	auto uxArrayView = uxArray.getView();
+	auto uyArrayView = uyArray.getView();
+	auto uzArrayView = uzArray.getView();
+	auto gxArrayView = gxArray.getView();
+	auto gyArrayView = gyArray.getView();
+	auto gzArrayView = gzArray.getView();
 
-	auto cellLambda = [=] __cuda_callable__ (size_t index) mutable
+	auto cellLambda = [=] __cuda_callable__ (size_t cell) mutable
 	{
-		size_t cell = indexArrayView[index];
 		size_t shiftedIndex[27];
 		for (size_t i = 0; i < 27; i++) 
 		{
@@ -56,12 +55,43 @@ void updateFluidCells( 	CellGroupStruct& cells,
 			shiftedIndex[i] = cell + shift;
 			if (shiftedIndex[i] >= cellCount) { shiftedIndex[i] -= cellCount; }
 		}
-		#include "../includeInPlace/readF.hpp"
-		#include "../includeInPlace/getRhoUxUyUz.hpp"
-		#include "../includeInPlace/applyCollision.hpp"
-		#include "../includeInPlace/writeF.hpp"
-		#include "../includeInPlace/writeRho.hpp"
-		#include "../includeInPlace/writeUxUyUz.hpp"
+		flag = flagArray[cell];
+		if ( flag == 0 ) return; // ignore cell
+		else if ( flag == 1 ) // fluid
+		{
+			#include "../inPlaceInclude/readF.hpp"
+			#include "../inPlaceInclude/getRhoUxUyUz.hpp"
+			#include "../inPlaceInclude/applyCollision.hpp"
+			#include "../inPlaceInclude/writeF.hpp"
+			#include "../inPlaceInclude/writeRho.hpp"
+			#include "../inPlaceInclude/writeUxUyUz.hpp"
+			return;
+		}
+		else if ( flag == 2 ) // bounceback
+		{
+			#include "../inPlaceInclude/readF.hpp"
+			#include "../inPlaceInclude/applyBounceback.hpp"
+			#include "../inPlaceInclude/getRhoUxUyUz.hpp"
+			#include "../inPlaceInclude/applyCollision.hpp"
+			#include "../inPlaceInclude/writeF.hpp"
+			#include "../inPlaceInclude/writeRho.hpp"
+			#include "../inPlaceInclude/writeUxUyUz.hpp"
+			return;
+		}
+		else if ( flag > 1000 && flag < 2000 ) // velocity inlet
+		{
+			#include "../inPlaceInclude/applyVelocityInlet.hpp"
+			#include "../inPlaceInclude/applyCollision.hpp"
+			#include "../inPlaceInclude/writeF.hpp"
+			#include "../inPlaceInclude/writeRho.hpp"
+		}
+		else if ( flag > 2000 && flag < 3000 ) // pressure outlet
+		{
+			#include "../inPlaceInclude/applyPressureOutlet.hpp"
+			#include "../inPlaceInclude/applyCollision.hpp"
+			#include "../inPlaceInclude/writeF.hpp"
+			#include "../inPlaceInclude/writeUxUyUz.hpp"
+		}
 	};
 	TNL::Algorithms::parallelFor<TNL::Devices::Cuda>(0, groupSize, cellLambda );
 }

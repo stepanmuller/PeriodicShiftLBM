@@ -8,22 +8,41 @@ def stringToNumber(s):
 	else:
 		return None
 
-def pOutletConsistencyCpp(i, normal, fk, mLabels, mfkRows):
+def applyPressureOutlet(i, normal, fk, fu, mLabels, mfkRows, mfuRows, uniqueMfuRows, mGroups, chosenMoments, K, U, UInv, meqDict):
 	lines = []
+	flag = 1000 + (100 * (normal[0] + 5) + 10 * (normal[1] + 5) + (normal[2] + 5))
 	if i == 0:
-		lines.append("// Known distributions must be read above")
-		lines.append("// Reads prescribed float rho from local cell")
-		lines.append("// Calculates normal float u_ from consistency condition")
-		lines.append("// Calculates two tangential u_, u_ from moments")
-		lines.append("// Works for face cells only. Outer normal points in the direction where no neighbours are")
+		lines.append("// Applies pressure outlet moment based boundary condition on a face cell")
+		lines.append("// 1. Reads known distributions and prescribed rho")
+		lines.append("// 2. Calculates normal u component from consistency condition")
+		lines.append("// 3. Uses moments to calculate tangential u components")
+		lines.append("// 4. Applies general moment based boundary condition to find unknown distributions")
 		lines.append("")
+		lines.append("// Source paper: Pavel Eichler, Radek Fucik, and Pavel Strachota.")
+		lines.append("// Investigation of mesoscopic boundary conditions for lattice boltzmann method in laminar flow problems.")
+		lines.append("// Computers & Mathematics with Applications, 173:87–101, 2024.")
+		lines.append("")
+		lines.append("// Reading prescribed pressure outlet rho")
 		lines.append("const float rho = rhoArrayView[cell];")
 		lines.append("")
-		lines.append("if (outerNormalX == " + str(normal[0]) + " && outerNormalY == " + str(normal[1]) + " && outerNormalZ == " + str(normal[2]) + ")")
+		lines.append("if (flag == " + str(flag) + ") // outer normal " + str(normal))
 	else:
-		lines.append("elif (outerNormalX == " + str(normal[0]) + " && outerNormalY == " + str(normal[1]) + " && outerNormalZ == " + str(normal[2]) + ")")
+		lines.append("else if (flag == " + str(flag) + ") // outer normal " + str(normal))
 	lines.append("{")
 	
+	lines.append("	// Reading known distributions fk")
+	for k in fk:
+		number = stringToNumber(k)
+		line = "	float f"
+		line += str(number)
+		line += " = f"
+		line += str(number)
+		line += "ArrayView[shiftedIndex["
+		line += str(number)
+		line += "]];"
+		lines.append(line)
+		
+	lines.append("	// Applying consistency condition to find normal u component")
 	momentIndexNormal = np.where(np.array(normal) != 0)[0][0] + 1
 	momentSign = np.sum(np.array(normal))
 	
@@ -53,6 +72,7 @@ def pOutletConsistencyCpp(i, normal, fk, mLabels, mfkRows):
 		velocity = "uz"
 	lines.append("    float " + velocity + " = 1.f - fkProduct / rho;")
 	
+	lines.append("	// Using moments to find tangential u components in a local way")
 	if momentIndexNormal == 1: #x is normal direction
 		indexLin1 = mLabels.index("m_{010}") #to get uy
 		indexCub1 = mLabels.index("m_{210}")
@@ -122,5 +142,62 @@ def pOutletConsistencyCpp(i, normal, fk, mLabels, mfkRows):
 		lines.append("    float ux = fkTangential1 / ( (2.f/3.f - " + str(velocity) + " ) * rho );") #to get ux
 		lines.append("    float uy = fkTangential2 / ( (2.f/3.f - " + str(velocity) + " ) * rho );") #to get uy
 	
+	lines.append("	// At this point rho, ux, uy, uz are known")
+	lines.append("	// Applying general MBBC")
+	lines.append("	// Multiply K fk")
+	for i, row in enumerate(K):
+		line = "	const float kf" + str(i) + " ="
+		for j, multiplier in enumerate(row):
+			if multiplier == 0:
+				continue
+			if multiplier == 1:
+				number = stringToNumber(fk[j])
+				line += " + f" + str(number)
+			elif multiplier == -1:
+				number = stringToNumber(fk[j])
+				line += " - f" + str(number)
+		if line[-1] == "=":
+			line += " 0.f;"
+		else:
+			line += ";"
+		lines.append(line)
+	lines.append("	// Calculate equilibrium moments")
+	for i, moment in enumerate(chosenMoments):
+		line = "	const float m" + str(i) + " = "
+		line += meqDict[moment]
+		line += ";"
+		lines.append(line)
+	lines.append("	// Subtract m - Kfk")
+	for i, moment in enumerate(chosenMoments):
+		line = "	const float s" + str(i) + " = "
+		line += "m" + str(i) + " - kf" + str(i) + ";"
+		lines.append(line)
+	lines.append("	// Multiply U^-1 * (m - Kfk) to get unknown distributions")
+	for i, unknown in enumerate(fu):
+		number = stringToNumber(unknown)
+		line = "	float f" + str(number) + " ="
+		for j, multiplier in enumerate(UInv[i]):
+			if multiplier == 0:
+				continue
+			elif multiplier == 1:
+				line += " + s" + str(j)
+				continue
+			elif multiplier == -1:
+				line += " - s" + str(j)
+				continue
+			elif multiplier > 0:
+				line += " + "
+			elif multiplier < 0:
+				line += " - "
+			multiplier = abs(multiplier)
+			multiplier = str(float(multiplier)) + "f"
+			line += multiplier
+			line += " * "
+			line += "s" + str(j)
+		if line[-1] == "=":
+			line += " 0.f"
+		line += ";"
+		lines.append(line)
 	lines.append("}")
+
 	return lines
