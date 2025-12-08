@@ -10,34 +10,7 @@
 
 // Reading prescribed pressure outlet rho
 const float rho = rhoArrayView[cell];
-// Declaring f0...f26, ux, uy, uz
-float f0 = 1.f;
-float f1 = 0.f;
-float f2 = 0.f;
-float f3 = 0.f;
-float f4 = 0.f;
-float f5 = 0.f;
-float f6 = 0.f;
-float f7 = 0.f;
-float f8 = 0.f;
-float f9 = 0.f;
-float f10 = 0.f;
-float f11 = 0.f;
-float f12 = 0.f;
-float f13 = 0.f;
-float f14 = 0.f;
-float f15 = 0.f;
-float f16 = 0.f;
-float f17 = 0.f;
-float f18 = 0.f;
-float f19 = 0.f;
-float f20 = 0.f;
-float f21 = 0.f;
-float f22 = 0.f;
-float f23 = 0.f;
-float f24 = 0.f;
-float f25 = 0.f;
-float f26 = 0.f;
+// Declaring ux, uy, uz
 float ux = 0.f;
 float uy = 0.f;
 float uz = 0.f;

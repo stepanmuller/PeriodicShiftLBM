@@ -1,17 +1,15 @@
 #include "config.h"
 
-void applyLocalCellUpdate( 	FlagArrayType& flagArray,
-							MarkerArrayType& fluidMarkerArray,
-							MarkerArrayType& bouncebackMarkerArray,
+void applyLocalCellUpdate( 	MarkerStruct& Marker,
 							DistributionFunctionStruct& F, 
 							ArrayType& rhoArray, 
 							ArrayType& uxArray, ArrayType& uyArray, ArrayType& uzArray,
 							ArrayType& gxArray, ArrayType& gyArray, ArrayType& gzArray )
 {
-	auto flagArrayView = flagArray.getConstView();
-	
-	auto fluidMarkerArrayView = fluidMarkerArray.getConstView();
-	auto bouncebackMarkerArrayView = bouncebackMarkerArray.getConstView();
+	auto fluidMarkerArrayView = Marker.fluidArray.getConstView();
+	auto bouncebackMarkerArrayView = Marker.bouncebackArray.getConstView();
+	auto inletMarkerArrayView = Marker.inletArray.getConstView();
+	auto outletMarkerArrayView = Marker.outletArray.getConstView();
 	
 	auto shifterView = F.shifter.getConstView();
 	
@@ -61,41 +59,40 @@ void applyLocalCellUpdate( 	FlagArrayType& flagArray,
 			if (shiftedIndex[i] >= cellCount) { shiftedIndex[i] -= cellCount; }
 		}
 		bool fluidMarker = fluidMarkerArrayView[cell];
-		if ( fluidMarker == 1 ) // fluid
+		#include "inPlaceInclude/readF.hpp"
+		if ( fluidMarker == 1 )
 		{
-			#include "inPlaceInclude/readF.hpp"
 			#include "inPlaceInclude/getRhoUxUyUz.hpp"
 			#include "inPlaceInclude/applyCollision.hpp"
-			#include "inPlaceInclude/writeF.hpp"
 			#include "inPlaceInclude/writeRho.hpp"
 			#include "inPlaceInclude/writeUxUyUz.hpp"
-			return;
 		}
 		bool bouncebackMarker = bouncebackMarkerArrayView[cell];
-		if ( bouncebackMarker == 1 ) // bounceback
+		if ( bouncebackMarker == 1 )
 		{
-			#include "inPlaceInclude/readF.hpp"
 			#include "inPlaceInclude/applyBounceback.hpp"
-			#include "inPlaceInclude/writeF.hpp"
-			return;
 		}
-		short flag = flagArrayView[cell];
-		if ( flag == 0 ) return; // ignore cell
-		else if ( flag > 1000 && flag < 2000 ) // velocity inlet
+		bool inletMarker = inletMarkerArrayView[cell];
+		if ( inletMarker == 1 )
 		{
+			short flag = 1554;
 			#include "inPlaceInclude/applyVelocityInlet.hpp"
 			#include "inPlaceInclude/applyCollision.hpp"
 			#include "inPlaceInclude/writeF.hpp"
 			#include "inPlaceInclude/writeRho.hpp"
 			return;
 		}
-		else if ( flag > 2000 && flag < 3000 ) // pressure outlet
+		bool outletMarker = outletMarkerArrayView[cell];
+		if ( outletMarker == 1 )
 		{
+			short flag = 2556;
 			#include "inPlaceInclude/applyPressureOutlet.hpp"
 			#include "inPlaceInclude/applyCollision.hpp"
 			#include "inPlaceInclude/writeF.hpp"
 			#include "inPlaceInclude/writeUxUyUz.hpp"
+			return;
 		}
+		#include "inPlaceInclude/writeF.hpp"
 	};
 	TNL::Algorithms::parallelFor<TNL::Devices::Cuda>(0, cellCount, cellLambda );
 }

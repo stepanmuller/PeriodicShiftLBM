@@ -11,34 +11,7 @@
 float ux = uxArrayView[cell];
 float uy = uyArrayView[cell];
 float uz = uzArrayView[cell];
-// Declaring f0...f26, rho
-float f0 = 1.f;
-float f1 = 0.f;
-float f2 = 0.f;
-float f3 = 0.f;
-float f4 = 0.f;
-float f5 = 0.f;
-float f6 = 0.f;
-float f7 = 0.f;
-float f8 = 0.f;
-float f9 = 0.f;
-float f10 = 0.f;
-float f11 = 0.f;
-float f12 = 0.f;
-float f13 = 0.f;
-float f14 = 0.f;
-float f15 = 0.f;
-float f16 = 0.f;
-float f17 = 0.f;
-float f18 = 0.f;
-float f19 = 0.f;
-float f20 = 0.f;
-float f21 = 0.f;
-float f22 = 0.f;
-float f23 = 0.f;
-float f24 = 0.f;
-float f25 = 0.f;
-float f26 = 0.f;
+// Declaring rho
 float rho = 1.f;
 
 if (flag == 1655) // outer normal [1, 0, 0]

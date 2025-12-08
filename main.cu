@@ -1,6 +1,7 @@
 #include <iostream>
 #include <TNL/Algorithms/parallelFor.h>
 #include <TNL/Containers/Array.h>
+#include <TNL/Containers/StaticArray.h>
 #include <TNL/Timer.h>
 #include <cmath>
 #include <fstream> 
@@ -10,16 +11,18 @@ using ArrayType = TNL::Containers::Array< float, TNL::Devices::Cuda, size_t >;
 using IndexArrayType = TNL::Containers::Array< size_t, TNL::Devices::Cuda, size_t >;
 
 using MarkerArrayType = TNL::Containers::Array< bool, TNL::Devices::Cuda, size_t >;
-
-using FlagArrayType = TNL::Containers::Array< short, TNL::Devices::Cuda, size_t >;
-using CPUFlagArrayType = TNL::Containers::Array< short, TNL::Devices::Host, size_t >;
+using MarkerArrayTypeCPU = TNL::Containers::Array< bool, TNL::Devices::Host, size_t >;
 
 struct DistributionFunctionStruct { IndexArrayType shifter; ArrayType fArray[27]; };
+
+struct MarkerStruct { MarkerArrayType fluidArray; MarkerArrayType bouncebackArray; MarkerArrayType inletArray; MarkerArrayType outletArray;  };
+struct MarkerStructCPU { MarkerArrayTypeCPU fluidArray; MarkerArrayTypeCPU bouncebackArray; MarkerArrayTypeCPU inletArray; MarkerArrayTypeCPU outletArray;  };
 
 #include "config.h"
 
 #include "convertIndex.h"
 
+#include "applyMarkers.h"
 #include "applyInitialization.h"
 #include "applyStreaming.h"
 #include "applyLocalCellUpdate.h"
@@ -30,63 +33,32 @@ int main(int argc, char **argv)
 	F.shifter = IndexArrayType( 27, 0 );
 	for (size_t i = 0; i < 27; i++) { F.fArray[i] = ArrayType(cellCount, 1.f); }
 	
+	MarkerStruct Marker;
+	Marker.fluidArray = MarkerArrayType( cellCount, 0);
+	Marker.bouncebackArray = MarkerArrayType( cellCount, 0);
+	Marker.inletArray = MarkerArrayType( cellCount, 0);
+	Marker.outletArray = MarkerArrayType( cellCount, 0);
+	
+	MarkerStruct MarkerCPU;
+	MarkerCPU.fluidArray = MarkerArrayTypeCPU( cellCount, 0);
+	MarkerCPU.bouncebackArray = MarkerArrayTypeCPU( cellCount, 0);
+	MarkerCPU.inletArray = MarkerArrayTypeCPU( cellCount, 0);
+	MarkerCPU.outletArray = MarkerArrayTypeCPU( cellCount, 0);
+	
 	ArrayType rhoArray = ArrayType( cellCount, 1.f );
 	ArrayType uxArray = ArrayType( cellCount, 0.f );
 	ArrayType uyArray = ArrayType( cellCount, 0.f );
 	ArrayType uzArray = ArrayType( cellCount, 0.f );
 	ArrayType gxArray = ArrayType( cellCount, 0.f );
 	ArrayType gyArray = ArrayType( cellCount, 0.f );
-	ArrayType gzArray = ArrayType( cellCount, 0.f );
-	
-	MarkerArrayType fluidMarkerArray = MarkerArrayType( cellCount, 0);
-	MarkerArrayType bouncebackMarkerArray = MarkerArrayType( cellCount, 0);
-	
-	FlagArrayType flagArray = FlagArrayType( cellCount, 0);	
-	CPUFlagArrayType CPUFlagArray = CPUFlagArrayType( cellCount, 0); // 1 = fluid, 2 = bounceback, 1NNN = velocity inlet, 2NNN = pressure outlet
+	ArrayType gzArray = ArrayType( cellCount, 0.f );	
 	
 	std::cout << "Periodic Shift LBM" << std::endl;
-	std::cout << "Initialization: Flagging cells" << std::endl;
 	
-	for (size_t k = 0; k < cellCountZ; k++)
-	{
-		for (size_t j = 0; j < cellCountY; j++)
-		{
-			for (size_t i = 0; i < cellCountX; i++)
-			{
-				size_t cell = convertIndex(i, j, k);
-				
-				if (cell%1000000 == 0){std::cout << "Classifying cell " << cell << " out of " << cellCount << std::endl;}
-				
-				if ( j>=350 && j<=450 && k>=250 && k<=350 ) 
-				{
-					CPUFlagArray.setElement( cell, 2 ); // 2 = bounceback
-					bouncebackMarkerArray.setElement( cell, 1 );
-				}
-				else if ( i==0 || i==cellCountX-1 || j==0 || j==cellCountY-1 ) 
-				{
-					CPUFlagArray.setElement( cell, 2 ); // 2 = bounceback
-				}
-				else if ( k==0 ) 
-				{
-					CPUFlagArray.setElement( cell, 1554 ); // 1NNN = velocity inlet, 554 -> outer normal (0, 0, -1)
-					uzArray.setElement( cell, uzInlet );
-				}
-				else if ( k==cellCountZ-1 ) 
-				{
-					CPUFlagArray.setElement( cell, 2556 ); // 2NNN = pressure outlet, 556 -> outer normal (0, 0, 1)
-				}
-				else
-				{
-					CPUFlagArray.setElement( cell, 1 ); // 1 = fluid
-					fluidMarkerArray.setElement( cell, 1 );
-				}
-			}
-		}
-	}
+	std::cout << "Initialization: Marking cells" << std::endl;
+	applyMarkers(Marker, uzArray);
 	
-	std::cout << "Passing cells to GPU" << std::endl;
-	flagArray = CPUFlagArray;
-	
+	std::cout << "Initialization: Filling F" << std::endl;
 	applyInitialization( F, rhoArray, uxArray, uyArray, uzArray );
 	
 	#ifdef __CUDACC__
@@ -98,7 +70,7 @@ int main(int argc, char **argv)
 	for (int i=0; i<iterationCount; i++)
 	{
 		applyStreaming( F );
-		applyLocalCellUpdate( flagArray, fluidMarkerArray, bouncebackMarkerArray, F, rhoArray, uxArray, uyArray, uzArray, gxArray, gyArray, gzArray );
+		applyLocalCellUpdate( Marker, F, rhoArray, uxArray, uyArray, uzArray, gxArray, gyArray, gzArray );
 		
 		if (i%100 == 0 && i!=0)
 		{

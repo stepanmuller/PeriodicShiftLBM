@@ -39,7 +39,7 @@ void applyInitialization( 	DistributionFunctionStruct& F,
 	auto uyArrayView = uyArray.getView();
 	auto uzArrayView = uzArray.getView();
 
-	auto initializeLambda = [=] __cuda_callable__ (size_t cell) mutable
+	auto cellLambda = [=] __cuda_callable__ (size_t cell) mutable
 	{
 		size_t shiftedIndex[27];
 		for (size_t i = 0; i < 27; i++) 
@@ -84,5 +84,5 @@ void applyInitialization( 	DistributionFunctionStruct& F,
 		f25ArrayView[shiftedIndex[25]] = feq25;
 		f26ArrayView[shiftedIndex[26]] = feq26;
 	};
-	TNL::Algorithms::parallelFor<TNL::Devices::Cuda>(0, cellCount, initializeLambda );
+	TNL::Algorithms::parallelFor<TNL::Devices::Cuda>(0, cellCount, cellLambda );
 }
