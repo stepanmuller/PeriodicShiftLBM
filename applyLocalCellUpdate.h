@@ -1,4 +1,5 @@
 #include "config.h"
+#include "getOuterNormal.h"
 
 void applyLocalCellUpdate( 	MarkerStruct& Marker,
 							DistributionFunctionStruct& F, 
@@ -72,20 +73,22 @@ void applyLocalCellUpdate( 	MarkerStruct& Marker,
 		{
 			#include "inPlaceInclude/applyBounceback.hpp"
 		}
+		
 		bool inletMarker = inletMarkerArrayView[cell];
 		if ( inletMarker == 1 )
 		{
-			short flag = 1554;
+			short outerNormalX, outerNormalY, outerNormalZ;
+			getOuterNormal(cell, outerNormalX, outerNormalY, outerNormalZ);
 			#include "inPlaceInclude/applyVelocityInlet.hpp"
 			#include "inPlaceInclude/applyCollision.hpp"
-			#include "inPlaceInclude/writeF.hpp"
 			#include "inPlaceInclude/writeRho.hpp"
-			return;
+			//return;
 		}
 		bool outletMarker = outletMarkerArrayView[cell];
 		if ( outletMarker == 1 )
 		{
-			short flag = 2556;
+			short outerNormalX, outerNormalY, outerNormalZ;
+			getOuterNormal(cell, outerNormalX, outerNormalY, outerNormalZ);
 			#include "inPlaceInclude/applyPressureOutlet.hpp"
 			#include "inPlaceInclude/applyCollision.hpp"
 			#include "inPlaceInclude/writeF.hpp"

@@ -15,7 +15,7 @@ float ux = 0.f;
 float uy = 0.f;
 float uz = 0.f;
 
-if (flag == 2655) // outer normal [1, 0, 0]
+if ( outerNormalX == 1 && outerNormalY == 0 && outerNormalZ == 0 )
 {
 	// Reading known distributions fk
 	f0 = f0ArrayView[shiftedIndex[0]];
@@ -87,7 +87,7 @@ if (flag == 2655) // outer normal [1, 0, 0]
 	f24 = + 0.25f * s5 + 0.25f * s6 + 0.25f * s7 + 0.25f * s8;
 	f25 = + 0.25f * s5 - 0.25f * s6 - 0.25f * s7 + 0.25f * s8;
 }
-else if (flag == 2565) // outer normal [0, 1, 0]
+else if ( outerNormalX == 0 && outerNormalY == 1 && outerNormalZ == 0 )
 {
 	// Reading known distributions fk
 	f0 = f0ArrayView[shiftedIndex[0]];
@@ -159,7 +159,7 @@ else if (flag == 2565) // outer normal [0, 1, 0]
 	f23 = - 0.25f * s5 - 0.25f * s6 + 0.25f * s7 + 0.25f * s8;
 	f25 = + 0.25f * s5 - 0.25f * s6 - 0.25f * s7 + 0.25f * s8;
 }
-else if (flag == 2556) // outer normal [0, 0, 1]
+else if ( outerNormalX == 0 && outerNormalY == 0 && outerNormalZ == 1 )
 {
 	// Reading known distributions fk
 	f0 = f0ArrayView[shiftedIndex[0]];
@@ -231,7 +231,7 @@ else if (flag == 2556) // outer normal [0, 0, 1]
 	f23 = - 0.25f * s5 - 0.25f * s6 + 0.25f * s7 + 0.25f * s8;
 	f25 = + 0.25f * s5 - 0.25f * s6 - 0.25f * s7 + 0.25f * s8;
 }
-else if (flag == 2455) // outer normal [-1, 0, 0]
+else if ( outerNormalX == -1 && outerNormalY == 0 && outerNormalZ == 0 )
 {
 	// Reading known distributions fk
 	f0 = f0ArrayView[shiftedIndex[0]];
@@ -303,7 +303,7 @@ else if (flag == 2455) // outer normal [-1, 0, 0]
 	f23 = + 0.25f * s5 - 0.25f * s6 - 0.25f * s7 + 0.25f * s8;
 	f26 = + 0.25f * s5 + 0.25f * s6 + 0.25f * s7 + 0.25f * s8;
 }
-else if (flag == 2545) // outer normal [0, -1, 0]
+else if ( outerNormalX == 0 && outerNormalY == -1 && outerNormalZ == 0 )
 {
 	// Reading known distributions fk
 	f0 = f0ArrayView[shiftedIndex[0]];
@@ -375,7 +375,7 @@ else if (flag == 2545) // outer normal [0, -1, 0]
 	f24 = - 0.25f * s5 + 0.25f * s6 - 0.25f * s7 + 0.25f * s8;
 	f26 = + 0.25f * s5 + 0.25f * s6 + 0.25f * s7 + 0.25f * s8;
 }
-else if (flag == 2554) // outer normal [0, 0, -1]
+else if ( outerNormalX == 0 && outerNormalY == 0 && outerNormalZ == -1 )
 {
 	// Reading known distributions fk
 	f0 = f0ArrayView[shiftedIndex[0]];

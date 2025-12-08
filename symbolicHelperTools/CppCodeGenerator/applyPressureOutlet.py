@@ -10,7 +10,6 @@ def stringToNumber(s):
 
 def applyPressureOutlet(i, normal, fk, fu, mLabels, mfkRows, mfuRows, uniqueMfuRows, mGroups, chosenMoments, K, U, UInv, meqDict):
 	lines = []
-	flag = 2000 + (100 * (normal[0] + 5) + 10 * (normal[1] + 5) + (normal[2] + 5))
 	if i == 0:
 		lines.append("// Applies pressure outlet moment based boundary condition on a face cell")
 		lines.append("// 1. Reads known distributions and prescribed rho")
@@ -29,9 +28,9 @@ def applyPressureOutlet(i, normal, fk, fu, mLabels, mfkRows, mfuRows, uniqueMfuR
 		lines.append("float uy = 0.f;")
 		lines.append("float uz = 0.f;")
 		lines.append("")
-		lines.append("if (flag == " + str(flag) + ") // outer normal " + str(normal))
+		lines.append("if ( outerNormalX == " + str(normal[0]) + " && outerNormalY == " + str(normal[1]) + " && outerNormalZ == " + str(normal[2]) + " )")
 	else:
-		lines.append("else if (flag == " + str(flag) + ") // outer normal " + str(normal))
+		lines.append("else if ( outerNormalX == " + str(normal[0]) + " && outerNormalY == " + str(normal[1]) + " && outerNormalZ == " + str(normal[2]) + " )")
 	lines.append("{")
 	
 	lines.append("	// Reading known distributions fk")

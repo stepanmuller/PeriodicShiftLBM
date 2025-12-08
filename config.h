@@ -14,7 +14,7 @@ constexpr float SmagorinskyConstant = 0.1; 							// set to zero to turn off LES
 constexpr size_t cellCountX = 50;
 constexpr size_t cellCountY = 800;
 constexpr size_t cellCountZ = 1600;
-constexpr int iterationCount = 1000;
+constexpr int iterationCount = 20000;
 
 // calculated from input
 constexpr size_t cellCount = cellCountX * cellCountY * cellCountZ;

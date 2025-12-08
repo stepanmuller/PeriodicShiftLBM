@@ -28,9 +28,9 @@ def applyVelocityInlet(i, normal, fk, fu, mLabels, mfkRows, mfuRows, uniqueMfuRo
 		lines.append("// Declaring rho")
 		lines.append("float rho = 1.f;")
 		lines.append("")
-		lines.append("if (flag == " + str(flag) + ") // outer normal " + str(normal))
+		lines.append("if ( outerNormalX == " + str(normal[0]) + " && outerNormalY == " + str(normal[1]) + " && outerNormalZ == " + str(normal[2]) + " )")
 	else:
-		lines.append("else if (flag == " + str(flag) + ") // outer normal " + str(normal))
+		lines.append("else if ( outerNormalX == " + str(normal[0]) + " && outerNormalY == " + str(normal[1]) + " && outerNormalZ == " + str(normal[2]) + " )")
 	lines.append("{")
 	
 	lines.append("	// Reading known distributions fk")
