@@ -154,9 +154,9 @@ for i, normal in enumerate(allNormals):
 with open("results/applyPressureOutlet.hpp", "w") as file:
     file.write("\n".join(allLines))
 
-"""
+
 #### Latex Tables
 normal = [0, 0, 1]
 fk, fu, mLabels, mfkRows, mfuRows, uniqueMfuRows, mGroups, chosenMoments, K, U, UInv, meqDict = getBCdata(normal)
 latexCode = getLatex(f, cx, cy, cz, w, normal, fk, fu, mLabels,	mfkRows, mfuRows, uniqueMfuRows, mGroups, chosenMoments, K, U, UInv, meqDict)
-"""
+

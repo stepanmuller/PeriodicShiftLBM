@@ -25,6 +25,35 @@ def applyVelocityInlet(i, normal, fk, fu, mLabels, mfkRows, mfuRows, uniqueMfuRo
 		lines.append("float ux = uxArrayView[cell];")
 		lines.append("float uy = uyArrayView[cell];")
 		lines.append("float uz = uzArrayView[cell];")
+		lines.append("// Declaring f0...f26, rho")
+		lines.append("float f0 = 1.f;")
+		lines.append("float f1 = 0.f;")
+		lines.append("float f2 = 0.f;")
+		lines.append("float f3 = 0.f;")
+		lines.append("float f4 = 0.f;")
+		lines.append("float f5 = 0.f;")
+		lines.append("float f6 = 0.f;")
+		lines.append("float f7 = 0.f;")
+		lines.append("float f8 = 0.f;")
+		lines.append("float f9 = 0.f;")
+		lines.append("float f10 = 0.f;")
+		lines.append("float f11 = 0.f;")
+		lines.append("float f12 = 0.f;")
+		lines.append("float f13 = 0.f;")
+		lines.append("float f14 = 0.f;")
+		lines.append("float f15 = 0.f;")
+		lines.append("float f16 = 0.f;")
+		lines.append("float f17 = 0.f;")
+		lines.append("float f18 = 0.f;")
+		lines.append("float f19 = 0.f;")
+		lines.append("float f20 = 0.f;")
+		lines.append("float f21 = 0.f;")
+		lines.append("float f22 = 0.f;")
+		lines.append("float f23 = 0.f;")
+		lines.append("float f24 = 0.f;")
+		lines.append("float f25 = 0.f;")
+		lines.append("float f26 = 0.f;")
+		lines.append("float rho = 1.f;")
 		lines.append("")
 		lines.append("if (flag == " + str(flag) + ") // outer normal " + str(normal))
 	else:
@@ -34,7 +63,7 @@ def applyVelocityInlet(i, normal, fk, fu, mLabels, mfkRows, mfuRows, uniqueMfuRo
 	lines.append("	// Reading known distributions fk")
 	for k in fk:
 		number = stringToNumber(k)
-		line = "	float f"
+		line = "	f"
 		line += str(number)
 		line += " = f"
 		line += str(number)
@@ -48,7 +77,7 @@ def applyVelocityInlet(i, normal, fk, fu, mLabels, mfkRows, mfuRows, uniqueMfuRo
 	momentSign = np.sum(np.array(normal))
 	line = "	const float fkProduct ="
 	for j, coeff2 in enumerate(mfkRows[momentIndex]):
-		multiplier = 1 - coeff2
+		multiplier = 1 + momentSign * coeff2
 		if multiplier == 0:
 			continue
 		if multiplier == 1:
@@ -70,7 +99,10 @@ def applyVelocityInlet(i, normal, fk, fu, mLabels, mfkRows, mfuRows, uniqueMfuRo
 		velocity = "uy"
 	elif momentIndex == 3:
 		velocity = "uz"
-	lines.append("    const float rho = fkProduct / (1.f - " + velocity + ");")
+	if momentSign < 0:
+		lines.append("    rho = fkProduct / (1.f - " + velocity + ");")
+	else:
+		lines.append("    rho = fkProduct / (1.f + " + velocity + ");")
 	
 	lines.append("	// At this point rho, ux, uy, uz are known")
 	lines.append("	// Applying general MBBC")
@@ -105,7 +137,7 @@ def applyVelocityInlet(i, normal, fk, fu, mLabels, mfkRows, mfuRows, uniqueMfuRo
 	lines.append("	// Multiply U^-1 * (m - Kfk) to get unknown distributions")
 	for i, unknown in enumerate(fu):
 		number = stringToNumber(unknown)
-		line = "	float f" + str(number) + " ="
+		line = "	f" + str(number) + " ="
 		for j, multiplier in enumerate(UInv[i]):
 			if multiplier == 0:
 				continue

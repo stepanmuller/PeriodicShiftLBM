@@ -4,10 +4,15 @@
 #include <TNL/Timer.h>
 #include <cmath>
 #include <fstream> 
+#include <cstdlib>
 
 using ArrayType = TNL::Containers::Array< float, TNL::Devices::Cuda, size_t >;
-using FlagArrayType = TNL::Containers::Array< int, TNL::Devices::Cuda, size_t >;
-using CPUFlagArrayType = TNL::Containers::Array< int, TNL::Devices::Host, size_t >;
+using IndexArrayType = TNL::Containers::Array< size_t, TNL::Devices::Cuda, size_t >;
+
+using MarkerArrayType = TNL::Containers::Array< bool, TNL::Devices::Cuda, size_t >;
+
+using FlagArrayType = TNL::Containers::Array< short, TNL::Devices::Cuda, size_t >;
+using CPUFlagArrayType = TNL::Containers::Array< short, TNL::Devices::Host, size_t >;
 
 struct DistributionFunctionStruct { IndexArrayType shifter; ArrayType fArray[27]; };
 
@@ -33,8 +38,11 @@ int main(int argc, char **argv)
 	ArrayType gyArray = ArrayType( cellCount, 0.f );
 	ArrayType gzArray = ArrayType( cellCount, 0.f );
 	
-	FlagArrayType flagArray = FlagArrayType( cellCount, 0);	// 1 = fluid, 2 = bounceback, 1NNN = velocity inlet, 2NNN = pressure outlet
-	CPUFlagArrayType CPUFlagArray = CPUFlagArrayType( cellCount, 0);
+	MarkerArrayType fluidMarkerArray = MarkerArrayType( cellCount, 0);
+	MarkerArrayType bouncebackMarkerArray = MarkerArrayType( cellCount, 0);
+	
+	FlagArrayType flagArray = FlagArrayType( cellCount, 0);	
+	CPUFlagArrayType CPUFlagArray = CPUFlagArrayType( cellCount, 0); // 1 = fluid, 2 = bounceback, 1NNN = velocity inlet, 2NNN = pressure outlet
 	
 	std::cout << "Periodic Shift LBM" << std::endl;
 	std::cout << "Initialization: Flagging cells" << std::endl;
@@ -52,6 +60,7 @@ int main(int argc, char **argv)
 				if ( j>=350 && j<=450 && k>=250 && k<=350 ) 
 				{
 					CPUFlagArray.setElement( cell, 2 ); // 2 = bounceback
+					bouncebackMarkerArray.setElement( cell, 1 );
 				}
 				else if ( i==0 || i==cellCountX-1 || j==0 || j==cellCountY-1 ) 
 				{
@@ -60,6 +69,7 @@ int main(int argc, char **argv)
 				else if ( k==0 ) 
 				{
 					CPUFlagArray.setElement( cell, 1554 ); // 1NNN = velocity inlet, 554 -> outer normal (0, 0, -1)
+					uzArray.setElement( cell, uzInlet );
 				}
 				else if ( k==cellCountZ-1 ) 
 				{
@@ -68,15 +78,16 @@ int main(int argc, char **argv)
 				else
 				{
 					CPUFlagArray.setElement( cell, 1 ); // 1 = fluid
+					fluidMarkerArray.setElement( cell, 1 );
 				}
 			}
 		}
 	}
 	
 	std::cout << "Passing cells to GPU" << std::endl;
-	flagArray = CPUflagArray;
+	flagArray = CPUFlagArray;
 	
-	applyInitialization( F, rho, ux, uy, uz );
+	applyInitialization( F, rhoArray, uxArray, uyArray, uzArray );
 	
 	#ifdef __CUDACC__
 	std::cout << "Starting simulation" << std::endl;
@@ -87,7 +98,7 @@ int main(int argc, char **argv)
 	for (int i=0; i<iterationCount; i++)
 	{
 		applyStreaming( F );
-		applyLocalCellUpdate( flagArray, F, rhoArray, uxArray, uyArray, uzArray, gxArray, gyArray, gzArray );
+		applyLocalCellUpdate( flagArray, fluidMarkerArray, bouncebackMarkerArray, F, rhoArray, uxArray, uyArray, uzArray, gxArray, gyArray, gzArray );
 		
 		if (i%100 == 0 && i!=0)
 		{
@@ -119,6 +130,7 @@ int main(int argc, char **argv)
 			float uy = uyArray.getElement(cell);
 			float uz = uzArray.getElement(cell);
 			float uMag = sqrt(uy * uy + uz * uz);
+			float rho = rhoArray.getElement(cell);
 			out << uMag;
 			if (k + 1 < cellCountZ)
 				out << ",";
@@ -126,5 +138,6 @@ int main(int argc, char **argv)
 		out << "\n";   // new row
 	}
 	out.close();
+	int pythonResult = system("python3 visualizer.py");
 	return EXIT_SUCCESS;
 }

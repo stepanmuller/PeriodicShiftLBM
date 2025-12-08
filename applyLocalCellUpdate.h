@@ -1,12 +1,17 @@
-#include "../config.h"
+#include "config.h"
 
-void applyLocalCellUpdate( 	flagArrayType& flagArray,
+void applyLocalCellUpdate( 	FlagArrayType& flagArray,
+							MarkerArrayType& fluidMarkerArray,
+							MarkerArrayType& bouncebackMarkerArray,
 							DistributionFunctionStruct& F, 
 							ArrayType& rhoArray, 
 							ArrayType& uxArray, ArrayType& uyArray, ArrayType& uzArray,
 							ArrayType& gxArray, ArrayType& gyArray, ArrayType& gzArray )
 {
 	auto flagArrayView = flagArray.getConstView();
+	
+	auto fluidMarkerArrayView = fluidMarkerArray.getConstView();
+	auto bouncebackMarkerArrayView = bouncebackMarkerArray.getConstView();
 	
 	auto shifterView = F.shifter.getConstView();
 	
@@ -55,43 +60,42 @@ void applyLocalCellUpdate( 	flagArrayType& flagArray,
 			shiftedIndex[i] = cell + shift;
 			if (shiftedIndex[i] >= cellCount) { shiftedIndex[i] -= cellCount; }
 		}
-		flag = flagArray[cell];
+		bool fluidMarker = fluidMarkerArrayView[cell];
+		if ( fluidMarker == 1 ) // fluid
+		{
+			#include "inPlaceInclude/readF.hpp"
+			#include "inPlaceInclude/getRhoUxUyUz.hpp"
+			#include "inPlaceInclude/applyCollision.hpp"
+			#include "inPlaceInclude/writeF.hpp"
+			#include "inPlaceInclude/writeRho.hpp"
+			#include "inPlaceInclude/writeUxUyUz.hpp"
+			return;
+		}
+		bool bouncebackMarker = bouncebackMarkerArrayView[cell];
+		if ( bouncebackMarker == 1 ) // bounceback
+		{
+			#include "inPlaceInclude/readF.hpp"
+			#include "inPlaceInclude/applyBounceback.hpp"
+			#include "inPlaceInclude/writeF.hpp"
+			return;
+		}
+		short flag = flagArrayView[cell];
 		if ( flag == 0 ) return; // ignore cell
-		else if ( flag == 1 ) // fluid
-		{
-			#include "../inPlaceInclude/readF.hpp"
-			#include "../inPlaceInclude/getRhoUxUyUz.hpp"
-			#include "../inPlaceInclude/applyCollision.hpp"
-			#include "../inPlaceInclude/writeF.hpp"
-			#include "../inPlaceInclude/writeRho.hpp"
-			#include "../inPlaceInclude/writeUxUyUz.hpp"
-			return;
-		}
-		else if ( flag == 2 ) // bounceback
-		{
-			#include "../inPlaceInclude/readF.hpp"
-			#include "../inPlaceInclude/applyBounceback.hpp"
-			#include "../inPlaceInclude/getRhoUxUyUz.hpp"
-			#include "../inPlaceInclude/applyCollision.hpp"
-			#include "../inPlaceInclude/writeF.hpp"
-			#include "../inPlaceInclude/writeRho.hpp"
-			#include "../inPlaceInclude/writeUxUyUz.hpp"
-			return;
-		}
 		else if ( flag > 1000 && flag < 2000 ) // velocity inlet
 		{
-			#include "../inPlaceInclude/applyVelocityInlet.hpp"
-			#include "../inPlaceInclude/applyCollision.hpp"
-			#include "../inPlaceInclude/writeF.hpp"
-			#include "../inPlaceInclude/writeRho.hpp"
+			#include "inPlaceInclude/applyVelocityInlet.hpp"
+			#include "inPlaceInclude/applyCollision.hpp"
+			#include "inPlaceInclude/writeF.hpp"
+			#include "inPlaceInclude/writeRho.hpp"
+			return;
 		}
 		else if ( flag > 2000 && flag < 3000 ) // pressure outlet
 		{
-			#include "../inPlaceInclude/applyPressureOutlet.hpp"
-			#include "../inPlaceInclude/applyCollision.hpp"
-			#include "../inPlaceInclude/writeF.hpp"
-			#include "../inPlaceInclude/writeUxUyUz.hpp"
+			#include "inPlaceInclude/applyPressureOutlet.hpp"
+			#include "inPlaceInclude/applyCollision.hpp"
+			#include "inPlaceInclude/writeF.hpp"
+			#include "inPlaceInclude/writeUxUyUz.hpp"
 		}
 	};
-	TNL::Algorithms::parallelFor<TNL::Devices::Cuda>(0, groupSize, cellLambda );
+	TNL::Algorithms::parallelFor<TNL::Devices::Cuda>(0, cellCount, cellLambda );
 }

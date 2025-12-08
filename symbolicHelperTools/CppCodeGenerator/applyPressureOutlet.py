@@ -10,7 +10,7 @@ def stringToNumber(s):
 
 def applyPressureOutlet(i, normal, fk, fu, mLabels, mfkRows, mfuRows, uniqueMfuRows, mGroups, chosenMoments, K, U, UInv, meqDict):
 	lines = []
-	flag = 1000 + (100 * (normal[0] + 5) + 10 * (normal[1] + 5) + (normal[2] + 5))
+	flag = 2000 + (100 * (normal[0] + 5) + 10 * (normal[1] + 5) + (normal[2] + 5))
 	if i == 0:
 		lines.append("// Applies pressure outlet moment based boundary condition on a face cell")
 		lines.append("// 1. Reads known distributions and prescribed rho")
@@ -24,6 +24,37 @@ def applyPressureOutlet(i, normal, fk, fu, mLabels, mfkRows, mfuRows, uniqueMfuR
 		lines.append("")
 		lines.append("// Reading prescribed pressure outlet rho")
 		lines.append("const float rho = rhoArrayView[cell];")
+		lines.append("// Declaring f0...f26, ux, uy, uz")
+		lines.append("float f0 = 1.f;")
+		lines.append("float f1 = 0.f;")
+		lines.append("float f2 = 0.f;")
+		lines.append("float f3 = 0.f;")
+		lines.append("float f4 = 0.f;")
+		lines.append("float f5 = 0.f;")
+		lines.append("float f6 = 0.f;")
+		lines.append("float f7 = 0.f;")
+		lines.append("float f8 = 0.f;")
+		lines.append("float f9 = 0.f;")
+		lines.append("float f10 = 0.f;")
+		lines.append("float f11 = 0.f;")
+		lines.append("float f12 = 0.f;")
+		lines.append("float f13 = 0.f;")
+		lines.append("float f14 = 0.f;")
+		lines.append("float f15 = 0.f;")
+		lines.append("float f16 = 0.f;")
+		lines.append("float f17 = 0.f;")
+		lines.append("float f18 = 0.f;")
+		lines.append("float f19 = 0.f;")
+		lines.append("float f20 = 0.f;")
+		lines.append("float f21 = 0.f;")
+		lines.append("float f22 = 0.f;")
+		lines.append("float f23 = 0.f;")
+		lines.append("float f24 = 0.f;")
+		lines.append("float f25 = 0.f;")
+		lines.append("float f26 = 0.f;")
+		lines.append("float ux = 0.f;")
+		lines.append("float uy = 0.f;")
+		lines.append("float uz = 0.f;")
 		lines.append("")
 		lines.append("if (flag == " + str(flag) + ") // outer normal " + str(normal))
 	else:
@@ -33,7 +64,7 @@ def applyPressureOutlet(i, normal, fk, fu, mLabels, mfkRows, mfuRows, uniqueMfuR
 	lines.append("	// Reading known distributions fk")
 	for k in fk:
 		number = stringToNumber(k)
-		line = "	float f"
+		line = "	f"
 		line += str(number)
 		line += " = f"
 		line += str(number)
@@ -48,7 +79,7 @@ def applyPressureOutlet(i, normal, fk, fu, mLabels, mfkRows, mfuRows, uniqueMfuR
 	
 	line = "	const float fkProduct ="
 	for j, coeff2 in enumerate(mfkRows[momentIndexNormal]):
-		multiplier = 1 - coeff2
+		multiplier = 1 + momentSign * coeff2
 		if multiplier == 0:
 			continue
 		if multiplier == 1:
@@ -70,8 +101,11 @@ def applyPressureOutlet(i, normal, fk, fu, mLabels, mfkRows, mfuRows, uniqueMfuR
 		velocity = "uy"
 	elif momentIndexNormal == 3:
 		velocity = "uz"
-	lines.append("    float " + velocity + " = 1.f - fkProduct / rho;")
-	
+	if momentSign < 0:
+		lines.append("    " + velocity + " = 1.f - fkProduct / rho;")
+	else:
+		lines.append("    " + velocity + " = - 1.f + fkProduct / rho;")
+		
 	lines.append("	// Using moments to find tangential u components in a local way")
 	if momentIndexNormal == 1: #x is normal direction
 		indexLin1 = mLabels.index("m_{010}") #to get uy
@@ -131,16 +165,16 @@ def applyPressureOutlet(i, normal, fk, fu, mLabels, mfkRows, mfuRows, uniqueMfuR
 	
 	if momentIndexNormal == 1: #x is normal direction
 		velocity = "ux * ux"
-		lines.append("    float uy = fkTangential1 / ( (2.f/3.f - " + str(velocity) + " ) * rho );") #to get uy
-		lines.append("    float uz = fkTangential2 / ( (2.f/3.f - " + str(velocity) + " ) * rho );") #to get uz
+		lines.append("    uy = fkTangential1 / ( (2.f/3.f - " + str(velocity) + " ) * rho );") #to get uy
+		lines.append("    uz = fkTangential2 / ( (2.f/3.f - " + str(velocity) + " ) * rho );") #to get uz
 	elif momentIndexNormal == 2: #y is normal direction
 		velocity = "uy * uy"
-		lines.append("    float ux = fkTangential1 / ( (2.f/3.f - " + str(velocity) + " ) * rho );") #to get ux
-		lines.append("    float uz = fkTangential2 / ( (2.f/3.f - " + str(velocity) + " ) * rho );") #to get uz
+		lines.append("    ux = fkTangential1 / ( (2.f/3.f - " + str(velocity) + " ) * rho );") #to get ux
+		lines.append("    uz = fkTangential2 / ( (2.f/3.f - " + str(velocity) + " ) * rho );") #to get uz
 	else: #z is normal direction
 		velocity = "uz * uz"
-		lines.append("    float ux = fkTangential1 / ( (2.f/3.f - " + str(velocity) + " ) * rho );") #to get ux
-		lines.append("    float uy = fkTangential2 / ( (2.f/3.f - " + str(velocity) + " ) * rho );") #to get uy
+		lines.append("    ux = fkTangential1 / ( (2.f/3.f - " + str(velocity) + " ) * rho );") #to get ux
+		lines.append("    uy = fkTangential2 / ( (2.f/3.f - " + str(velocity) + " ) * rho );") #to get uy
 	
 	lines.append("	// At this point rho, ux, uy, uz are known")
 	lines.append("	// Applying general MBBC")
@@ -175,7 +209,7 @@ def applyPressureOutlet(i, normal, fk, fu, mLabels, mfkRows, mfuRows, uniqueMfuR
 	lines.append("	// Multiply U^-1 * (m - Kfk) to get unknown distributions")
 	for i, unknown in enumerate(fu):
 		number = stringToNumber(unknown)
-		line = "	float f" + str(number) + " ="
+		line = "	f" + str(number) + " ="
 		for j, multiplier in enumerate(UInv[i]):
 			if multiplier == 0:
 				continue

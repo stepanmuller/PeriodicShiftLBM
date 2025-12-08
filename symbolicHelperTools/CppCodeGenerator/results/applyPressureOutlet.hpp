@@ -6,40 +6,71 @@
 
 // Source paper: Pavel Eichler, Radek Fucik, and Pavel Strachota.
 // Investigation of mesoscopic boundary conditions for lattice boltzmann method in laminar flow problems.
-// Computers & Mathematics with Applications, 173:87–101, 2024.
+// Computers & Mathematics with Applications, 173:87â€“101, 2024.
 
 // Reading prescribed pressure outlet rho
 const float rho = rhoArrayView[cell];
+// Declaring f0...f26, ux, uy, uz
+float f0 = 1.f;
+float f1 = 0.f;
+float f2 = 0.f;
+float f3 = 0.f;
+float f4 = 0.f;
+float f5 = 0.f;
+float f6 = 0.f;
+float f7 = 0.f;
+float f8 = 0.f;
+float f9 = 0.f;
+float f10 = 0.f;
+float f11 = 0.f;
+float f12 = 0.f;
+float f13 = 0.f;
+float f14 = 0.f;
+float f15 = 0.f;
+float f16 = 0.f;
+float f17 = 0.f;
+float f18 = 0.f;
+float f19 = 0.f;
+float f20 = 0.f;
+float f21 = 0.f;
+float f22 = 0.f;
+float f23 = 0.f;
+float f24 = 0.f;
+float f25 = 0.f;
+float f26 = 0.f;
+float ux = 0.f;
+float uy = 0.f;
+float uz = 0.f;
 
-if (flag == 1655) // outer normal [1, 0, 0]
+if (flag == 2655) // outer normal [1, 0, 0]
 {
 	// Reading known distributions fk
-	float f0 = f0ArrayView[shiftedIndex[0]];
-	float f1 = f1ArrayView[shiftedIndex[1]];
-	float f3 = f3ArrayView[shiftedIndex[3]];
-	float f4 = f4ArrayView[shiftedIndex[4]];
-	float f5 = f5ArrayView[shiftedIndex[5]];
-	float f6 = f6ArrayView[shiftedIndex[6]];
-	float f7 = f7ArrayView[shiftedIndex[7]];
-	float f9 = f9ArrayView[shiftedIndex[9]];
-	float f12 = f12ArrayView[shiftedIndex[12]];
-	float f13 = f13ArrayView[shiftedIndex[13]];
-	float f14 = f14ArrayView[shiftedIndex[14]];
-	float f16 = f16ArrayView[shiftedIndex[16]];
-	float f17 = f17ArrayView[shiftedIndex[17]];
-	float f18 = f18ArrayView[shiftedIndex[18]];
-	float f20 = f20ArrayView[shiftedIndex[20]];
-	float f22 = f22ArrayView[shiftedIndex[22]];
-	float f23 = f23ArrayView[shiftedIndex[23]];
-	float f26 = f26ArrayView[shiftedIndex[26]];
+	f0 = f0ArrayView[shiftedIndex[0]];
+	f1 = f1ArrayView[shiftedIndex[1]];
+	f3 = f3ArrayView[shiftedIndex[3]];
+	f4 = f4ArrayView[shiftedIndex[4]];
+	f5 = f5ArrayView[shiftedIndex[5]];
+	f6 = f6ArrayView[shiftedIndex[6]];
+	f7 = f7ArrayView[shiftedIndex[7]];
+	f9 = f9ArrayView[shiftedIndex[9]];
+	f12 = f12ArrayView[shiftedIndex[12]];
+	f13 = f13ArrayView[shiftedIndex[13]];
+	f14 = f14ArrayView[shiftedIndex[14]];
+	f16 = f16ArrayView[shiftedIndex[16]];
+	f17 = f17ArrayView[shiftedIndex[17]];
+	f18 = f18ArrayView[shiftedIndex[18]];
+	f20 = f20ArrayView[shiftedIndex[20]];
+	f22 = f22ArrayView[shiftedIndex[22]];
+	f23 = f23ArrayView[shiftedIndex[23]];
+	f26 = f26ArrayView[shiftedIndex[26]];
 	// Applying consistency condition to find normal u component
-	const float fkProduct = + f0 + f3 + f4 + f5 + f6 + f13 + f14 + f17 + f18;
-    float ux = 1.f - fkProduct / rho;
+	const float fkProduct = + f0 + 2.f * f1 + f3 + f4 + f5 + f6 + 2.f * f7 + 2.f * f9 + 2.f * f12 + f13 + f14 + 2.f * f16 + f17 + f18 + 2.f * f20 + 2.f * f22 + 2.f * f23 + 2.f * f26;
+    ux = - 1.f + fkProduct / rho;
 	// Using moments to find tangential u components in a local way
 	const float fkTangential1 = - f5 + f6 + f13 - f14 + f17 - f18;
 	const float fkTangential2 = - f3 + f4 - f13 + f14 + f17 - f18;
-    float uy = fkTangential1 / ( (2.f/3.f - ux * ux ) * rho );
-    float uz = fkTangential2 / ( (2.f/3.f - ux * ux ) * rho );
+    uy = fkTangential1 / ( (2.f/3.f - ux * ux ) * rho );
+    uz = fkTangential2 / ( (2.f/3.f - ux * ux ) * rho );
 	// At this point rho, ux, uy, uz are known
 	// Applying general MBBC
 	// Multiply K fk
@@ -73,45 +104,45 @@ if (flag == 1655) // outer normal [1, 0, 0]
 	const float s7 = m7 - kf7;
 	const float s8 = m8 - kf8;
 	// Multiply U^-1 * (m - Kfk) to get unknown distributions
-	float f2 = + s0 - s3 - s4 + s8;
-	float f8 = + 0.5f * s2 + 0.5f * s4 - 0.5f * s6 - 0.5f * s8;
-	float f10 = - 0.5f * s2 + 0.5f * s4 + 0.5f * s6 - 0.5f * s8;
-	float f11 = - 0.5f * s1 + 0.5f * s3 + 0.5f * s7 - 0.5f * s8;
-	float f15 = + 0.5f * s1 + 0.5f * s3 - 0.5f * s7 - 0.5f * s8;
-	float f19 = - 0.25f * s5 - 0.25f * s6 + 0.25f * s7 + 0.25f * s8;
-	float f21 = - 0.25f * s5 + 0.25f * s6 - 0.25f * s7 + 0.25f * s8;
-	float f24 = + 0.25f * s5 + 0.25f * s6 + 0.25f * s7 + 0.25f * s8;
-	float f25 = + 0.25f * s5 - 0.25f * s6 - 0.25f * s7 + 0.25f * s8;
+	f2 = + s0 - s3 - s4 + s8;
+	f8 = + 0.5f * s2 + 0.5f * s4 - 0.5f * s6 - 0.5f * s8;
+	f10 = - 0.5f * s2 + 0.5f * s4 + 0.5f * s6 - 0.5f * s8;
+	f11 = - 0.5f * s1 + 0.5f * s3 + 0.5f * s7 - 0.5f * s8;
+	f15 = + 0.5f * s1 + 0.5f * s3 - 0.5f * s7 - 0.5f * s8;
+	f19 = - 0.25f * s5 - 0.25f * s6 + 0.25f * s7 + 0.25f * s8;
+	f21 = - 0.25f * s5 + 0.25f * s6 - 0.25f * s7 + 0.25f * s8;
+	f24 = + 0.25f * s5 + 0.25f * s6 + 0.25f * s7 + 0.25f * s8;
+	f25 = + 0.25f * s5 - 0.25f * s6 - 0.25f * s7 + 0.25f * s8;
 }
-else if (flag == 1565) // outer normal [0, 1, 0]
+else if (flag == 2565) // outer normal [0, 1, 0]
 {
 	// Reading known distributions fk
-	float f0 = f0ArrayView[shiftedIndex[0]];
-	float f1 = f1ArrayView[shiftedIndex[1]];
-	float f2 = f2ArrayView[shiftedIndex[2]];
-	float f3 = f3ArrayView[shiftedIndex[3]];
-	float f4 = f4ArrayView[shiftedIndex[4]];
-	float f6 = f6ArrayView[shiftedIndex[6]];
-	float f7 = f7ArrayView[shiftedIndex[7]];
-	float f8 = f8ArrayView[shiftedIndex[8]];
-	float f9 = f9ArrayView[shiftedIndex[9]];
-	float f10 = f10ArrayView[shiftedIndex[10]];
-	float f12 = f12ArrayView[shiftedIndex[12]];
-	float f13 = f13ArrayView[shiftedIndex[13]];
-	float f15 = f15ArrayView[shiftedIndex[15]];
-	float f17 = f17ArrayView[shiftedIndex[17]];
-	float f19 = f19ArrayView[shiftedIndex[19]];
-	float f22 = f22ArrayView[shiftedIndex[22]];
-	float f24 = f24ArrayView[shiftedIndex[24]];
-	float f26 = f26ArrayView[shiftedIndex[26]];
+	f0 = f0ArrayView[shiftedIndex[0]];
+	f1 = f1ArrayView[shiftedIndex[1]];
+	f2 = f2ArrayView[shiftedIndex[2]];
+	f3 = f3ArrayView[shiftedIndex[3]];
+	f4 = f4ArrayView[shiftedIndex[4]];
+	f6 = f6ArrayView[shiftedIndex[6]];
+	f7 = f7ArrayView[shiftedIndex[7]];
+	f8 = f8ArrayView[shiftedIndex[8]];
+	f9 = f9ArrayView[shiftedIndex[9]];
+	f10 = f10ArrayView[shiftedIndex[10]];
+	f12 = f12ArrayView[shiftedIndex[12]];
+	f13 = f13ArrayView[shiftedIndex[13]];
+	f15 = f15ArrayView[shiftedIndex[15]];
+	f17 = f17ArrayView[shiftedIndex[17]];
+	f19 = f19ArrayView[shiftedIndex[19]];
+	f22 = f22ArrayView[shiftedIndex[22]];
+	f24 = f24ArrayView[shiftedIndex[24]];
+	f26 = f26ArrayView[shiftedIndex[26]];
 	// Applying consistency condition to find normal u component
-	const float fkProduct = + f0 + f1 + f2 + f3 + f4 + f7 + f8 + f9 + f10;
-    float uy = 1.f - fkProduct / rho;
+	const float fkProduct = + f0 + f1 + f2 + f3 + f4 + 2.f * f6 + f7 + f8 + f9 + f10 + 2.f * f12 + 2.f * f13 + 2.f * f15 + 2.f * f17 + 2.f * f19 + 2.f * f22 + 2.f * f24 + 2.f * f26;
+    uy = - 1.f + fkProduct / rho;
 	// Using moments to find tangential u components in a local way
 	const float fkTangential1 = + f1 - f2 + f7 - f8 + f9 - f10;
 	const float fkTangential2 = - f3 + f4 - f7 + f8 + f9 - f10;
-    float ux = fkTangential1 / ( (2.f/3.f - uy * uy ) * rho );
-    float uz = fkTangential2 / ( (2.f/3.f - uy * uy ) * rho );
+    ux = fkTangential1 / ( (2.f/3.f - uy * uy ) * rho );
+    uz = fkTangential2 / ( (2.f/3.f - uy * uy ) * rho );
 	// At this point rho, ux, uy, uz are known
 	// Applying general MBBC
 	// Multiply K fk
@@ -145,45 +176,45 @@ else if (flag == 1565) // outer normal [0, 1, 0]
 	const float s7 = m7 - kf7;
 	const float s8 = m8 - kf8;
 	// Multiply U^-1 * (m - Kfk) to get unknown distributions
-	float f5 = + s0 - s3 - s4 + s8;
-	float f11 = - 0.5f * s1 + 0.5f * s3 + 0.5f * s7 - 0.5f * s8;
-	float f14 = + 0.5f * s2 + 0.5f * s4 - 0.5f * s6 - 0.5f * s8;
-	float f16 = + 0.5f * s1 + 0.5f * s3 - 0.5f * s7 - 0.5f * s8;
-	float f18 = - 0.5f * s2 + 0.5f * s4 + 0.5f * s6 - 0.5f * s8;
-	float f20 = + 0.25f * s5 + 0.25f * s6 + 0.25f * s7 + 0.25f * s8;
-	float f21 = - 0.25f * s5 + 0.25f * s6 - 0.25f * s7 + 0.25f * s8;
-	float f23 = - 0.25f * s5 - 0.25f * s6 + 0.25f * s7 + 0.25f * s8;
-	float f25 = + 0.25f * s5 - 0.25f * s6 - 0.25f * s7 + 0.25f * s8;
+	f5 = + s0 - s3 - s4 + s8;
+	f11 = - 0.5f * s1 + 0.5f * s3 + 0.5f * s7 - 0.5f * s8;
+	f14 = + 0.5f * s2 + 0.5f * s4 - 0.5f * s6 - 0.5f * s8;
+	f16 = + 0.5f * s1 + 0.5f * s3 - 0.5f * s7 - 0.5f * s8;
+	f18 = - 0.5f * s2 + 0.5f * s4 + 0.5f * s6 - 0.5f * s8;
+	f20 = + 0.25f * s5 + 0.25f * s6 + 0.25f * s7 + 0.25f * s8;
+	f21 = - 0.25f * s5 + 0.25f * s6 - 0.25f * s7 + 0.25f * s8;
+	f23 = - 0.25f * s5 - 0.25f * s6 + 0.25f * s7 + 0.25f * s8;
+	f25 = + 0.25f * s5 - 0.25f * s6 - 0.25f * s7 + 0.25f * s8;
 }
-else if (flag == 1556) // outer normal [0, 0, 1]
+else if (flag == 2556) // outer normal [0, 0, 1]
 {
 	// Reading known distributions fk
-	float f0 = f0ArrayView[shiftedIndex[0]];
-	float f1 = f1ArrayView[shiftedIndex[1]];
-	float f2 = f2ArrayView[shiftedIndex[2]];
-	float f4 = f4ArrayView[shiftedIndex[4]];
-	float f5 = f5ArrayView[shiftedIndex[5]];
-	float f6 = f6ArrayView[shiftedIndex[6]];
-	float f8 = f8ArrayView[shiftedIndex[8]];
-	float f9 = f9ArrayView[shiftedIndex[9]];
-	float f11 = f11ArrayView[shiftedIndex[11]];
-	float f12 = f12ArrayView[shiftedIndex[12]];
-	float f14 = f14ArrayView[shiftedIndex[14]];
-	float f15 = f15ArrayView[shiftedIndex[15]];
-	float f16 = f16ArrayView[shiftedIndex[16]];
-	float f17 = f17ArrayView[shiftedIndex[17]];
-	float f20 = f20ArrayView[shiftedIndex[20]];
-	float f21 = f21ArrayView[shiftedIndex[21]];
-	float f24 = f24ArrayView[shiftedIndex[24]];
-	float f26 = f26ArrayView[shiftedIndex[26]];
+	f0 = f0ArrayView[shiftedIndex[0]];
+	f1 = f1ArrayView[shiftedIndex[1]];
+	f2 = f2ArrayView[shiftedIndex[2]];
+	f4 = f4ArrayView[shiftedIndex[4]];
+	f5 = f5ArrayView[shiftedIndex[5]];
+	f6 = f6ArrayView[shiftedIndex[6]];
+	f8 = f8ArrayView[shiftedIndex[8]];
+	f9 = f9ArrayView[shiftedIndex[9]];
+	f11 = f11ArrayView[shiftedIndex[11]];
+	f12 = f12ArrayView[shiftedIndex[12]];
+	f14 = f14ArrayView[shiftedIndex[14]];
+	f15 = f15ArrayView[shiftedIndex[15]];
+	f16 = f16ArrayView[shiftedIndex[16]];
+	f17 = f17ArrayView[shiftedIndex[17]];
+	f20 = f20ArrayView[shiftedIndex[20]];
+	f21 = f21ArrayView[shiftedIndex[21]];
+	f24 = f24ArrayView[shiftedIndex[24]];
+	f26 = f26ArrayView[shiftedIndex[26]];
 	// Applying consistency condition to find normal u component
-	const float fkProduct = + f0 + f1 + f2 + f5 + f6 + f11 + f12 + f15 + f16;
-    float uz = 1.f - fkProduct / rho;
+	const float fkProduct = + f0 + f1 + f2 + 2.f * f4 + f5 + f6 + 2.f * f8 + 2.f * f9 + f11 + f12 + 2.f * f14 + f15 + f16 + 2.f * f17 + 2.f * f20 + 2.f * f21 + 2.f * f24 + 2.f * f26;
+    uz = - 1.f + fkProduct / rho;
 	// Using moments to find tangential u components in a local way
 	const float fkTangential1 = + f1 - f2 - f11 + f12 - f15 + f16;
 	const float fkTangential2 = - f5 + f6 - f11 + f12 + f15 - f16;
-    float ux = fkTangential1 / ( (2.f/3.f - uz * uz ) * rho );
-    float uy = fkTangential2 / ( (2.f/3.f - uz * uz ) * rho );
+    ux = fkTangential1 / ( (2.f/3.f - uz * uz ) * rho );
+    uy = fkTangential2 / ( (2.f/3.f - uz * uz ) * rho );
 	// At this point rho, ux, uy, uz are known
 	// Applying general MBBC
 	// Multiply K fk
@@ -217,45 +248,45 @@ else if (flag == 1556) // outer normal [0, 0, 1]
 	const float s7 = m7 - kf7;
 	const float s8 = m8 - kf8;
 	// Multiply U^-1 * (m - Kfk) to get unknown distributions
-	float f3 = + s0 - s3 - s4 + s8;
-	float f7 = + 0.5f * s1 + 0.5f * s3 - 0.5f * s7 - 0.5f * s8;
-	float f10 = - 0.5f * s1 + 0.5f * s3 + 0.5f * s7 - 0.5f * s8;
-	float f13 = + 0.5f * s2 + 0.5f * s4 - 0.5f * s6 - 0.5f * s8;
-	float f18 = - 0.5f * s2 + 0.5f * s4 + 0.5f * s6 - 0.5f * s8;
-	float f19 = - 0.25f * s5 + 0.25f * s6 - 0.25f * s7 + 0.25f * s8;
-	float f22 = + 0.25f * s5 + 0.25f * s6 + 0.25f * s7 + 0.25f * s8;
-	float f23 = - 0.25f * s5 - 0.25f * s6 + 0.25f * s7 + 0.25f * s8;
-	float f25 = + 0.25f * s5 - 0.25f * s6 - 0.25f * s7 + 0.25f * s8;
+	f3 = + s0 - s3 - s4 + s8;
+	f7 = + 0.5f * s1 + 0.5f * s3 - 0.5f * s7 - 0.5f * s8;
+	f10 = - 0.5f * s1 + 0.5f * s3 + 0.5f * s7 - 0.5f * s8;
+	f13 = + 0.5f * s2 + 0.5f * s4 - 0.5f * s6 - 0.5f * s8;
+	f18 = - 0.5f * s2 + 0.5f * s4 + 0.5f * s6 - 0.5f * s8;
+	f19 = - 0.25f * s5 + 0.25f * s6 - 0.25f * s7 + 0.25f * s8;
+	f22 = + 0.25f * s5 + 0.25f * s6 + 0.25f * s7 + 0.25f * s8;
+	f23 = - 0.25f * s5 - 0.25f * s6 + 0.25f * s7 + 0.25f * s8;
+	f25 = + 0.25f * s5 - 0.25f * s6 - 0.25f * s7 + 0.25f * s8;
 }
-else if (flag == 1455) // outer normal [-1, 0, 0]
+else if (flag == 2455) // outer normal [-1, 0, 0]
 {
 	// Reading known distributions fk
-	float f0 = f0ArrayView[shiftedIndex[0]];
-	float f2 = f2ArrayView[shiftedIndex[2]];
-	float f3 = f3ArrayView[shiftedIndex[3]];
-	float f4 = f4ArrayView[shiftedIndex[4]];
-	float f5 = f5ArrayView[shiftedIndex[5]];
-	float f6 = f6ArrayView[shiftedIndex[6]];
-	float f8 = f8ArrayView[shiftedIndex[8]];
-	float f10 = f10ArrayView[shiftedIndex[10]];
-	float f11 = f11ArrayView[shiftedIndex[11]];
-	float f13 = f13ArrayView[shiftedIndex[13]];
-	float f14 = f14ArrayView[shiftedIndex[14]];
-	float f15 = f15ArrayView[shiftedIndex[15]];
-	float f17 = f17ArrayView[shiftedIndex[17]];
-	float f18 = f18ArrayView[shiftedIndex[18]];
-	float f19 = f19ArrayView[shiftedIndex[19]];
-	float f21 = f21ArrayView[shiftedIndex[21]];
-	float f24 = f24ArrayView[shiftedIndex[24]];
-	float f25 = f25ArrayView[shiftedIndex[25]];
+	f0 = f0ArrayView[shiftedIndex[0]];
+	f2 = f2ArrayView[shiftedIndex[2]];
+	f3 = f3ArrayView[shiftedIndex[3]];
+	f4 = f4ArrayView[shiftedIndex[4]];
+	f5 = f5ArrayView[shiftedIndex[5]];
+	f6 = f6ArrayView[shiftedIndex[6]];
+	f8 = f8ArrayView[shiftedIndex[8]];
+	f10 = f10ArrayView[shiftedIndex[10]];
+	f11 = f11ArrayView[shiftedIndex[11]];
+	f13 = f13ArrayView[shiftedIndex[13]];
+	f14 = f14ArrayView[shiftedIndex[14]];
+	f15 = f15ArrayView[shiftedIndex[15]];
+	f17 = f17ArrayView[shiftedIndex[17]];
+	f18 = f18ArrayView[shiftedIndex[18]];
+	f19 = f19ArrayView[shiftedIndex[19]];
+	f21 = f21ArrayView[shiftedIndex[21]];
+	f24 = f24ArrayView[shiftedIndex[24]];
+	f25 = f25ArrayView[shiftedIndex[25]];
 	// Applying consistency condition to find normal u component
 	const float fkProduct = + f0 + 2.f * f2 + f3 + f4 + f5 + f6 + 2.f * f8 + 2.f * f10 + 2.f * f11 + f13 + f14 + 2.f * f15 + f17 + f18 + 2.f * f19 + 2.f * f21 + 2.f * f24 + 2.f * f25;
-    float ux = 1.f - fkProduct / rho;
+    ux = 1.f - fkProduct / rho;
 	// Using moments to find tangential u components in a local way
 	const float fkTangential1 = - f5 + f6 + f13 - f14 + f17 - f18;
 	const float fkTangential2 = - f3 + f4 - f13 + f14 + f17 - f18;
-    float uy = fkTangential1 / ( (2.f/3.f - ux * ux ) * rho );
-    float uz = fkTangential2 / ( (2.f/3.f - ux * ux ) * rho );
+    uy = fkTangential1 / ( (2.f/3.f - ux * ux ) * rho );
+    uz = fkTangential2 / ( (2.f/3.f - ux * ux ) * rho );
 	// At this point rho, ux, uy, uz are known
 	// Applying general MBBC
 	// Multiply K fk
@@ -289,45 +320,45 @@ else if (flag == 1455) // outer normal [-1, 0, 0]
 	const float s7 = m7 - kf7;
 	const float s8 = m8 - kf8;
 	// Multiply U^-1 * (m - Kfk) to get unknown distributions
-	float f1 = + s0 - s3 - s4 + s8;
-	float f7 = - 0.5f * s2 + 0.5f * s4 + 0.5f * s6 - 0.5f * s8;
-	float f9 = + 0.5f * s2 + 0.5f * s4 - 0.5f * s6 - 0.5f * s8;
-	float f12 = + 0.5f * s1 + 0.5f * s3 - 0.5f * s7 - 0.5f * s8;
-	float f16 = - 0.5f * s1 + 0.5f * s3 + 0.5f * s7 - 0.5f * s8;
-	float f20 = - 0.25f * s5 + 0.25f * s6 - 0.25f * s7 + 0.25f * s8;
-	float f22 = - 0.25f * s5 - 0.25f * s6 + 0.25f * s7 + 0.25f * s8;
-	float f23 = + 0.25f * s5 - 0.25f * s6 - 0.25f * s7 + 0.25f * s8;
-	float f26 = + 0.25f * s5 + 0.25f * s6 + 0.25f * s7 + 0.25f * s8;
+	f1 = + s0 - s3 - s4 + s8;
+	f7 = - 0.5f * s2 + 0.5f * s4 + 0.5f * s6 - 0.5f * s8;
+	f9 = + 0.5f * s2 + 0.5f * s4 - 0.5f * s6 - 0.5f * s8;
+	f12 = + 0.5f * s1 + 0.5f * s3 - 0.5f * s7 - 0.5f * s8;
+	f16 = - 0.5f * s1 + 0.5f * s3 + 0.5f * s7 - 0.5f * s8;
+	f20 = - 0.25f * s5 + 0.25f * s6 - 0.25f * s7 + 0.25f * s8;
+	f22 = - 0.25f * s5 - 0.25f * s6 + 0.25f * s7 + 0.25f * s8;
+	f23 = + 0.25f * s5 - 0.25f * s6 - 0.25f * s7 + 0.25f * s8;
+	f26 = + 0.25f * s5 + 0.25f * s6 + 0.25f * s7 + 0.25f * s8;
 }
-else if (flag == 1545) // outer normal [0, -1, 0]
+else if (flag == 2545) // outer normal [0, -1, 0]
 {
 	// Reading known distributions fk
-	float f0 = f0ArrayView[shiftedIndex[0]];
-	float f1 = f1ArrayView[shiftedIndex[1]];
-	float f2 = f2ArrayView[shiftedIndex[2]];
-	float f3 = f3ArrayView[shiftedIndex[3]];
-	float f4 = f4ArrayView[shiftedIndex[4]];
-	float f5 = f5ArrayView[shiftedIndex[5]];
-	float f7 = f7ArrayView[shiftedIndex[7]];
-	float f8 = f8ArrayView[shiftedIndex[8]];
-	float f9 = f9ArrayView[shiftedIndex[9]];
-	float f10 = f10ArrayView[shiftedIndex[10]];
-	float f11 = f11ArrayView[shiftedIndex[11]];
-	float f14 = f14ArrayView[shiftedIndex[14]];
-	float f16 = f16ArrayView[shiftedIndex[16]];
-	float f18 = f18ArrayView[shiftedIndex[18]];
-	float f20 = f20ArrayView[shiftedIndex[20]];
-	float f21 = f21ArrayView[shiftedIndex[21]];
-	float f23 = f23ArrayView[shiftedIndex[23]];
-	float f25 = f25ArrayView[shiftedIndex[25]];
+	f0 = f0ArrayView[shiftedIndex[0]];
+	f1 = f1ArrayView[shiftedIndex[1]];
+	f2 = f2ArrayView[shiftedIndex[2]];
+	f3 = f3ArrayView[shiftedIndex[3]];
+	f4 = f4ArrayView[shiftedIndex[4]];
+	f5 = f5ArrayView[shiftedIndex[5]];
+	f7 = f7ArrayView[shiftedIndex[7]];
+	f8 = f8ArrayView[shiftedIndex[8]];
+	f9 = f9ArrayView[shiftedIndex[9]];
+	f10 = f10ArrayView[shiftedIndex[10]];
+	f11 = f11ArrayView[shiftedIndex[11]];
+	f14 = f14ArrayView[shiftedIndex[14]];
+	f16 = f16ArrayView[shiftedIndex[16]];
+	f18 = f18ArrayView[shiftedIndex[18]];
+	f20 = f20ArrayView[shiftedIndex[20]];
+	f21 = f21ArrayView[shiftedIndex[21]];
+	f23 = f23ArrayView[shiftedIndex[23]];
+	f25 = f25ArrayView[shiftedIndex[25]];
 	// Applying consistency condition to find normal u component
 	const float fkProduct = + f0 + f1 + f2 + f3 + f4 + 2.f * f5 + f7 + f8 + f9 + f10 + 2.f * f11 + 2.f * f14 + 2.f * f16 + 2.f * f18 + 2.f * f20 + 2.f * f21 + 2.f * f23 + 2.f * f25;
-    float uy = 1.f - fkProduct / rho;
+    uy = 1.f - fkProduct / rho;
 	// Using moments to find tangential u components in a local way
 	const float fkTangential1 = + f1 - f2 + f7 - f8 + f9 - f10;
 	const float fkTangential2 = - f3 + f4 - f7 + f8 + f9 - f10;
-    float ux = fkTangential1 / ( (2.f/3.f - uy * uy ) * rho );
-    float uz = fkTangential2 / ( (2.f/3.f - uy * uy ) * rho );
+    ux = fkTangential1 / ( (2.f/3.f - uy * uy ) * rho );
+    uz = fkTangential2 / ( (2.f/3.f - uy * uy ) * rho );
 	// At this point rho, ux, uy, uz are known
 	// Applying general MBBC
 	// Multiply K fk
@@ -361,45 +392,45 @@ else if (flag == 1545) // outer normal [0, -1, 0]
 	const float s7 = m7 - kf7;
 	const float s8 = m8 - kf8;
 	// Multiply U^-1 * (m - Kfk) to get unknown distributions
-	float f6 = + s0 - s3 - s4 + s8;
-	float f12 = + 0.5f * s1 + 0.5f * s3 - 0.5f * s7 - 0.5f * s8;
-	float f13 = - 0.5f * s2 + 0.5f * s4 + 0.5f * s6 - 0.5f * s8;
-	float f15 = - 0.5f * s1 + 0.5f * s3 + 0.5f * s7 - 0.5f * s8;
-	float f17 = + 0.5f * s2 + 0.5f * s4 - 0.5f * s6 - 0.5f * s8;
-	float f19 = + 0.25f * s5 - 0.25f * s6 - 0.25f * s7 + 0.25f * s8;
-	float f22 = - 0.25f * s5 - 0.25f * s6 + 0.25f * s7 + 0.25f * s8;
-	float f24 = - 0.25f * s5 + 0.25f * s6 - 0.25f * s7 + 0.25f * s8;
-	float f26 = + 0.25f * s5 + 0.25f * s6 + 0.25f * s7 + 0.25f * s8;
+	f6 = + s0 - s3 - s4 + s8;
+	f12 = + 0.5f * s1 + 0.5f * s3 - 0.5f * s7 - 0.5f * s8;
+	f13 = - 0.5f * s2 + 0.5f * s4 + 0.5f * s6 - 0.5f * s8;
+	f15 = - 0.5f * s1 + 0.5f * s3 + 0.5f * s7 - 0.5f * s8;
+	f17 = + 0.5f * s2 + 0.5f * s4 - 0.5f * s6 - 0.5f * s8;
+	f19 = + 0.25f * s5 - 0.25f * s6 - 0.25f * s7 + 0.25f * s8;
+	f22 = - 0.25f * s5 - 0.25f * s6 + 0.25f * s7 + 0.25f * s8;
+	f24 = - 0.25f * s5 + 0.25f * s6 - 0.25f * s7 + 0.25f * s8;
+	f26 = + 0.25f * s5 + 0.25f * s6 + 0.25f * s7 + 0.25f * s8;
 }
-else if (flag == 1554) // outer normal [0, 0, -1]
+else if (flag == 2554) // outer normal [0, 0, -1]
 {
 	// Reading known distributions fk
-	float f0 = f0ArrayView[shiftedIndex[0]];
-	float f1 = f1ArrayView[shiftedIndex[1]];
-	float f2 = f2ArrayView[shiftedIndex[2]];
-	float f3 = f3ArrayView[shiftedIndex[3]];
-	float f5 = f5ArrayView[shiftedIndex[5]];
-	float f6 = f6ArrayView[shiftedIndex[6]];
-	float f7 = f7ArrayView[shiftedIndex[7]];
-	float f10 = f10ArrayView[shiftedIndex[10]];
-	float f11 = f11ArrayView[shiftedIndex[11]];
-	float f12 = f12ArrayView[shiftedIndex[12]];
-	float f13 = f13ArrayView[shiftedIndex[13]];
-	float f15 = f15ArrayView[shiftedIndex[15]];
-	float f16 = f16ArrayView[shiftedIndex[16]];
-	float f18 = f18ArrayView[shiftedIndex[18]];
-	float f19 = f19ArrayView[shiftedIndex[19]];
-	float f22 = f22ArrayView[shiftedIndex[22]];
-	float f23 = f23ArrayView[shiftedIndex[23]];
-	float f25 = f25ArrayView[shiftedIndex[25]];
+	f0 = f0ArrayView[shiftedIndex[0]];
+	f1 = f1ArrayView[shiftedIndex[1]];
+	f2 = f2ArrayView[shiftedIndex[2]];
+	f3 = f3ArrayView[shiftedIndex[3]];
+	f5 = f5ArrayView[shiftedIndex[5]];
+	f6 = f6ArrayView[shiftedIndex[6]];
+	f7 = f7ArrayView[shiftedIndex[7]];
+	f10 = f10ArrayView[shiftedIndex[10]];
+	f11 = f11ArrayView[shiftedIndex[11]];
+	f12 = f12ArrayView[shiftedIndex[12]];
+	f13 = f13ArrayView[shiftedIndex[13]];
+	f15 = f15ArrayView[shiftedIndex[15]];
+	f16 = f16ArrayView[shiftedIndex[16]];
+	f18 = f18ArrayView[shiftedIndex[18]];
+	f19 = f19ArrayView[shiftedIndex[19]];
+	f22 = f22ArrayView[shiftedIndex[22]];
+	f23 = f23ArrayView[shiftedIndex[23]];
+	f25 = f25ArrayView[shiftedIndex[25]];
 	// Applying consistency condition to find normal u component
 	const float fkProduct = + f0 + f1 + f2 + 2.f * f3 + f5 + f6 + 2.f * f7 + 2.f * f10 + f11 + f12 + 2.f * f13 + f15 + f16 + 2.f * f18 + 2.f * f19 + 2.f * f22 + 2.f * f23 + 2.f * f25;
-    float uz = 1.f - fkProduct / rho;
+    uz = 1.f - fkProduct / rho;
 	// Using moments to find tangential u components in a local way
 	const float fkTangential1 = + f1 - f2 - f11 + f12 - f15 + f16;
 	const float fkTangential2 = - f5 + f6 - f11 + f12 + f15 - f16;
-    float ux = fkTangential1 / ( (2.f/3.f - uz * uz ) * rho );
-    float uy = fkTangential2 / ( (2.f/3.f - uz * uz ) * rho );
+    ux = fkTangential1 / ( (2.f/3.f - uz * uz ) * rho );
+    uy = fkTangential2 / ( (2.f/3.f - uz * uz ) * rho );
 	// At this point rho, ux, uy, uz are known
 	// Applying general MBBC
 	// Multiply K fk
@@ -433,13 +464,13 @@ else if (flag == 1554) // outer normal [0, 0, -1]
 	const float s7 = m7 - kf7;
 	const float s8 = m8 - kf8;
 	// Multiply U^-1 * (m - Kfk) to get unknown distributions
-	float f4 = + s0 - s3 - s4 + s8;
-	float f8 = - 0.5f * s1 + 0.5f * s3 + 0.5f * s7 - 0.5f * s8;
-	float f9 = + 0.5f * s1 + 0.5f * s3 - 0.5f * s7 - 0.5f * s8;
-	float f14 = - 0.5f * s2 + 0.5f * s4 + 0.5f * s6 - 0.5f * s8;
-	float f17 = + 0.5f * s2 + 0.5f * s4 - 0.5f * s6 - 0.5f * s8;
-	float f20 = - 0.25f * s5 - 0.25f * s6 + 0.25f * s7 + 0.25f * s8;
-	float f21 = + 0.25f * s5 - 0.25f * s6 - 0.25f * s7 + 0.25f * s8;
-	float f24 = - 0.25f * s5 + 0.25f * s6 - 0.25f * s7 + 0.25f * s8;
-	float f26 = + 0.25f * s5 + 0.25f * s6 + 0.25f * s7 + 0.25f * s8;
+	f4 = + s0 - s3 - s4 + s8;
+	f8 = - 0.5f * s1 + 0.5f * s3 + 0.5f * s7 - 0.5f * s8;
+	f9 = + 0.5f * s1 + 0.5f * s3 - 0.5f * s7 - 0.5f * s8;
+	f14 = - 0.5f * s2 + 0.5f * s4 + 0.5f * s6 - 0.5f * s8;
+	f17 = + 0.5f * s2 + 0.5f * s4 - 0.5f * s6 - 0.5f * s8;
+	f20 = - 0.25f * s5 - 0.25f * s6 + 0.25f * s7 + 0.25f * s8;
+	f21 = + 0.25f * s5 - 0.25f * s6 - 0.25f * s7 + 0.25f * s8;
+	f24 = - 0.25f * s5 + 0.25f * s6 - 0.25f * s7 + 0.25f * s8;
+	f26 = + 0.25f * s5 + 0.25f * s6 + 0.25f * s7 + 0.25f * s8;
 }

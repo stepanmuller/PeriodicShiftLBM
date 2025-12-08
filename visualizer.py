@@ -1,24 +1,3 @@
-"""
-import numpy as np
-import matplotlib.pyplot as plt
-
-# --- Load CSV ---
-data = np.loadtxt("result.csv", delimiter=",")
-
-# --- Create figure ---
-plt.figure(figsize=(6, 4))
-img = plt.imshow(data, origin="lower", cmap="viridis", aspect="equal")
-
-# --- Add colorbar ---
-#cbar = plt.colorbar(img)
-#cbar.set_label("Velocity magnitude")
-
-# --- Save image ---
-plt.savefig("velocity_slice.png", dpi=500, bbox_inches="tight")
-
-# --- Optionally show ---
-#plt.show()
-"""
 import numpy as np
 import matplotlib.pyplot as plt
 
@@ -34,20 +13,9 @@ plt.rcParams.update({
     "figure.titlesize": 9
 })
 
-# --- Load CSV ---
 data = np.loadtxt("result.csv", delimiter=",")
 
-# --- Create figure ---
 plt.figure(figsize=(6, 4))
 img = plt.imshow(data, origin="lower", cmap="viridis", aspect="equal")
 
-# --- Add colorbar ---
-# cbar = plt.colorbar(img)
-# cbar.set_label(r"Velocity magnitude")
-
-# --- Save image ---
 plt.savefig("result.png", dpi=1000, bbox_inches="tight")
-
-# --- Optionally show ---
-# plt.show()
-
