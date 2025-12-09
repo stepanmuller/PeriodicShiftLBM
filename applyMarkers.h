@@ -12,11 +12,11 @@ void applyMarkers( MarkerStruct& Marker, ArrayType& uzArray )
 
 	auto cellLambda = [=] __cuda_callable__ (const TNL::Containers::StaticArray< 3, int >& tripleIndex) mutable
 	{
-		const int i = tripleIndex.x();
-		const int j = tripleIndex.y();
-		const int k = tripleIndex.z();
+		const size_t i = tripleIndex.x();
+		const size_t j = tripleIndex.y();
+		const size_t k = tripleIndex.z();
 		size_t cell = convertIndex(i, j, k);
-		if ( j>=350 && j<=450 && k>=250 && k<=350 ) 
+		if ( j>=boxStartJ && j<=boxEndJ && k>=boxStartK && k<=boxEndK ) 
 		{
 			bouncebackMarkerArrayView[cell] = 1;
 		}
@@ -38,7 +38,7 @@ void applyMarkers( MarkerStruct& Marker, ArrayType& uzArray )
 			fluidMarkerArrayView[cell] = 1;
 		}
 	};
-	TNL::Containers::StaticArray< 3, int > start{ 0, 0, 0 };
-	TNL::Containers::StaticArray< 3, int > end{ cellCountX, cellCountY, cellCountZ };
+	TNL::Containers::StaticArray< 3, size_t > start{ 0, 0, 0 };
+	TNL::Containers::StaticArray< 3, size_t > end{ cellCountX, cellCountY, cellCountZ };
 	TNL::Algorithms::parallelFor<TNL::Devices::Cuda>(start, end, cellLambda );
 }
