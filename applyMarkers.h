@@ -16,11 +16,13 @@ void applyMarkers( MarkerStruct& Marker, ArrayType& uzArray )
 		const size_t j = tripleIndex.y();
 		const size_t k = tripleIndex.z();
 		size_t cell = convertIndex(i, j, k);
+		/*
 		if ( j>=boxStartJ && j<=boxEndJ && k>=boxStartK && k<=boxEndK ) 
 		{
 			bouncebackMarkerArrayView[cell] = 1;
 		}
-		else if ( i==0 || i==cellCountX-1 || j==0 || j==cellCountY-1 ) 
+		*/
+		if ( i==0 || i==cellCountX-1 || j==0 || j==cellCountY-1 ) 
 		{
 			bouncebackMarkerArrayView[cell] = 1;
 		}
