@@ -2,7 +2,7 @@ PeriodicShiftLBM is a LBM solver based on the TNL library: https://tnl-project.o
 
 Compile using tnlcxx: https://gitlab.com/tnl-project/tnlcxx
 
-tnlcxx main.cu
+tnlcxx --release main.cu
 
 Features
 - periodic shift (PS) streaming
