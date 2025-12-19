@@ -1,11 +1,7 @@
 #include "config.h"
 #include "getOuterNormal.h"
 
-void applyLocalCellUpdate( 	MarkerStruct& Marker,
-							DistributionFunctionStruct& F, 
-							ArrayType& rhoArray, 
-							ArrayType& uxArray, ArrayType& uyArray, ArrayType& uzArray,
-							ArrayType& gxArray, ArrayType& gyArray, ArrayType& gzArray )
+void applyLocalCellUpdate( 	MarkerStruct& Marker, DistributionFunctionStruct& F )
 {
 	auto fluidMarkerArrayView = Marker.fluidArray.getConstView();
 	auto bouncebackMarkerArrayView = Marker.bouncebackArray.getConstView();
@@ -41,14 +37,6 @@ void applyLocalCellUpdate( 	MarkerStruct& Marker,
 	auto f24ArrayView = F.fArray[24].getView();
 	auto f25ArrayView = F.fArray[25].getView();
 	auto f26ArrayView = F.fArray[26].getView();
-	
-	auto rhoArrayView = rhoArray.getView();
-	auto uxArrayView = uxArray.getView();
-	auto uyArrayView = uyArray.getView();
-	auto uzArrayView = uzArray.getView();
-	auto gxArrayView = gxArray.getView();
-	auto gyArrayView = gyArray.getView();
-	auto gzArrayView = gzArray.getView();
 
 	auto cellLambda = [=] __cuda_callable__ (size_t cell) mutable
 	{
@@ -60,40 +48,32 @@ void applyLocalCellUpdate( 	MarkerStruct& Marker,
 			if (shiftedIndex[i] >= cellCount) { shiftedIndex[i] -= cellCount; }
 		}
 		bool fluidMarker = fluidMarkerArrayView[cell];
+		bool bouncebackMarker = bouncebackMarkerArrayView[cell];
+		bool inletMarker = inletMarkerArrayView[cell];
+		bool outletMarker = outletMarkerArrayView[cell];
 		#include "inPlaceInclude/readF.hpp"
 		if ( fluidMarker == 1 )
 		{
 			#include "inPlaceInclude/getRhoUxUyUz.hpp"
 			#include "inPlaceInclude/applyCollision.hpp"
-			#include "inPlaceInclude/writeRho.hpp"
-			#include "inPlaceInclude/writeUxUyUz.hpp"
 		}
-		bool bouncebackMarker = bouncebackMarkerArrayView[cell];
-		if ( bouncebackMarker == 1 )
+		else if ( bouncebackMarker == 1 )
 		{
 			#include "inPlaceInclude/applyBounceback.hpp"
 		}
-		
-		bool inletMarker = inletMarkerArrayView[cell];
-		if ( inletMarker == 1 )
+		else if ( inletMarker == 1 )
 		{
 			short outerNormalX, outerNormalY, outerNormalZ;
 			getOuterNormal(cell, outerNormalX, outerNormalY, outerNormalZ);
 			#include "inPlaceInclude/applyVelocityInlet.hpp"
 			#include "inPlaceInclude/applyCollision.hpp"
-			#include "inPlaceInclude/writeRho.hpp"
-			//return;
 		}
-		bool outletMarker = outletMarkerArrayView[cell];
-		if ( outletMarker == 1 )
+		else if ( outletMarker == 1 )
 		{
 			short outerNormalX, outerNormalY, outerNormalZ;
 			getOuterNormal(cell, outerNormalX, outerNormalY, outerNormalZ);
 			#include "inPlaceInclude/applyPressureOutlet.hpp"
 			#include "inPlaceInclude/applyCollision.hpp"
-			#include "inPlaceInclude/writeF.hpp"
-			#include "inPlaceInclude/writeUxUyUz.hpp"
-			return;
 		}
 		#include "inPlaceInclude/writeF.hpp"
 	};

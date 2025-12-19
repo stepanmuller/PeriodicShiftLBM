@@ -11,9 +11,9 @@
 //---------------------------- APPLY FORCING - FIRST HALF ----------------------------
 //------------------------------------------------------------------------------------
 
-const float gx  = gxArrayView[cell];
-const float gy  = gyArrayView[cell];
-const float gz  = gzArrayView[cell];
+const float gx  = 0; //gxArrayView[cell];
+const float gy  = 0; //gyArrayView[cell];
+const float gz  = 0; //gzArrayView[cell];
 ux = ((ux * rho) + gx/2.f) / rho;
 uy = ((uy * rho) + gy/2.f) / rho;
 uz = ((uz * rho) + gz/2.f) / rho;

@@ -9,7 +9,7 @@
 // Computers & Mathematics with Applications, 173:87–101, 2024.
 
 // Reading prescribed pressure outlet rho
-const float rho = rhoArrayView[cell];
+const float rho = 1.0;
 // Declaring ux, uy, uz
 float ux = 0.f;
 float uy = 0.f;

@@ -16,7 +16,6 @@ using MarkerArrayTypeCPU = TNL::Containers::Array< bool, TNL::Devices::Host, siz
 struct DistributionFunctionStruct { IndexArrayType shifter; ArrayType fArray[27]; };
 
 struct MarkerStruct { MarkerArrayType fluidArray; MarkerArrayType bouncebackArray; MarkerArrayType inletArray; MarkerArrayType outletArray;  };
-struct MarkerStructCPU { MarkerArrayTypeCPU fluidArray; MarkerArrayTypeCPU bouncebackArray; MarkerArrayTypeCPU inletArray; MarkerArrayTypeCPU outletArray;  };
 
 #include "config.h"
 
@@ -39,27 +38,13 @@ int main(int argc, char **argv)
 	Marker.inletArray = MarkerArrayType( cellCount, 0);
 	Marker.outletArray = MarkerArrayType( cellCount, 0);
 	
-	MarkerStruct MarkerCPU;
-	MarkerCPU.fluidArray = MarkerArrayTypeCPU( cellCount, 0);
-	MarkerCPU.bouncebackArray = MarkerArrayTypeCPU( cellCount, 0);
-	MarkerCPU.inletArray = MarkerArrayTypeCPU( cellCount, 0);
-	MarkerCPU.outletArray = MarkerArrayTypeCPU( cellCount, 0);
-	
-	ArrayType rhoArray = ArrayType( cellCount, 1.f );
-	ArrayType uxArray = ArrayType( cellCount, 0.f );
-	ArrayType uyArray = ArrayType( cellCount, 0.f );
-	ArrayType uzArray = ArrayType( cellCount, 0.f );
-	ArrayType gxArray = ArrayType( cellCount, 0.f );
-	ArrayType gyArray = ArrayType( cellCount, 0.f );
-	ArrayType gzArray = ArrayType( cellCount, 0.f );	
-	
 	std::cout << "Periodic Shift LBM" << std::endl;
 	
 	std::cout << "Initialization: Marking cells" << std::endl;
-	applyMarkers(Marker, uzArray);
+	applyMarkers(Marker);
 	
 	std::cout << "Initialization: Filling F" << std::endl;
-	applyInitialization( F, rhoArray, uxArray, uyArray, uzArray );
+	applyInitialization( F );
 	
 	#ifdef __CUDACC__
 	std::cout << "Starting simulation" << std::endl;
@@ -70,7 +55,7 @@ int main(int argc, char **argv)
 	for (int i=0; i<iterationCount; i++)
 	{
 		applyStreaming( F );
-		applyLocalCellUpdate( Marker, F, rhoArray, uxArray, uyArray, uzArray, gxArray, gyArray, gzArray );
+		applyLocalCellUpdate( Marker, F );
 		
 		if (i%100 == 0 && i!=0)
 		{
@@ -99,10 +84,10 @@ int main(int argc, char **argv)
 		{
 			size_t i = cellCountX / 2; 
 			size_t cell = convertIndex(i, j, k);
-			float uy = uyArray.getElement(cell);
-			float uz = uzArray.getElement(cell);
+			float uy = F.fArray[0].getElement(cell);
+			float uz = F.fArray[0].getElement(cell);
 			float uMag = sqrt(uy * uy + uz * uz);
-			float rho = rhoArray.getElement(cell);
+			float rho = F.fArray[0].getElement(cell);
 			out << uMag;
 			if (k + 1 < cellCountZ)
 				out << ",";

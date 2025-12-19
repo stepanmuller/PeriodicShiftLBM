@@ -11,9 +11,9 @@ constexpr float uzInlet = 0.1; 										// also works as nominal LBM Mach numbe
 constexpr float SmagorinskyConstant = 0.1; 							// set to zero to turn off LES
 
 // input domain
-constexpr size_t cellCountX = 128;
-constexpr size_t cellCountY = 128;
-constexpr size_t cellCountZ = 128;
+constexpr size_t cellCountX = 100;
+constexpr size_t cellCountY = 1000;
+constexpr size_t cellCountZ = 1000;
 constexpr int iterationCount = 10000;
 
 // box dimensions

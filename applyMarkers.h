@@ -1,14 +1,12 @@
 #include "config.h"
 #include "convertIndex.h"
 
-void applyMarkers( MarkerStruct& Marker, ArrayType& uzArray )
+void applyMarkers( MarkerStruct& Marker )
 {
 	auto fluidMarkerArrayView = Marker.fluidArray.getView();
 	auto bouncebackMarkerArrayView = Marker.bouncebackArray.getView();
 	auto inletMarkerArrayView = Marker.inletArray.getView();
 	auto outletMarkerArrayView = Marker.outletArray.getView();
-	
-	auto uzArrayView = uzArray.getView();
 
 	auto cellLambda = [=] __cuda_callable__ (const TNL::Containers::StaticArray< 3, int >& tripleIndex) mutable
 	{
@@ -29,7 +27,6 @@ void applyMarkers( MarkerStruct& Marker, ArrayType& uzArray )
 		else if ( k==0 ) 
 		{
 			inletMarkerArrayView[cell] = 1;
-			uzArrayView[cell] = uzInlet;
 		}
 		else if ( k==cellCountZ-1 ) 
 		{

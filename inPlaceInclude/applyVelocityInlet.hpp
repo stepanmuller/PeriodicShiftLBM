@@ -8,9 +8,9 @@
 // Computers & Mathematics with Applications, 173:87–101, 2024.
 
 // Reading prescribed velocity inlet ux, uy, uz
-float ux = uxArrayView[cell];
-float uy = uyArrayView[cell];
-float uz = uzArrayView[cell];
+float ux = 0.f; //uxArrayView[cell];
+float uy = 0.f; //uyArrayView[cell];
+float uz = 0.1f; //uzArrayView[cell];
 // Declaring rho
 float rho = 1.f;
 

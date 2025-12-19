@@ -1,8 +1,6 @@
 #include "config.h"
 
-void applyInitialization( 	DistributionFunctionStruct& F, 
-							ArrayType& rhoArray, 
-							ArrayType& uxArray, ArrayType& uyArray, ArrayType& uzArray )
+void applyInitialization( 	DistributionFunctionStruct& F )
 {
 	auto shifterView = F.shifter.getConstView();
 	
@@ -33,11 +31,6 @@ void applyInitialization( 	DistributionFunctionStruct& F,
 	auto f24ArrayView = F.fArray[24].getView();
 	auto f25ArrayView = F.fArray[25].getView();
 	auto f26ArrayView = F.fArray[26].getView();
-	
-	auto rhoArrayView = rhoArray.getView();
-	auto uxArrayView = uxArray.getView();
-	auto uyArrayView = uyArray.getView();
-	auto uzArrayView = uzArray.getView();
 
 	auto cellLambda = [=] __cuda_callable__ (size_t cell) mutable
 	{
@@ -49,10 +42,10 @@ void applyInitialization( 	DistributionFunctionStruct& F,
 			if (shiftedIndex[i] >= cellCount) { shiftedIndex[i] -= cellCount; }
 		}
 		
-		const float rho = rhoArrayView[cell];
-		const float ux = uxArrayView[cell];
-		const float uy = uyArrayView[cell];
-		const float uz = uzArrayView[cell];
+		const float rho = 1.f;
+		const float ux = 0.f;
+		const float uy = 0.f;
+		const float uz = 0.f;
 		
 		#include "inPlaceInclude/getFeq.hpp"
 		
