@@ -1,6 +1,6 @@
 import numpy as np
 
-def getLatex(f, normal, fk, fu, mfk, mfu, K, U, UInv, mc, DInv):
+def getLatex(f, normal, fk, fu, mfk, mfu, K, U, UInv, mc, DInv, DInvC, DuInv):
 	fkfu(normal, fk, fu)
 	Matrix(mfk, "M_{fk}")
 	Matrix(mfu, "M_{fu}")
@@ -9,6 +9,8 @@ def getLatex(f, normal, fk, fu, mfk, mfu, K, U, UInv, mc, DInv):
 	Matrix(UInv, "U^{-1}")
 	Matrix(mc, "M_{c}")
 	Matrix(DInv, "D^{-1}")
+	Matrix(DInvC, "D^{-1}C")
+	Matrix(DuInv, "D_{u}^{-1}")
 
 def fkfu(normal, fk, fu):
 	knownString = ", ".join(f"{d}" for d in fk)

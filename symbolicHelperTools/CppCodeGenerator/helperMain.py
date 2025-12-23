@@ -80,29 +80,81 @@ meqLin = [
 		]
 
 Q = sp.Matrix([
-    [1, 0, 0, 0],
-    [0, 1, 0, 0],
-    [0, 0, 1, 0],
-    [0, 0, 0, 1],
-    [sp.Rational(1, 3), 0, 0, 0],
-    [sp.Rational(1, 3), 0, 0, 0],
-    [sp.Rational(1, 3), 0, 0, 0],
-    [0, 0, 0, 0],
-    [0, 0, 0, 0],
-    [0, 0, 0, 0],
-    [0, 0, 0, 0],
-    [0, 0, sp.Rational(1, 3), 0],
-    [0, 0, 0, sp.Rational(1, 3)],
-    [0, sp.Rational(1, 3), 0, 0],
-    [0, 0, 0, sp.Rational(1, 3)],
-    [0, sp.Rational(1, 3), 0, 0],
-    [0, 0, sp.Rational(1, 3), 0],
-    [sp.Rational(1, 9), 0, 0, 0],
-    [sp.Rational(1, 9), 0, 0, 0],
-    [sp.Rational(1, 9), 0, 0, 0],
-    [0, 0, 0, 0],
-    [0, 0, 0, 0],
-    [0, 0, 0, 0],
+	[1, 0, 0, 0],
+	[0, 1, 0, 0],
+	[0, 0, 1, 0],
+	[0, 0, 0, 1],
+	[sp.Rational(1, 3), 0, 0, 0],
+	[sp.Rational(1, 3), 0, 0, 0],
+	[sp.Rational(1, 3), 0, 0, 0],
+	[0, 0, 0, 0],
+	[0, 0, 0, 0],
+	[0, 0, 0, 0],
+	[0, 0, 0, 0],
+	[0, 0, sp.Rational(1, 3), 0],
+	[0, 0, 0, sp.Rational(1, 3)],
+	[0, sp.Rational(1, 3), 0, 0],
+	[0, 0, 0, sp.Rational(1, 3)],
+	[0, sp.Rational(1, 3), 0, 0],
+	[0, 0, sp.Rational(1, 3), 0],
+	[sp.Rational(1, 9), 0, 0, 0],
+	[sp.Rational(1, 9), 0, 0, 0],
+	[sp.Rational(1, 9), 0, 0, 0],
+	[0, 0, 0, 0],
+	[0, 0, 0, 0],
+	[0, 0, 0, 0],
+])
+
+Qu = sp.Matrix([
+	[0, 0, 0],
+	[1, 0, 0],
+	[0, 1, 0],
+	[0, 0, 1],
+	[0, 0, 0],
+	[0, 0, 0],
+	[0, 0, 0],
+	[0, 0, 0],
+	[0, 0, 0],
+	[0, 0, 0],
+	[0, 0, 0],
+	[0, sp.Rational(1, 3), 0],
+	[0, 0, sp.Rational(1, 3)],
+	[sp.Rational(1, 3), 0, 0],
+	[0, 0, sp.Rational(1, 3)],
+	[sp.Rational(1, 3), 0, 0],
+	[0, sp.Rational(1, 3), 0],
+	[0, 0, 0],
+	[0, 0, 0],
+	[0, 0, 0],
+	[0, 0, 0],
+	[0, 0, 0],
+	[0, 0, 0],
+])
+
+Qrho = sp.Matrix([
+	[1],
+	[0],
+	[0],
+	[0],
+	[sp.Rational(1, 3)],
+	[sp.Rational(1, 3)],
+	[sp.Rational(1, 3)],
+	[0],
+	[0],
+	[0],
+	[0],
+	[0],
+	[0],
+	[0],
+	[0],
+	[0],
+	[0],
+	[sp.Rational(1, 9)],
+	[sp.Rational(1, 9)],
+	[sp.Rational(1, 9)],
+	[0],
+	[0],
+	[0],
 ])
 
 def getBCdata(normal):
@@ -174,7 +226,7 @@ def getBCdata(normal):
 		selector2 = [0]
 		i = 1
 		while len(selector2) < 4:
-			if i >= 4:
+			if i >= len(mctq):
 				print("nullspace Error: Ran out of independent columns")
 				return None
 			
@@ -194,9 +246,36 @@ def getBCdata(normal):
 	DInvC = DInv * C
 	
 	DInv = DInv.tolist()
+	DInvC = DInvC.tolist()
 	mc = mct.T.tolist()
 	
-	return fk, fu, mfk, mfu, selector, K, U, UInv, selector2, mc, DInv
+	### third part - restoring macroscopic quantities when rho is known
+	mctqu = mct * Qu
+	
+	def getSelector3():
+		selector3 = [0]
+		i = 1
+		while len(selector3) < 3:
+			if i >= len(mctqu):
+				print("nullspace Error: Ran out of independent columns 3")
+				return None
+			
+			previousRank = mctqu.row(selector3).rank()
+			attemptedRank =  mctqu.row(selector3 + [i]).rank()
+			if attemptedRank > previousRank:
+				selector3.append(i)
+			i += 1
+		return selector3
+	selector3 = getSelector3()
+	C = (mct * sp.Matrix(mfk)).row(selector3)
+	Du = sp.Matrix(mctqu).row(selector3)
+	
+	DuInv = Du.inv()
+	DuInvC = DuInv * C
+	
+	DuInv = DuInv.tolist()
+	
+	return fk, fu, mfk, mfu, selector, K, U, UInv, selector2, mc, DInv, DInvC, DuInv
 
 os.makedirs("results", exist_ok=True)
 
@@ -214,11 +293,11 @@ for i, normal in enumerate(allNormals):
 	allLines += applyMBBC(i, normal, fk, fu, mfk, mfu, chosenMoments, K, U, UInv, meqDict)
 
 with open("results/applyVelocityInlet.hpp", "w") as file:
-    file.write("\n".join(allLines))
+	file.write("\n".join(allLines))
 """
 
 #### Latex Tables
-normal = [1, -1, 1]
-fk, fu, mfk, mfu, selector, K, U, UInv, selector2, mc, DInv = getBCdata(normal)
-latexCode = getLatex(f, normal, fk, fu, mfk, mfu, K, U, UInv, mc, DInv)
+normal = [0, 0, 1]
+fk, fu, mfk, mfu, selector, K, U, UInv, selector2, mc, DInv, DInvC, DuInv = getBCdata(normal)
+latexCode = getLatex(f, normal, fk, fu, mfk, mfu, K, U, UInv, mc, DInv, DInvC, DuInv)
 
