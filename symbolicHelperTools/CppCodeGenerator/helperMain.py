@@ -79,6 +79,8 @@ meqLin = [
 		["0", "0", "0", "0"]
 		]
 
+meqOrder = [0, 1, 1, 1, 2, 2, 2, 2, 2, 2, 3, 3, 3, 3, 3, 3, 3, 4, 4, 4, 4, 4, 4]
+
 Q = sp.Matrix([
 	[1, 0, 0, 0],
 	[0, 1, 0, 0],
@@ -184,98 +186,50 @@ def getBCdata(normal):
 	for abc in abcs:
 		getMoment(mfk, mfu, abc)
 		
-	mfk = np.array(mfk)
-	mfu = np.array(mfu)
+	mfk = sp.Matrix(mfk)
+	mfu = sp.Matrix(mfu)
 
-	def getSelector():
-		selector = [0]
-		numberOfEquations = len(fu)
-		i = 1
-		while len(selector) < numberOfEquations:
-			if i >= len(mfu):
-				print("getChosenMoments Error: Ran out of independent groups")
-				return None
-			previousRank = np.linalg.matrix_rank(mfu[selector])
-			attemptedRank = np.linalg.matrix_rank(mfu[(selector + [i])])
-			if attemptedRank > previousRank:
-				selector.append(i)
-			i += 1
-		return selector
-
-	selector = getSelector()
+	### First part: MBBC
+	rowsToKeep = [0]
+	i = 1
+	while len(rowsToKeep) < len(fu):
+		if i >= len(mfu):
+			print("getChosenMoments Error: Ran out of independent groups")
+			return None
+		previousRank = mfu.row(rowsToKeep).rank()
+		attemptedRank = mfu.row(rowsToKeep + [i]).rank()
+		if attemptedRank > previousRank:
+			rowsToKeep.append(i)
+		i += 1
+	identityMatrix = sp.eye(23)
+	S =  identityMatrix.row(rowsToKeep)
 	
-	K = mfk[selector]
-	U = mfu[selector]
+	### Second part: restoring rho, ux, uy, uz
+	nullspace = mfu.T.nullspace()
+	def nonzero_order_sum(v):
+		key = 0
+		for i, val in enumerate(v):
+			if val != 0:
+				key += meqOrder[i]
+		return key
+	sorted_nullspace = sorted(nullspace, key=nonzero_order_sum)
+	C = sp.Matrix.hstack(*sorted_nullspace)
+	rowsToKeep = [0]
+	i = 1
+	while len(rowsToKeep) < 4:
+		if i >= len(C.T * Q):
+			print("nullspace Error: Ran out of independent columns")
+			return None
+		
+		previousRank = (C.T * Q).row(rowsToKeep).rank()
+		attemptedRank =  (C.T * Q).row(rowsToKeep + [i]).rank()
+		if attemptedRank > previousRank:
+			rowsToKeep.append(i)
+		i += 1
+	identityMatrix = sp.eye(len((C.T * Q).tolist()))
+	Sq =  identityMatrix.row(rowsToKeep)
 	
-	USympy = sp.Matrix(U)
-	UInvSympy = USympy.inv()
-	UInv = UInvSympy.tolist()
-	
-	### Now second part - restoring macroscopic quantities
-	
-	mfuSympy = sp.Matrix(mfu)
-	nullspace = mfuSympy.T.nullspace()
-	def nonzero_index_sum(v):
-		return sum(i for i, val in enumerate(v) if val != 0)
-	sorted_nullspace = sorted(nullspace, key=nonzero_index_sum)
-	mct = sp.Matrix.hstack(*sorted_nullspace).T
-	
-	mctq = mct * Q
-	
-	def getSelector2():
-		selector2 = [0]
-		i = 1
-		while len(selector2) < 4:
-			if i >= len(mctq):
-				print("nullspace Error: Ran out of independent columns")
-				return None
-			
-			previousRank = mctq.row(selector2).rank()
-			attemptedRank =  mctq.row(selector2 + [i]).rank()
-			if attemptedRank > previousRank:
-				selector2.append(i)
-			i += 1
-		return selector2
-	selector2 = getSelector2()
-	
-	C = (mct * sp.Matrix(mfk)).row(selector2)
-	D = sp.Matrix(mctq).row(selector2)
-	
-	DInv = D.inv()
-	
-	DInvC = DInv * C
-	
-	DInv = DInv.tolist()
-	DInvC = DInvC.tolist()
-	mc = mct.T.tolist()
-	
-	### third part - restoring macroscopic quantities when rho is known
-	mctqu = mct * Qu
-	
-	def getSelector3():
-		selector3 = [0]
-		i = 1
-		while len(selector3) < 3:
-			if i >= len(mctqu):
-				print("nullspace Error: Ran out of independent columns 3")
-				return None
-			
-			previousRank = mctqu.row(selector3).rank()
-			attemptedRank =  mctqu.row(selector3 + [i]).rank()
-			if attemptedRank > previousRank:
-				selector3.append(i)
-			i += 1
-		return selector3
-	selector3 = getSelector3()
-	C = (mct * sp.Matrix(mfk)).row(selector3)
-	Du = sp.Matrix(mctqu).row(selector3)
-	
-	DuInv = Du.inv()
-	DuInvC = DuInv * C
-	
-	DuInv = DuInv.tolist()
-	
-	return fk, fu, mfk, mfu, selector, K, U, UInv, selector2, mc, DInv, DInvC, DuInv
+	return fk, fu, mfk, mfu, S, Sq, C
 
 os.makedirs("results", exist_ok=True)
 
@@ -297,7 +251,7 @@ with open("results/applyVelocityInlet.hpp", "w") as file:
 """
 
 #### Latex Tables
-normal = [0, 0, 1]
-fk, fu, mfk, mfu, selector, K, U, UInv, selector2, mc, DInv, DInvC, DuInv = getBCdata(normal)
-latexCode = getLatex(f, normal, fk, fu, mfk, mfu, K, U, UInv, mc, DInv, DInvC, DuInv)
+normal = [1, -1, 1]
+fk, fu, mfk, mfu, S, Sq, C = getBCdata(normal)
+latexCode = getLatex(f, normal, fk, fu, mfk, mfu, S, Sq, C, Q)
 

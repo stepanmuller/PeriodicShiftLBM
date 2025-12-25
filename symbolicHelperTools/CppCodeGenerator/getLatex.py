@@ -1,18 +1,16 @@
 import numpy as np
+import sympy as sp
 
-def getLatex(f, normal, fk, fu, mfk, mfu, K, U, UInv, mc, DInv, DInvC, DuInv):
-	fkfu(normal, fk, fu)
-	Matrix(mfk, "M_{fk}")
-	Matrix(mfu, "M_{fu}")
-	Matrix(U, "U")
-	Matrix(K, "K")
-	Matrix(UInv, "U^{-1}")
-	Matrix(mc, "M_{c}")
-	Matrix(DInv, "D^{-1}")
-	Matrix(DInvC, "D^{-1}C")
-	Matrix(DuInv, "D_{u}^{-1}")
+def getLatex(f, normal, fk, fu, mfk, mfu, S, Sq, C, Q):
+	printFkfu(normal, fk, fu)
+	printMatrix(mfk.tolist(), rf"\uuline{{M_{{fk}}}}")
+	printMatrix(mfu.tolist(), rf"\uuline{{M_{{fu}}}}")
+	printMatrix(S.tolist(), rf"\uuline{{S}}")
+	printMatrix((S*mfu).inv().tolist(), rf"\left( \uuline{{S}} \ \uuline{{M_{{fu}}}} \right)^{{-1}}")
+	printMatrix(Sq.tolist(), rf"\uuline{{S_q}}")
+	printMatrix((Sq*C.T*Q).inv().tolist(), rf"\left( \uuline{{S_q}} \uuline{{C^T}} \uuline{{Q}} \right)^{{-1}}")
 
-def fkfu(normal, fk, fu):
+def printFkfu(normal, fk, fu):
 	knownString = ", ".join(f"{d}" for d in fk)
 	unknownString = ", ".join(f"{d}" for d in fu)
 	normalString = ", ".join(f"{d}" for d in normal)
@@ -29,10 +27,10 @@ def fkfu(normal, fk, fu):
 	"""
 	print(text)
 
-def Matrix(U, name):
+def printMatrix(U, name):
     n_cols = len(U[0])
     col_format = "c" * n_cols  # 'c' for each column
-    lines = [rf"\uuline{{{name}}} = ", r"\left[", rf"\begin{{array}}{{{col_format}}}"]
+    lines = [rf"{name} = ", r"\left[", rf"\begin{{array}}{{{col_format}}}"]
     for row in U:
         row_str = " & ".join(str(val) for val in row)
         lines.append(f"{row_str} \\\\")
