@@ -2,8 +2,12 @@ import numpy as np
 import copy
 import sympy as sp
 import os
+import re
 
 from applyMBBC import *
+from restoreRhoU import *
+from restoreU import *
+from restoreRho import *
 from getLatex import *
 
 f    =  [ f"f_{{{i}}}" for i in range(27) ]
@@ -22,13 +26,7 @@ abcs =	[ "000",
 		  "111", "210", "201", "120", "021", "102", "012", 
 		  "022", "202", "220", "211", "121", "112" ]
 
-mLabels = [	'm_{000}',
-			'm_{100}', 'm_{010}', 'm_{001}',
-			'm_{200}', 'm_{020}', 'm_{002}', 'm_{011}', 'm_{101}', 'm_{110}', 
-			'm_{111}', 'm_{210}', 'm_{201}', 'm_{120}', 'm_{021}', 'm_{102}', 'm_{012}', 
-			'm_{022}', 'm_{202}', 'm_{220}', 'm_{211}', 'm_{121}', 'm_{112}']
-
-meq = 	["rho",
+meq = [ "rho",
 		"rho * ux",
 		"rho * uy",
 		"rho * uz",
@@ -51,32 +49,6 @@ meq = 	["rho",
 		"(1.f/3.f) * rho * uy * uz",
 		"(1.f/3.f) * rho * ux * uz",
 		"(1.f/3.f) * rho * ux * uy"
-		]	
-
-meqLin = [
-		["1", "0", "0", "0"],
-		["0", "1", "0", "0"],
-		["0", "0", "1", "0"],
-		["0", "0", "0", "1"],
-		["1/3", "0", "0", "0"],
-		["1/3", "0", "0", "0"],
-		["1/3", "0", "0", "0"],
-		["0", "0", "0", "0"],
-		["0", "0", "0", "0"],
-		["0", "0", "0", "0"],
-		["0", "0", "0", "0"],
-		["0", "0", "1/3", "0"],
-		["0", "0", "0", "1/3"],
-		["0", "1/3", "0", "0"],
-		["0", "0", "0", "1/3"],
-		["0", "1/3", "0", "0"],
-		["0", "0", "1/3", "0"],
-		["1/9", "0", "0", "0"],
-		["1/9", "0", "0", "0"],
-		["1/9", "0", "0", "0"],
-		["0", "0", "0", "0"],
-		["0", "0", "0", "0"],
-		["0", "0", "0", "0"]
 		]
 
 meqOrder = [0, 1, 1, 1, 2, 2, 2, 2, 2, 2, 3, 3, 3, 3, 3, 3, 3, 4, 4, 4, 4, 4, 4]
@@ -159,6 +131,22 @@ Qrho = sp.Matrix([
 	[0],
 ])
 
+def sympyToCppStrings(M, bracketsEverywhere = False):
+	result = []
+	for row in M.tolist():
+		new_row = []
+		for x in row:
+			s = str(x)
+			if "/" in s:
+				num, den = s.split("/")
+				s = f"({num}.f/{den}.f)"
+			elif s not in ["0", "1", "-1"] or bracketsEverywhere:
+				# make integers explicit floats if desired
+				s = f"({s}.f)"
+			new_row.append(s)
+		result.append(new_row)
+	return result
+
 def getBCdata(normal):
 	fk = []
 	fu = []
@@ -220,7 +208,6 @@ def getBCdata(normal):
 		if i >= len(C.T * Q):
 			print("nullspace Error: Ran out of independent columns")
 			return None
-		
 		previousRank = (C.T * Q).row(rowsToKeep).rank()
 		attemptedRank =  (C.T * Q).row(rowsToKeep + [i]).rank()
 		if attemptedRank > previousRank:
@@ -229,7 +216,36 @@ def getBCdata(normal):
 	identityMatrix = sp.eye(len((C.T * Q).tolist()))
 	Sq =  identityMatrix.row(rowsToKeep)
 	
-	return fk, fu, mfk, mfu, S, Sq, C
+	### Third part: restoring ux, uy, uz, known rho
+	rowsToKeep = [0]
+	i = 1
+	while len(rowsToKeep) < 3:
+		if i >= len(C.T * Qu):
+			print("nullspace Error: Ran out of independent columns")
+			return None
+		previousRank = (C.T * Qu).row(rowsToKeep).rank()
+		attemptedRank =  (C.T * Qu).row(rowsToKeep + [i]).rank()
+		if attemptedRank > previousRank:
+			rowsToKeep.append(i)
+		i += 1
+	identityMatrix = sp.eye(len((C.T * Q).tolist()))
+	Su =  identityMatrix.row(rowsToKeep)
+	
+	### Fourth part: restoring rho, known ux, uy, uz
+	rowsToKeep = []
+	i = 0
+	while len(rowsToKeep) < 1:
+		if i >= len(C.T * Qrho):
+			print("nullspace Error: Ran out of independent columns")
+			return None
+		attemptedResult = (C.T * Qrho).row(0)
+		if attemptedResult != 0:
+			rowsToKeep.append(i)
+		i += 1
+	identityMatrix = sp.eye(len((C.T * Q).tolist()))
+	Srho =  identityMatrix.row(rowsToKeep)
+	
+	return fk, fu, mfk, mfu, C, S, Sq, Su, Srho
 
 os.makedirs("results", exist_ok=True)
 
@@ -239,19 +255,103 @@ allNormals = [	[1,0,0], [0,1,0], [0,0,1], [-1,0,0], [0,-1,0], [0,0,-1],
 				[1,1,1], [-1,-1,-1], 
 				[-1,1,1], [1,-1,1], [1,1,-1], [1,-1,-1], [-1,1,-1], [-1,-1,1] ]
 
-"""
 #### applyMBBC
 allLines = []
-for i, normal in enumerate(allNormals):
-	fk, fu, mLabels, mfk, mfu, chosenMoments, K, U, UInv, meqDict, meqLinDict = getBCdata(normal)
-	allLines += applyMBBC(i, normal, fk, fu, mfk, mfu, chosenMoments, K, U, UInv, meqDict)
-
-with open("results/applyVelocityInlet.hpp", "w") as file:
+for index, normal in enumerate(allNormals):
+	fk, fu, mfk, mfu, C, S, Sq, Su, Srho = getBCdata(normal)
+	for i, fi in enumerate(fk):
+		match = re.search(r"\d+", fi)
+		number = int(match.group())
+		fk[i] = "f[" + str(number) + "]"
+	for i, fi in enumerate(fu):
+		match = re.search(r"\d+", fi)
+		number = int(match.group())
+		fu[i] = "f[" + str(number) + "]"
+		
+	inv = (S * mfu).inv()
+	
+	inv = sympyToCppStrings(inv)
+	
+	Sm = []
+	for row in S.tolist():
+		Sm.append(meq[row.index(1)])
+	
+	Smfk = (S * mfk).tolist()
+	
+	allLines += applyMBBC(index, normal, fk, fu, inv, Sm, Smfk)
+allLines.append("}")
+with open("results/applyMBBC.h", "w") as file:
 	file.write("\n".join(allLines))
-"""
+	
+#### restoreRhoU
+allLines = []
+for index, normal in enumerate(allNormals):
+	fk, fu, mfk, mfu, C, S, Sq, Su, Srho = getBCdata(normal)
+	for i, fi in enumerate(fk):
+		match = re.search(r"\d+", fi)
+		number = int(match.group())
+		fk[i] = "f[" + str(number) + "]"
+		
+	inv = (Sq * C.T * Q).inv()
+	full = inv * Sq * C.T * mfk	
+	
+	full = sympyToCppStrings(full)
+	
+	allLines += restoreRhoU(index, normal, fk, full)
+allLines.append("}")
+with open("results/restoreRhoU.h", "w") as file:
+	file.write("\n".join(allLines))
+	
+#### restoreU
+allLines = []
+for index, normal in enumerate(allNormals):
+	fk, fu, mfk, mfu, C, S, Sq, Su, Srho = getBCdata(normal)
+	for i, fi in enumerate(fk):
+		match = re.search(r"\d+", fi)
+		number = int(match.group())
+		fk[i] = "f[" + str(number) + "]"
+		
+	inv = (Su * C.T * Qu).inv()
+	inv = sympyToCppStrings(inv)
+	
+	SCMfk = Su * C.T * mfk
+	SCMfk = sympyToCppStrings(SCMfk)
+	
+	SCQ = Su * C.T * Qrho
+	SCQ = sympyToCppStrings(SCQ, bracketsEverywhere = True)
+	
+	allLines += restoreU(index, normal, fk, inv, SCMfk, SCQ)
+allLines.append("}")
+with open("results/restoreU.h", "w") as file:
+	file.write("\n".join(allLines))
+	
+#### restoreRho
+allLines = []
+for index, normal in enumerate(allNormals):
+	fk, fu, mfk, mfu, C, S, Sq, Su, Srho = getBCdata(normal)
+	for i, fi in enumerate(fk):
+		match = re.search(r"\d+", fi)
+		number = int(match.group())
+		fk[i] = "f[" + str(number) + "]"
+	
+	SCQrho = Srho * C.T * Qrho
+	SCQrho = sympyToCppStrings(SCQrho)
+	
+	SCMfk = Srho * C.T * mfk
+	SCMfk = sympyToCppStrings(SCMfk)
+	
+	SCQu = Srho * C.T * Qu
+	
+	SCQu = sympyToCppStrings(SCQu, bracketsEverywhere = True)
+	
+	allLines += restoreRho(index, normal, fk, SCQrho, SCMfk, SCQu)
+allLines.append("}")
+with open("results/restoreRho.h", "w") as file:
+	file.write("\n".join(allLines))
 
+"""
 #### Latex Tables
 normal = [1, -1, 1]
-fk, fu, mfk, mfu, S, Sq, C = getBCdata(normal)
-latexCode = getLatex(f, normal, fk, fu, mfk, mfu, S, Sq, C, Q)
-
+fk, fu, mfk, mfu, C, S, Sq, Su, Srho = getBCdata(normal)
+latexCode = getLatex(f, normal, fk, fu, mfk, mfu, C, S, Sq, Q, Su, Qu, Srho, Qrho)
+"""
