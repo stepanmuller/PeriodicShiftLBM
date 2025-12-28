@@ -5,8 +5,8 @@ import os
 import re
 
 from applyMBBC import *
-from restoreRhoU import *
-from restoreU import *
+from restoreRhoUxUyUz import *
+from restoreUxUyUz import *
 from restoreRho import *
 from getLatex import *
 
@@ -297,9 +297,9 @@ for index, normal in enumerate(allNormals):
 	
 	full = sympyToCppStrings(full)
 	
-	allLines += restoreRhoU(index, normal, fk, full)
+	allLines += restoreRhoUxUyUz(index, normal, fk, full)
 allLines.append("}")
-with open("results/restoreRhoU.h", "w") as file:
+with open("results/restoreRhoUxUyUz.h", "w") as file:
 	file.write("\n".join(allLines))
 	
 #### restoreU
@@ -320,9 +320,9 @@ for index, normal in enumerate(allNormals):
 	SCQ = Su * C.T * Qrho
 	SCQ = sympyToCppStrings(SCQ, bracketsEverywhere = True)
 	
-	allLines += restoreU(index, normal, fk, inv, SCMfk, SCQ)
+	allLines += restoreUxUyUz(index, normal, fk, inv, SCMfk, SCQ)
 allLines.append("}")
-with open("results/restoreU.h", "w") as file:
+with open("results/restoreUxUyUz.h", "w") as file:
 	file.write("\n".join(allLines))
 	
 #### restoreRho

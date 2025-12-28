@@ -6,7 +6,7 @@ def applyMBBC(index, normal, fk, fu, inv, Sm, Smfk):
 	if index == 0:
 		lines.append("__host__ __device__ void applyMBBC(")
 		lines.append("	const int &outerNormalX, const int &outerNormalY, const int &outerNormalZ,")
-		lines.append("	const float &rho, const float &ux, const float &uy, const float &uz),")
+		lines.append("	const float &rho, const float &ux, const float &uy, const float &uz,")
 		lines.append("	float (&f)[27]")
 		lines.append(")")
 		lines.append("{")

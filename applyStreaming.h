@@ -12,7 +12,7 @@ DirectionType directionCx{ 0, 1,-1, 0, 0, 0, 0, 1,-1, 1,-1,-1, 1, 0, 0,-1, 1, 0,
 DirectionType directionCy{ 0, 0, 0, 0, 0,-1, 1, 0, 0, 0, 0,-1, 1, 1,-1, 1,-1, 1,-1, 1,-1,-1, 1,-1, 1,-1, 1 };
 DirectionType directionCz{ 0, 0, 0,-1, 1, 0, 0,-1, 1, 1,-1, 0, 0,-1, 1, 0, 0, 1,-1,-1, 1, 1,-1,-1, 1,-1, 1 };
 
-void applyStreaming( DistributionFunctionStruct& F )
+void applyStreaming( DistributionStruct& F )
 {
 	auto shifterView = F.shifter.getView();
 	auto directionCxView = directionCx.getConstView();

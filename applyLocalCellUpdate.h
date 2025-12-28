@@ -1,7 +1,7 @@
 #include "config.h"
-#include "getOuterNormal.h"
+#include "boundaryConditions/applyBounceback.h"
 
-void applyLocalCellUpdate( 	MarkerStruct& Marker, DistributionFunctionStruct& F )
+void applyLocalCellUpdate( 	MarkerStruct& Marker, DistributionStruct& F )
 {
 	auto fluidMarkerArrayView = Marker.fluidArray.getConstView();
 	auto bouncebackMarkerArrayView = Marker.bouncebackArray.getConstView();
@@ -9,34 +9,7 @@ void applyLocalCellUpdate( 	MarkerStruct& Marker, DistributionFunctionStruct& F 
 	auto outletMarkerArrayView = Marker.outletArray.getConstView();
 	
 	auto shifterView = F.shifter.getConstView();
-	
-	auto f0ArrayView  = F.fArray[0].getView();
-	auto f1ArrayView  = F.fArray[1].getView();
-	auto f2ArrayView  = F.fArray[2].getView();
-	auto f3ArrayView  = F.fArray[3].getView();
-	auto f4ArrayView  = F.fArray[4].getView();
-	auto f5ArrayView  = F.fArray[5].getView();
-	auto f6ArrayView  = F.fArray[6].getView();
-	auto f7ArrayView  = F.fArray[7].getView();
-	auto f8ArrayView  = F.fArray[8].getView();
-	auto f9ArrayView  = F.fArray[9].getView();
-	auto f10ArrayView = F.fArray[10].getView();
-	auto f11ArrayView = F.fArray[11].getView();
-	auto f12ArrayView = F.fArray[12].getView();
-	auto f13ArrayView = F.fArray[13].getView();
-	auto f14ArrayView = F.fArray[14].getView();
-	auto f15ArrayView = F.fArray[15].getView();
-	auto f16ArrayView = F.fArray[16].getView();
-	auto f17ArrayView = F.fArray[17].getView();
-	auto f18ArrayView = F.fArray[18].getView();
-	auto f19ArrayView = F.fArray[19].getView();
-	auto f20ArrayView = F.fArray[20].getView();
-	auto f21ArrayView = F.fArray[21].getView();
-	auto f22ArrayView = F.fArray[22].getView();
-	auto f23ArrayView = F.fArray[23].getView();
-	auto f24ArrayView = F.fArray[24].getView();
-	auto f25ArrayView = F.fArray[25].getView();
-	auto f26ArrayView = F.fArray[26].getView();
+	auto fArrayView  = F.fArray.getView();
 
 	auto cellLambda = [=] __cuda_callable__ (size_t cell) mutable
 	{
@@ -51,31 +24,37 @@ void applyLocalCellUpdate( 	MarkerStruct& Marker, DistributionFunctionStruct& F 
 		bool bouncebackMarker = bouncebackMarkerArrayView[cell];
 		bool inletMarker = inletMarkerArrayView[cell];
 		bool outletMarker = outletMarkerArrayView[cell];
-		#include "inPlaceInclude/readF.hpp"
+		
+		float f[27];
+		float rho, ux, uy, uz;
+		for (size_t i = 0; i < 27; i++)	f[i] = fArrayView(i, shiftedIndex[i]);
+		
 		if ( fluidMarker == 1 )
 		{
-			#include "inPlaceInclude/getRhoUxUyUz.hpp"
-			#include "inPlaceInclude/applyCollision.hpp"
+			getRhoUxUyUz(rho, ux, uy, uz, f);
+			applyCollision(rho, ux, uy, uz, f);
 		}
 		else if ( bouncebackMarker == 1 )
 		{
-			#include "inPlaceInclude/applyBounceback.hpp"
+			applyBounceback(f);
 		}
 		else if ( inletMarker == 1 )
 		{
 			short outerNormalX, outerNormalY, outerNormalZ;
 			getOuterNormal(cell, outerNormalX, outerNormalY, outerNormalZ);
-			#include "inPlaceInclude/applyVelocityInlet.hpp"
-			#include "inPlaceInclude/applyCollision.hpp"
+			restoreRho(outerNormalX, outerNormalY, outerNormalZ, rho, ux, uy, uz, f);
+			applyMBBC(outerNormalX, outerNormalY, outerNormalZ, rho, ux, uy, uz, f);
+			applyCollision(rho, ux, uy, uz, f);
 		}
 		else if ( outletMarker == 1 )
 		{
 			short outerNormalX, outerNormalY, outerNormalZ;
 			getOuterNormal(cell, outerNormalX, outerNormalY, outerNormalZ);
-			#include "inPlaceInclude/applyPressureOutlet.hpp"
-			#include "inPlaceInclude/applyCollision.hpp"
+			restoreUxUyUz(outerNormalX, outerNormalY, outerNormalZ, rho, ux, uy, uz, f);
+			applyMBBC(outerNormalX, outerNormalY, outerNormalZ, rho, ux, uy, uz, f);
+			applyCollision(rho, ux, uy, uz, f);
 		}
-		#include "inPlaceInclude/writeF.hpp"
+		for (size_t i = 0; i < 27; i++)	fArrayView(i, shiftedIndex[i]) = f[i];
 	};
 	TNL::Algorithms::parallelFor<TNL::Devices::Cuda>(0, cellCount, cellLambda );
 }

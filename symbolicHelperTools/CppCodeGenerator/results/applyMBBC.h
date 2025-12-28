@@ -1,6 +1,6 @@
 __host__ __device__ void applyMBBC(
 	const int &outerNormalX, const int &outerNormalY, const int &outerNormalZ,
-	const float &rho, const float &ux, const float &uy, const float &uz),
+	const float &rho, const float &ux, const float &uy, const float &uz,
 	float (&f)[27]
 )
 {

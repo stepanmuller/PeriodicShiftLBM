@@ -1,5 +1,5 @@
 #include "config.h"
-#include "convertIndex.h"
+#include "cellFunctions.h"
 
 void applyMarkers( MarkerStruct& Marker )
 {

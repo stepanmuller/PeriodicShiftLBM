@@ -6,7 +6,7 @@ def restoreRho(index, normal, fk, SCQrho, SCMfk, SCQu):
 	if index == 0:
 		lines.append("__host__ __device__ void restoreRho(")
 		lines.append("	const int &outerNormalX, const int &outerNormalY, const int &outerNormalZ,")
-		lines.append("	const float &rho, float &ux, float &uy, float &uz),")
+		lines.append("	const float &rho, float &ux, float &uy, float &uz,")
 		lines.append("	const float (&f)[27]")
 		lines.append(")")
 		lines.append("{")

@@ -1,34 +1,44 @@
 #include <iostream>
 #include <TNL/Algorithms/parallelFor.h>
 #include <TNL/Containers/Array.h>
+#include <TNL/Containers/NDArray.h>
 #include <TNL/Containers/StaticArray.h>
 #include <TNL/Timer.h>
 #include <cmath>
 #include <fstream> 
 #include <cstdlib>
 
-using ArrayType = TNL::Containers::Array< float, TNL::Devices::Cuda, size_t >;
 using IndexArrayType = TNL::Containers::Array< size_t, TNL::Devices::Cuda, size_t >;
 
-using MarkerArrayType = TNL::Containers::Array< bool, TNL::Devices::Cuda, size_t >;
-using MarkerArrayTypeCPU = TNL::Containers::Array< bool, TNL::Devices::Host, size_t >;
+using DistributionArrayType = TNL::Containers::NDArray< float, 
+												TNL::Containers::SizesHolder< std::size_t, 0, 0>,
+												std::index_sequence< 0, 1 >,
+												TNL::Devices::Cuda >;
 
-struct DistributionFunctionStruct { IndexArrayType shifter; ArrayType fArray[27]; };
+using MarkerArrayType = TNL::Containers::Array< bool, TNL::Devices::Cuda, size_t >;
+
+struct DistributionStruct { IndexArrayType shifter; DistributionArrayType fArray; };
 
 struct MarkerStruct { MarkerArrayType fluidArray; MarkerArrayType bouncebackArray; MarkerArrayType inletArray; MarkerArrayType outletArray;  };
 
 #include "config.h"
-
-#include "convertIndex.h"
-
 #include "applyMarkers.h"
 #include "applyInitialization.h"
 #include "applyStreaming.h"
+#include "applyCollision.h"
+#include "cellFunctions.h"
+
+#include "boundaryConditions/applyBounceback.h"
+#include "boundaryConditions/restoreRho.h"
+#include "boundaryConditions/restoreUxUyUz.h"
+#include "boundaryConditions/restoreRhoUxUyUz.h"
+#include "boundaryConditions/applyMBBC.h"
+
 #include "applyLocalCellUpdate.h"
 
 int main(int argc, char **argv)
 {
-	DistributionFunctionStruct F;
+	DistributionStruct F;
 	F.shifter = IndexArrayType( 27, 0 );
 	for (size_t i = 0; i < 27; i++) { F.fArray[i] = ArrayType(cellCount, 1.f); }
 	
