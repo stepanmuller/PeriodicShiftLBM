@@ -36,10 +36,10 @@ def restoreRhoUxUyUz(index, normal, fk, full):
 		line += ";"
 		lines.append(line)
 		
-	lines.append("		rho = q1;")
-	lines.append("		ux = q2 / rho;")
-	lines.append("		uy = q3 / rho;")
-	lines.append("		uz = q4 / rho;")
+	lines.append("		rho = q0;")
+	lines.append("		ux = q1 / rho;")
+	lines.append("		uy = q2 / rho;")
+	lines.append("		uz = q3 / rho;")
 	lines.append("	}")
 	
 	return lines

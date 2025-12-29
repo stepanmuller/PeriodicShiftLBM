@@ -5,8 +5,8 @@ void applyLocalCellUpdate( 	MarkerStruct& Marker, DistributionStruct& F )
 {
 	auto fluidMarkerArrayView = Marker.fluidArray.getConstView();
 	auto bouncebackMarkerArrayView = Marker.bouncebackArray.getConstView();
-	auto inletMarkerArrayView = Marker.inletArray.getConstView();
-	auto outletMarkerArrayView = Marker.outletArray.getConstView();
+	auto givenRhoMarkerArrayView = Marker.givenRhoArray.getConstView();
+	auto givenUxUyUzMarkerArrayView = Marker.givenUxUyUzArray.getConstView();
 	
 	auto shifterView = F.shifter.getConstView();
 	auto fArrayView  = F.fArray.getView();
@@ -22,8 +22,8 @@ void applyLocalCellUpdate( 	MarkerStruct& Marker, DistributionStruct& F )
 		}
 		bool fluidMarker = fluidMarkerArrayView[cell];
 		bool bouncebackMarker = bouncebackMarkerArrayView[cell];
-		bool inletMarker = inletMarkerArrayView[cell];
-		bool outletMarker = outletMarkerArrayView[cell];
+		bool givenRhoMarker = givenRhoMarkerArrayView[cell];
+		bool givenUxUyUzMarker = givenUxUyUzMarkerArrayView[cell];
 		
 		float f[27];
 		float rho, ux, uy, uz;
@@ -38,19 +38,42 @@ void applyLocalCellUpdate( 	MarkerStruct& Marker, DistributionStruct& F )
 		{
 			applyBounceback(f);
 		}
-		else if ( inletMarker == 1 )
+		else if ( givenRhoMarker == 1 && givenUxUyUzMarker == 1 )
 		{
+			rho = 1.f;
+			ux = 0.f;
+			uy = 0.f;
+			uz = uzInlet;
+			short outerNormalX, outerNormalY, outerNormalZ;
+			getOuterNormal(cell, outerNormalX, outerNormalY, outerNormalZ);
+			applyMBBC(outerNormalX, outerNormalY, outerNormalZ, rho, ux, uy, uz, f);
+			applyCollision(rho, ux, uy, uz, f);
+		}
+		else if ( givenRhoMarker == 1 && givenUxUyUzMarker == 0 )
+		{
+			rho = 1.f;
+			short outerNormalX, outerNormalY, outerNormalZ;
+			getOuterNormal(cell, outerNormalX, outerNormalY, outerNormalZ);
+			restoreUxUyUz(outerNormalX, outerNormalY, outerNormalZ, rho, ux, uy, uz, f);
+			applyMBBC(outerNormalX, outerNormalY, outerNormalZ, rho, ux, uy, uz, f);
+			applyCollision(rho, ux, uy, uz, f);
+		}
+		else if ( givenRhoMarker == 0 && givenUxUyUzMarker == 1 )
+		{
+			ux = 0.f;
+			uy = 0.f;
+			uz = uzInlet;
 			short outerNormalX, outerNormalY, outerNormalZ;
 			getOuterNormal(cell, outerNormalX, outerNormalY, outerNormalZ);
 			restoreRho(outerNormalX, outerNormalY, outerNormalZ, rho, ux, uy, uz, f);
 			applyMBBC(outerNormalX, outerNormalY, outerNormalZ, rho, ux, uy, uz, f);
 			applyCollision(rho, ux, uy, uz, f);
 		}
-		else if ( outletMarker == 1 )
+		else if ( givenRhoMarker == 0 && givenUxUyUzMarker == 0 )
 		{
 			short outerNormalX, outerNormalY, outerNormalZ;
 			getOuterNormal(cell, outerNormalX, outerNormalY, outerNormalZ);
-			restoreUxUyUz(outerNormalX, outerNormalY, outerNormalZ, rho, ux, uy, uz, f);
+			restoreRhoUxUyUz(outerNormalX, outerNormalY, outerNormalZ, rho, ux, uy, uz, f);
 			applyMBBC(outerNormalX, outerNormalY, outerNormalZ, rho, ux, uy, uz, f);
 			applyCollision(rho, ux, uy, uz, f);
 		}

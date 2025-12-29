@@ -5,8 +5,8 @@ void applyMarkers( MarkerStruct& Marker )
 {
 	auto fluidMarkerArrayView = Marker.fluidArray.getView();
 	auto bouncebackMarkerArrayView = Marker.bouncebackArray.getView();
-	auto inletMarkerArrayView = Marker.inletArray.getView();
-	auto outletMarkerArrayView = Marker.outletArray.getView();
+	auto givenRhoMarkerArrayView = Marker.givenRhoArray.getView();
+	auto givenUxUyUzMarkerArrayView = Marker.givenUxUyUzArray.getView();
 
 	auto cellLambda = [=] __cuda_callable__ (const TNL::Containers::StaticArray< 3, int >& tripleIndex) mutable
 	{
@@ -14,25 +14,20 @@ void applyMarkers( MarkerStruct& Marker )
 		const size_t j = tripleIndex.y();
 		const size_t k = tripleIndex.z();
 		size_t cell = convertIndex(i, j, k);
-		/*
 		if ( j>=boxStartJ && j<=boxEndJ && k>=boxStartK && k<=boxEndK ) 
 		{
 			bouncebackMarkerArrayView[cell] = 1;
+			return;
 		}
-		*/
-		if ( i==0 || i==cellCountX-1 || j==0 || j==cellCountY-1 ) 
+		if ( k==0 ) 
 		{
-			bouncebackMarkerArrayView[cell] = 1;
+			givenUxUyUzMarkerArrayView[cell] = 1;
 		}
-		else if ( k==0 ) 
+		if ( k==cellCountZ - 1 || i == 0 || i == cellCountX - 1 || j == 0 || j == cellCountY - 1 ) 
 		{
-			inletMarkerArrayView[cell] = 1;
+			givenRhoMarkerArrayView[cell] = 1;
 		}
-		else if ( k==cellCountZ-1 ) 
-		{
-			outletMarkerArrayView[cell] = 1;
-		}
-		else
+		if ( i > 0 && i < cellCountX - 1 && j > 0 && j < cellCountY - 1 && k > 0 && k < cellCountZ - 1 )
 		{
 			fluidMarkerArrayView[cell] = 1;
 		}

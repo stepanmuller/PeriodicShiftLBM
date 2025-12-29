@@ -16,7 +16,7 @@ def restoreUxUyUz(index, normal, fk, inv, SCMfk, SCQ):
 	lines.append("	{")
 	lines.append("		// Multiply SCMfk fk")
 	for i, row in enumerate(SCMfk):
-		line = "		const float scmf" + str(i) + " ="
+		line = "		const float scmf" + str(i) + " = ( "
 		for j, multiplier in enumerate(SCMfk[i]):
 			if multiplier == "0":
 				continue
@@ -33,12 +33,7 @@ def restoreUxUyUz(index, normal, fk, inv, SCMfk, SCQ):
 				line += fk[j]
 		if line[-1] == "=":
 			line += " 0.f"
-		line += ";"
-		lines.append(line)
-		
-	lines.append("		// Divide by rho")
-	for i in range(3):
-		line = "		scmf" + str(i) + " = scmf" + str(i) + " / rho;"
+		line += ") / rho;"
 		lines.append(line)
 		
 	lines.append("		// Subtract 1/rho scmf - scq")

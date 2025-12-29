@@ -1,6 +1,6 @@
 __host__ __device__ void restoreRho(
 	const int &outerNormalX, const int &outerNormalY, const int &outerNormalZ,
-	float &rho, float &ux, float &uy, float &uz,
+	float &rho, const float &ux, const float &uy, const float &uz,
 	const float (&f)[27]
 )
 {
