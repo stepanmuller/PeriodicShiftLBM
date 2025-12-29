@@ -38,6 +38,36 @@ void applyLocalCellUpdate( 	MarkerStruct& Marker, DistributionStruct& F )
 		{
 			applyBounceback(f);
 		}
+		else
+		{
+			short outerNormalX, outerNormalY, outerNormalZ;
+			getOuterNormal(cell, outerNormalX, outerNormalY, outerNormalZ);
+			rho = 1.f;
+			ux = 0.f;
+			uy = 0.f;
+			uz = uzInlet;
+			if ( givenRhoMarker == 1 && givenUxUyUzMarker == 0 )
+			{
+				restoreUxUyUz(outerNormalX, outerNormalY, outerNormalZ, rho, ux, uy, uz, f);
+			}
+			else if ( givenRhoMarker == 0 && givenUxUyUzMarker == 1 )
+			{
+				restoreRho(outerNormalX, outerNormalY, outerNormalZ, rho, ux, uy, uz, f);
+			}
+			else if ( givenRhoMarker == 0 && givenUxUyUzMarker == 0 )
+			{
+				restoreRhoUxUyUz(outerNormalX, outerNormalY, outerNormalZ, rho, ux, uy, uz, f);
+			}
+			applyMBBC(outerNormalX, outerNormalY, outerNormalZ, rho, ux, uy, uz, f);
+			applyCollision(rho, ux, uy, uz, f);
+		}
+		for (size_t i = 0; i < 27; i++)	fArrayView(i, shiftedIndex[i]) = f[i];
+	};
+	TNL::Algorithms::parallelFor<TNL::Devices::Cuda>(0, cellCount, cellLambda );
+}
+
+
+/*
 		else if ( givenRhoMarker == 1 && givenUxUyUzMarker == 1 )
 		{
 			rho = 1.f;
@@ -77,7 +107,4 @@ void applyLocalCellUpdate( 	MarkerStruct& Marker, DistributionStruct& F )
 			applyMBBC(outerNormalX, outerNormalY, outerNormalZ, rho, ux, uy, uz, f);
 			applyCollision(rho, ux, uy, uz, f);
 		}
-		for (size_t i = 0; i < 27; i++)	fArrayView(i, shiftedIndex[i]) = f[i];
-	};
-	TNL::Algorithms::parallelFor<TNL::Devices::Cuda>(0, cellCount, cellLambda );
-}
+		*/
