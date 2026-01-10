@@ -9,15 +9,21 @@
 #include <cstdlib>
 
 using IndexArrayType = TNL::Containers::Array< size_t, TNL::Devices::Cuda, size_t >;
+using IndexArrayTypeCPU = TNL::Containers::Array< size_t, TNL::Devices::Host, size_t >;
 
 using DistributionArrayType = TNL::Containers::NDArray< float, 
 												TNL::Containers::SizesHolder< std::size_t, 0, 0>,
 												std::index_sequence< 0, 1 >,
 												TNL::Devices::Cuda >;
+using DistributionArrayTypeCPU = TNL::Containers::NDArray< float, 
+												TNL::Containers::SizesHolder< std::size_t, 0, 0>,
+												std::index_sequence< 0, 1 >,
+												TNL::Devices::Host >;
 
 using MarkerArrayType = TNL::Containers::Array< bool, TNL::Devices::Cuda, size_t >;
 
 struct DistributionStruct { IndexArrayType shifter; DistributionArrayType fArray; };
+struct DistributionStructCPU { IndexArrayTypeCPU shifter; DistributionArrayTypeCPU fArray; };
 
 struct MarkerStruct { MarkerArrayType fluidArray; MarkerArrayType bouncebackArray; MarkerArrayType givenUxUyUzArray; MarkerArrayType givenRhoArray;  };
 
@@ -88,7 +94,18 @@ int main(int argc, char **argv)
 	
 	std::cout << "Saving result" << std::endl;
 	
-	std::ofstream out("result.csv");
+	// Use /dev/shm/ for a pure RAM-based "file" on Linux
+	FILE* fp = fopen("/dev/shm/sim_data.bin", "wb");
+	// Write metadata first so Python knows the dimensions
+	int dims[2] = {(int)cellCountY, (int)cellCountZ};
+	fwrite(dims, sizeof(int), 2, fp);
+	
+	DistributionStructCPU FCPU;
+	FCPU.shifter = IndexArrayType( 27, 0 );
+	FCPU.fArray.setSizes( 27, cellCount );
+	FCPU.shifter = F.shifter;
+	FCPU.fArray = F.fArray;
+	
 	for (size_t j = 0; j < cellCountY; j++)
 	{
 		for (size_t k = 0; k < cellCountZ; k++)
@@ -98,23 +115,19 @@ int main(int argc, char **argv)
 			size_t shiftedIndex[27];
 			for (size_t i = 0; i < 27; i++) 
 			{
-				const size_t shift = F.shifter.getElement(i);
+				const size_t shift = FCPU.shifter[i];
 				shiftedIndex[i] = cell + shift;
 				if (shiftedIndex[i] >= cellCount) { shiftedIndex[i] -= cellCount; }
 			}
 			float f[27];
 			float rho, ux, uy, uz;
-			for (size_t i = 0; i < 27; i++)	f[i] = F.fArray.getElement(i, shiftedIndex[i]);
+			for (size_t i = 0; i < 27; i++)	f[i] = FCPU.fArray.getElement(i, shiftedIndex[i]);
 			getRhoUxUyUz(rho, ux, uy, uz, f);
-			
 			float uMag = sqrt(uy * uy + uz * uz);
-			out << uMag;
-			if (k + 1 < cellCountZ)
-				out << ",";
+			fwrite(&uMag, sizeof(float), 1, fp);
 		}
-		out << "\n";   // new row
 	}
-	out.close();
-	int pythonResult = system("python3 visualizer.py");
+	fclose(fp);
+	system("python3 visualizer.py");
 	return EXIT_SUCCESS;
 }

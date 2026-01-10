@@ -1,6 +1,12 @@
 import numpy as np
 import matplotlib.pyplot as plt
 
+# 1. Read dimensions and data directly from RAM-disk
+with open("/dev/shm/sim_data.bin", "rb") as f:
+    dims = np.fromfile(f, dtype=np.int32, count=2)
+    # Read the rest as float32
+    data = np.fromfile(f, dtype=np.float32).reshape(dims)
+
 # Use LaTeX-style fonts and smaller text
 plt.rcParams.update({
     "text.usetex": True,                  # enable LaTeX
@@ -12,8 +18,6 @@ plt.rcParams.update({
     "legend.fontsize": 7,
     "figure.titlesize": 9
 })
-
-data = np.loadtxt("result.csv", delimiter=",")
 
 plt.figure(figsize=(6, 4))
 img = plt.imshow(data, origin="lower", cmap="viridis", aspect="equal")

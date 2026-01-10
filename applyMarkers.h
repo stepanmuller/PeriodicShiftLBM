@@ -19,11 +19,11 @@ void applyMarkers( MarkerStruct& Marker )
 			bouncebackMarkerArrayView[cell] = 1;
 			return;
 		}
-		if ( k==0 ) 
+		if ( k==0  || i == 0 || i == cellCountX - 1 || j == 0 || j == cellCountY - 1 ) 
 		{
 			givenUxUyUzMarkerArrayView[cell] = 1;
 		}
-		if ( k==cellCountZ - 1 || i == 0 || i == cellCountX - 1 || j == 0 || j == cellCountY - 1 ) 
+		if ( k==cellCountZ - 1 )
 		{
 			givenRhoMarkerArrayView[cell] = 1;
 		}

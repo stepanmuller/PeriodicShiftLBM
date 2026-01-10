@@ -29,82 +29,41 @@ void applyLocalCellUpdate( 	MarkerStruct& Marker, DistributionStruct& F )
 		float rho, ux, uy, uz;
 		for (size_t i = 0; i < 27; i++)	f[i] = fArrayView(i, shiftedIndex[i]);
 		
-		if ( fluidMarker == 1 )
-		{
-			getRhoUxUyUz(rho, ux, uy, uz, f);
-			applyCollision(rho, ux, uy, uz, f);
-		}
-		else if ( bouncebackMarker == 1 )
+		if ( bouncebackMarker == 1 )
 		{
 			applyBounceback(f);
 		}
-		else
+		else 
 		{
-			short outerNormalX, outerNormalY, outerNormalZ;
-			getOuterNormal(cell, outerNormalX, outerNormalY, outerNormalZ);
-			rho = 1.f;
-			ux = 0.f;
-			uy = 0.f;
-			uz = uzInlet;
-			if ( givenRhoMarker == 1 && givenUxUyUzMarker == 0 )
+			if ( fluidMarker == 1 )
 			{
-				restoreUxUyUz(outerNormalX, outerNormalY, outerNormalZ, rho, ux, uy, uz, f);
+				getRhoUxUyUz(rho, ux, uy, uz, f);
 			}
-			else if ( givenRhoMarker == 0 && givenUxUyUzMarker == 1 )
+			else
 			{
-				restoreRho(outerNormalX, outerNormalY, outerNormalZ, rho, ux, uy, uz, f);
+				short outerNormalX, outerNormalY, outerNormalZ;
+				getOuterNormal(cell, outerNormalX, outerNormalY, outerNormalZ);
+				rho = 1.f;
+				ux = 0.f;
+				uy = 0.f;
+				uz = uzInlet;
+				if ( givenRhoMarker == 1 && givenUxUyUzMarker == 0 )
+				{
+					restoreUxUyUz(outerNormalX, outerNormalY, outerNormalZ, rho, ux, uy, uz, f);
+				}
+				else if ( givenRhoMarker == 0 && givenUxUyUzMarker == 1 )
+				{
+					restoreRho(outerNormalX, outerNormalY, outerNormalZ, rho, ux, uy, uz, f);
+				}
+				else if ( givenRhoMarker == 0 && givenUxUyUzMarker == 0 )
+				{
+					restoreRhoUxUyUz(outerNormalX, outerNormalY, outerNormalZ, rho, ux, uy, uz, f);
+				}
+				applyMBBC(outerNormalX, outerNormalY, outerNormalZ, rho, ux, uy, uz, f);
 			}
-			else if ( givenRhoMarker == 0 && givenUxUyUzMarker == 0 )
-			{
-				restoreRhoUxUyUz(outerNormalX, outerNormalY, outerNormalZ, rho, ux, uy, uz, f);
-			}
-			applyMBBC(outerNormalX, outerNormalY, outerNormalZ, rho, ux, uy, uz, f);
 			applyCollision(rho, ux, uy, uz, f);
 		}
 		for (size_t i = 0; i < 27; i++)	fArrayView(i, shiftedIndex[i]) = f[i];
 	};
 	TNL::Algorithms::parallelFor<TNL::Devices::Cuda>(0, cellCount, cellLambda );
 }
-
-
-/*
-		else if ( givenRhoMarker == 1 && givenUxUyUzMarker == 1 )
-		{
-			rho = 1.f;
-			ux = 0.f;
-			uy = 0.f;
-			uz = uzInlet;
-			short outerNormalX, outerNormalY, outerNormalZ;
-			getOuterNormal(cell, outerNormalX, outerNormalY, outerNormalZ);
-			applyMBBC(outerNormalX, outerNormalY, outerNormalZ, rho, ux, uy, uz, f);
-			applyCollision(rho, ux, uy, uz, f);
-		}
-		else if ( givenRhoMarker == 1 && givenUxUyUzMarker == 0 )
-		{
-			rho = 1.f;
-			short outerNormalX, outerNormalY, outerNormalZ;
-			getOuterNormal(cell, outerNormalX, outerNormalY, outerNormalZ);
-			restoreUxUyUz(outerNormalX, outerNormalY, outerNormalZ, rho, ux, uy, uz, f);
-			applyMBBC(outerNormalX, outerNormalY, outerNormalZ, rho, ux, uy, uz, f);
-			applyCollision(rho, ux, uy, uz, f);
-		}
-		else if ( givenRhoMarker == 0 && givenUxUyUzMarker == 1 )
-		{
-			ux = 0.f;
-			uy = 0.f;
-			uz = uzInlet;
-			short outerNormalX, outerNormalY, outerNormalZ;
-			getOuterNormal(cell, outerNormalX, outerNormalY, outerNormalZ);
-			restoreRho(outerNormalX, outerNormalY, outerNormalZ, rho, ux, uy, uz, f);
-			applyMBBC(outerNormalX, outerNormalY, outerNormalZ, rho, ux, uy, uz, f);
-			applyCollision(rho, ux, uy, uz, f);
-		}
-		else if ( givenRhoMarker == 0 && givenUxUyUzMarker == 0 )
-		{
-			short outerNormalX, outerNormalY, outerNormalZ;
-			getOuterNormal(cell, outerNormalX, outerNormalY, outerNormalZ);
-			restoreRhoUxUyUz(outerNormalX, outerNormalY, outerNormalZ, rho, ux, uy, uz, f);
-			applyMBBC(outerNormalX, outerNormalY, outerNormalZ, rho, ux, uy, uz, f);
-			applyCollision(rho, ux, uy, uz, f);
-		}
-		*/
