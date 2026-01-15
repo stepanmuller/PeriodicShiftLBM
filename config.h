@@ -11,9 +11,9 @@ constexpr float uzInlet = 0.1f; 										// also works as nominal LBM Mach numb
 constexpr float SmagorinskyConstant = 0.1f; 							// set to zero to turn off LES
 
 // input domain
-constexpr size_t cellCountX = 50;
-constexpr size_t cellCountY = 1000;
-constexpr size_t cellCountZ = 2000;
+size_t cellCountX = 50;
+size_t cellCountY = 1000;
+size_t cellCountZ = 2000;
 constexpr int iterationCount = 2000;
 
 // box dimensions
@@ -23,7 +23,7 @@ constexpr size_t boxStartK = 340;
 constexpr size_t boxEndK = 460;
 
 // calculated from input
-constexpr size_t cellCount = cellCountX * cellCountY * cellCountZ;
+size_t cellCount = cellCountX * cellCountY * cellCountZ;
 constexpr float uzInletPhys = nuPhys * RePhys; 						// m/s
 constexpr float dtPhys = (uzInlet / uzInletPhys) * res; 			// s
 const float soundspeedPhys = (1.f / sqrt(3.f)) * res / dtPhys; 		// m/s

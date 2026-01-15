@@ -7,9 +7,13 @@
 #include <cmath>
 #include <fstream> 
 #include <cstdlib>
+#include <limits>
 
 using IndexArrayType = TNL::Containers::Array< size_t, TNL::Devices::Cuda, size_t >;
 using IndexArrayTypeCPU = TNL::Containers::Array< size_t, TNL::Devices::Host, size_t >;
+
+using FloatArrayType = TNL::Containers::Array< float, TNL::Devices::Cuda, size_t >;
+using FloatArrayTypeCPU = TNL::Containers::Array< float, TNL::Devices::Host, size_t >;
 
 using DistributionArrayType = TNL::Containers::NDArray< float, 
 												TNL::Containers::SizesHolder< std::size_t, 0, 0>,
@@ -27,9 +31,18 @@ struct DistributionStructCPU { IndexArrayTypeCPU shifter; DistributionArrayTypeC
 
 struct MarkerStruct { MarkerArrayType fluidArray; MarkerArrayType bouncebackArray; MarkerArrayType givenUxUyUzArray; MarkerArrayType givenRhoArray;  };
 
+struct STLArbeiterStructCPU { 	FloatArrayTypeCPU nxArray; FloatArrayTypeCPU nyArray; FloatArrayTypeCPU nzArray; 
+								FloatArrayTypeCPU axArray; FloatArrayTypeCPU ayArray; FloatArrayTypeCPU azArray; 
+								FloatArrayTypeCPU bxArray; FloatArrayTypeCPU byArray; FloatArrayTypeCPU bzArray; 
+								FloatArrayTypeCPU cxArray; FloatArrayTypeCPU cyArray; FloatArrayTypeCPU czArray; 
+								float xmin; float ymin; float zmin; float xmax; float ymax; float zmax; };
+
 #include "config.h"
 #include "applyMarkers.h"
 #include "applyInitialization.h"
+
+#include "STL/STLFunctions.h"
+
 #include "applyStreaming.h"
 #include "applyCollision.h"
 #include "cellFunctions.h"
@@ -44,6 +57,12 @@ struct MarkerStruct { MarkerArrayType fluidArray; MarkerArrayType bouncebackArra
 
 int main(int argc, char **argv)
 {
+	std::cout << "Starting Periodic Shift LBM" << std::endl;
+	
+	STLArbeiterStructCPU STLArbeiterCPU;
+	std::cout << "Initialization: Reading STL" << std::endl;
+	readSTL( STLArbeiterCPU );
+	
 	DistributionStruct F;
 	F.shifter = IndexArrayType( 27, 0 );
 	F.fArray.setSizes( 27, cellCount );
@@ -54,8 +73,6 @@ int main(int argc, char **argv)
 	Marker.bouncebackArray = MarkerArrayType( cellCount, 0);
 	Marker.givenRhoArray = MarkerArrayType( cellCount, 0);
 	Marker.givenUxUyUzArray = MarkerArrayType( cellCount, 0);
-	
-	std::cout << "Periodic Shift LBM" << std::endl;
 	
 	std::cout << "Initialization: Marking cells" << std::endl;
 	applyMarkers(Marker);
