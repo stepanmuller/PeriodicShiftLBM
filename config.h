@@ -12,15 +12,15 @@ constexpr float SmagorinskyConstant = 0.1f; 							// set to zero to turn off LE
 
 // input domain
 constexpr size_t cellCountX = 50;
-constexpr size_t cellCountY = 100;
-constexpr size_t cellCountZ = 200;
+constexpr size_t cellCountY = 1000;
+constexpr size_t cellCountZ = 2000;
 constexpr int iterationCount = 2000;
 
 // box dimensions
-constexpr size_t boxStartJ = 44;
-constexpr size_t boxEndJ = 56;
-constexpr size_t boxStartK = 34;
-constexpr size_t boxEndK = 46;
+constexpr size_t boxStartJ = 440;
+constexpr size_t boxEndJ = 560;
+constexpr size_t boxStartK = 340;
+constexpr size_t boxEndK = 460;
 
 // calculated from input
 constexpr size_t cellCount = cellCountX * cellCountY * cellCountZ;

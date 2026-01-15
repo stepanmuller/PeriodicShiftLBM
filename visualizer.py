@@ -1,3 +1,4 @@
+import os
 import numpy as np
 import matplotlib.pyplot as plt
 
@@ -19,7 +20,14 @@ plt.rcParams.update({
     "figure.titlesize": 9
 })
 
+# Create results directory if it doesn't exist
+results_dir = "results"
+os.makedirs(results_dir, exist_ok=True)
+
 plt.figure(figsize=(6, 4))
 img = plt.imshow(data, origin="lower", cmap="viridis", aspect="equal")
 
-plt.savefig("result.png", dpi=1000, bbox_inches="tight")
+# Save image into results directory
+plt.savefig(os.path.join(results_dir, "result.png"),
+            dpi=1000, bbox_inches="tight")
+

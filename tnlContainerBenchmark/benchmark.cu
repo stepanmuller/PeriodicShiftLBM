@@ -10,6 +10,8 @@
 using ArrayType = TNL::Containers::Array< float, TNL::Devices::Cuda, size_t >;
 using VectorType = TNL::Containers::Vector< float, TNL::Devices::Cuda, size_t >;
 
+using IndexArrayType = TNL::Containers::Array< size_t, TNL::Devices::Cuda, size_t >;
+
 using NDArray2DType = TNL::Containers::NDArray< float, 
 												TNL::Containers::SizesHolder< std::size_t, 0, 0>,
 												std::index_sequence< 0, 1 >,
@@ -289,6 +291,29 @@ void benchmarkNDArray2D(
 	TNL::Algorithms::parallelFor<TNL::Devices::Cuda>(0, size, benchmarkLambda );
 }
 
+void benchmarkNDArray2DShifter( 
+			NDArray2DType& fNDArray2D, IndexArrayType& shifter
+			)
+{
+	auto fNDArray2DView = fNDArray2D.getView();
+	auto shifterView = shifter.getConstView();
+	
+	auto benchmarkLambda = [=] __cuda_callable__ (size_t cell) mutable
+	{		
+		size_t shiftedIndex[27];
+		for (size_t i = 0; i < 27; i++) 
+		{
+			const size_t shift = shifterView[i];
+			shiftedIndex[i] = cell + shift;
+			if (shiftedIndex[i] >= size) { shiftedIndex[i] -= size; }
+		}
+		float f[27];
+		for (size_t i = 0; i < 27; i++)	f[i] = fNDArray2DView(i, shiftedIndex[i]) + 1.f;
+		for (size_t i = 0; i < 27; i++)	fNDArray2DView(i, shiftedIndex[i]) = f[i];
+	};
+	TNL::Algorithms::parallelFor<TNL::Devices::Cuda>(0, size, benchmarkLambda );
+}
+
 void benchmarkNDArray4D( 
 			NDArray4DType& fNDArray4D
 			)
@@ -500,6 +525,32 @@ int main(int argc, char **argv)
 		timer.start();
 		for (int i=0; i<iterations; i++)
 			benchmarkNDArray4D( fNDArray4D );
+		timer.stop();
+		#endif
+		auto totalTime = timer.getRealTime();
+		std::cout << "this took " << totalTime << " s" << std::endl;
+		std::cout << std::endl;
+	}	
+	
+	// --------------------------------------------------------- //
+	// ----------------NDArray2D with shifter------------------- //
+	// --------------------------------------------------------- //
+	for (int scope=0; scope<1; scope++)
+	{
+		NDArray2DType fNDArray2D;
+		fNDArray2D.setSizes( 27, size );
+		fNDArray2D.setValue( 1.0f ); 
+		IndexArrayType shifter = IndexArrayType( 27, 0 );
+		shifter.setElement( 1, 100 );
+		shifter.setElement( 5, 5000 );
+		shifter.setElement( 11, 1000 );
+		shifter.setElement( 12, 10000 );
+		#ifdef __CUDACC__
+		std::cout << "starting NDArray2D (27 x size) with shifter benchmark" << std::endl;
+		TNL::Timer timer;
+		timer.start();
+		for (int i=0; i<iterations; i++)
+			benchmarkNDArray2DShifter( fNDArray2D, shifter );
 		timer.stop();
 		#endif
 		auto totalTime = timer.getRealTime();
