@@ -1,6 +1,4 @@
-#include "config.h"
-
-void applyInitialization( 	DistributionStruct& F )
+void applyInitialization( 	DistributionStruct& F, CellCountStruct &cellCount )
 {
 	auto shifterView = F.shifter.getConstView();
 	auto fArrayView  = F.fArray.getView();
@@ -12,7 +10,7 @@ void applyInitialization( 	DistributionStruct& F )
 		{
 			const size_t shift = shifterView[i];
 			shiftedIndex[i] = cell + shift;
-			if (shiftedIndex[i] >= cellCount) { shiftedIndex[i] -= cellCount; }
+			if (shiftedIndex[i] >= cellCount.n) { shiftedIndex[i] -= cellCount.n; }
 		}
 		
 		const float rho = 1.f;
@@ -25,5 +23,5 @@ void applyInitialization( 	DistributionStruct& F )
 		
 		for (size_t i = 0; i < 27; i++)	fArrayView(i, shiftedIndex[i]) = feq[i];
 	};
-	TNL::Algorithms::parallelFor<TNL::Devices::Cuda>(0, cellCount, cellLambda );
+	TNL::Algorithms::parallelFor<TNL::Devices::Cuda>(0, cellCount.n, cellLambda );
 }

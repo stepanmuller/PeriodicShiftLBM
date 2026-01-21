@@ -148,27 +148,27 @@ __host__ __device__ void getOmegaLES(const float (&fneq)[27], const float &rho, 
 	omegaLES = 1 / tauLES;
 }
 
-__host__ __device__ void getOuterNormal(const size_t& cell, short& outerNormalX, short& outerNormalY, short& outerNormalZ)
+__host__ __device__ void getOuterNormal(const size_t& cell, short& outerNormalX, short& outerNormalY, short& outerNormalZ, CellCountStruct &cellCount)
 {
-    const size_t xy = cellCountX * cellCountY;
+    const size_t xy = cellCount.nx * cellCount.ny;
     const size_t k = cell / xy;
     size_t remainder = cell % xy;
-    const size_t j = remainder / cellCountX;
-    const size_t i = remainder % cellCountX;
+    const size_t j = remainder / cellCount.nx;
+    const size_t i = remainder % cellCount.nx;
     outerNormalX = 0;
     outerNormalY = 0;
     outerNormalZ = 0;
     if 			( i == 0 ) 				outerNormalX = -1;
-    else if 	( i == cellCountX - 1 ) outerNormalX = 1;
+    else if 	( i == cellCount.nx - 1 ) outerNormalX = 1;
     if 			( j == 0 ) 				outerNormalY = -1;
-    else if 	( j == cellCountY - 1) 	outerNormalY = 1;
+    else if 	( j == cellCount.ny - 1) 	outerNormalY = 1;
     if 			( k == 0 ) 				outerNormalZ = -1;
-    else if 	( k == cellCountZ-1 ) 	outerNormalZ = 1;
+    else if 	( k == cellCount.nz - 1 ) 	outerNormalZ = 1;
 }
 
-__host__ __device__ size_t convertIndex(size_t i, size_t j, size_t k)
+__host__ __device__ size_t convertIndex(size_t i, size_t j, size_t k, CellCountStruct &cellCount)
 {
-	size_t cell = k * (cellCountX * cellCountY) + j * cellCountX + i;
+	size_t cell = k * (cellCount.nx * cellCount.ny) + j * cellCount.nx + i;
 	return cell;
 }
 

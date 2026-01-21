@@ -1,7 +1,6 @@
-#include "config.h"
 #include "boundaryConditions/applyBounceback.h"
 
-void applyLocalCellUpdate( 	MarkerStruct& Marker, DistributionStruct& F )
+void applyLocalCellUpdate( 	MarkerStruct& Marker, DistributionStruct& F, CellCountStruct &cellCount )
 {
 	auto fluidMarkerArrayView = Marker.fluidArray.getConstView();
 	auto bouncebackMarkerArrayView = Marker.bouncebackArray.getConstView();
@@ -18,7 +17,7 @@ void applyLocalCellUpdate( 	MarkerStruct& Marker, DistributionStruct& F )
 		{
 			const size_t shift = shifterView[i];
 			shiftedIndex[i] = cell + shift;
-			if (shiftedIndex[i] >= cellCount) { shiftedIndex[i] -= cellCount; }
+			if (shiftedIndex[i] >= cellCount.n) { shiftedIndex[i] -= cellCount.n; }
 		}
 		bool fluidMarker = fluidMarkerArrayView[cell];
 		bool bouncebackMarker = bouncebackMarkerArrayView[cell];
@@ -42,7 +41,7 @@ void applyLocalCellUpdate( 	MarkerStruct& Marker, DistributionStruct& F )
 			else
 			{
 				short outerNormalX, outerNormalY, outerNormalZ;
-				getOuterNormal(cell, outerNormalX, outerNormalY, outerNormalZ);
+				getOuterNormal(cell, outerNormalX, outerNormalY, outerNormalZ, cellCount);
 				rho = 1.f;
 				ux = 0.f;
 				uy = 0.f;
@@ -65,5 +64,5 @@ void applyLocalCellUpdate( 	MarkerStruct& Marker, DistributionStruct& F )
 		}
 		for (size_t i = 0; i < 27; i++)	fArrayView(i, shiftedIndex[i]) = f[i];
 	};
-	TNL::Algorithms::parallelFor<TNL::Devices::Cuda>(0, cellCount, cellLambda );
+	TNL::Algorithms::parallelFor<TNL::Devices::Cuda>(0, cellCount.n, cellLambda );
 }

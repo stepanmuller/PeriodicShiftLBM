@@ -1,84 +1,67 @@
-#include <iostream>
-#include <TNL/Algorithms/parallelFor.h>
-#include <TNL/Containers/Array.h>
-#include <TNL/Containers/NDArray.h>
-#include <TNL/Containers/StaticArray.h>
-#include <TNL/Timer.h>
-#include <cmath>
-#include <fstream> 
-#include <cstdlib>
-#include <limits>
+// input physics
+constexpr float res = 0.3f; 											// mm
+constexpr float uzInlet = 0.05f; 										// also works as nominal LBM Mach number
 
-using IndexArrayType = TNL::Containers::Array< size_t, TNL::Devices::Cuda, size_t >;
-using IndexArrayTypeCPU = TNL::Containers::Array< size_t, TNL::Devices::Host, size_t >;
+constexpr float nuPhys = 1.4607e-5;										// m2/s air
+constexpr float rhoNominalPhys = 1.225f;								// kg/m3 air
+constexpr float SmagorinskyConstant = 0.0f; 							// set to zero to turn off LES
 
-using FloatArrayType = TNL::Containers::Array< float, TNL::Devices::Cuda, size_t >;
-using FloatArrayTypeCPU = TNL::Containers::Array< float, TNL::Devices::Host, size_t >;
+// box dimensions
+constexpr size_t boxStartJ = 440;
+constexpr size_t boxEndJ = 560;
+constexpr size_t boxStartK = 340;
+constexpr size_t boxEndK = 460;
 
-using DistributionArrayType = TNL::Containers::NDArray< float, 
-												TNL::Containers::SizesHolder< std::size_t, 0, 0>,
-												std::index_sequence< 0, 1 >,
-												TNL::Devices::Cuda >;
-using DistributionArrayTypeCPU = TNL::Containers::NDArray< float, 
-												TNL::Containers::SizesHolder< std::size_t, 0, 0>,
-												std::index_sequence< 0, 1 >,
-												TNL::Devices::Host >;
+// calculated from input
+constexpr float uzInletPhys = 1.f; 									// m/s
+constexpr float dtPhys = (uzInlet / uzInletPhys) * res; 			// s
+const float soundspeedPhys = (1.f / sqrt(3.f)) * res / dtPhys; 		// m/s
+constexpr float nu = (dtPhys * nuPhys) / (res * res);				// LBM nu
+constexpr float tau = 3.f * nu + 0.5f;								// LBM tau
 
-using MarkerArrayType = TNL::Containers::Array< bool, TNL::Devices::Cuda, size_t >;
+constexpr int iterationCount = 2000;
 
-struct DistributionStruct { IndexArrayType shifter; DistributionArrayType fArray; };
-struct DistributionStructCPU { IndexArrayTypeCPU shifter; DistributionArrayTypeCPU fArray; };
-
-struct MarkerStruct { MarkerArrayType fluidArray; MarkerArrayType bouncebackArray; MarkerArrayType givenUxUyUzArray; MarkerArrayType givenRhoArray;  };
-
-struct STLArbeiterStructCPU { 	FloatArrayTypeCPU nxArray; FloatArrayTypeCPU nyArray; FloatArrayTypeCPU nzArray; 
-								FloatArrayTypeCPU axArray; FloatArrayTypeCPU ayArray; FloatArrayTypeCPU azArray; 
-								FloatArrayTypeCPU bxArray; FloatArrayTypeCPU byArray; FloatArrayTypeCPU bzArray; 
-								FloatArrayTypeCPU cxArray; FloatArrayTypeCPU cyArray; FloatArrayTypeCPU czArray; 
-								float xmin; float ymin; float zmin; float xmax; float ymax; float zmax; };
-
-#include "config.h"
-#include "applyMarkers.h"
-#include "applyInitialization.h"
-
-#include "STL/STLFunctions.h"
-
-#include "applyStreaming.h"
-#include "applyCollision.h"
-#include "cellFunctions.h"
-
-#include "boundaryConditions/applyBounceback.h"
-#include "boundaryConditions/restoreRho.h"
-#include "boundaryConditions/restoreUxUyUz.h"
-#include "boundaryConditions/restoreRhoUxUyUz.h"
-#include "boundaryConditions/applyMBBC.h"
-
-#include "applyLocalCellUpdate.h"
+#include "includesTypes.h"
 
 int main(int argc, char **argv)
 {
-	std::cout << "Starting Periodic Shift LBM" << std::endl;
-	
 	STLArbeiterStructCPU STLArbeiterCPU;
 	std::cout << "Initialization: Reading STL" << std::endl;
 	readSTL( STLArbeiterCPU );
 	
+	std::cout << "Initialization: Sizing domain around the STL" << std::endl;
+	CellCountStruct cellCount;
+	cellCount.nx = static_cast<size_t>((STLArbeiterCPU.xmax - STLArbeiterCPU.xmin) / res) + 1;
+	cellCount.ny = static_cast<size_t>((STLArbeiterCPU.ymax - STLArbeiterCPU.ymin) / res) + 1;
+	cellCount.nz = static_cast<size_t>((STLArbeiterCPU.zmax - STLArbeiterCPU.zmin) / res) + 1;
+	cellCount.n = cellCount.nx * cellCount.ny * cellCount.nz;
+	std::cout << "	nx: " << cellCount.nx << "\n";
+    std::cout << "	ny: " << cellCount.ny << "\n";
+    std::cout << "	nz: " << cellCount.nz << "\n";
+    std::cout << "	n: " << cellCount.n << "\n";
+	cellCount.ox = STLArbeiterCPU.xmin + ( 0.5f * ( (STLArbeiterCPU.xmax - STLArbeiterCPU.xmin) - res * (cellCount.nx-1) ) );
+	cellCount.oy = STLArbeiterCPU.ymin + ( 0.5f * ( (STLArbeiterCPU.ymax - STLArbeiterCPU.ymin) - res * (cellCount.ny-1) ) );
+	cellCount.oz = STLArbeiterCPU.zmin + ( 0.5f * ( (STLArbeiterCPU.zmax - STLArbeiterCPU.zmin) - res * (cellCount.nz-1) ) );
+	std::cout << "	ox: " << cellCount.ox << " mm \n";
+    std::cout << "	oy: " << cellCount.oy << " mm \n";
+    std::cout << "	oz: " << cellCount.oz << " mm \n";
+	
 	DistributionStruct F;
 	F.shifter = IndexArrayType( 27, 0 );
-	F.fArray.setSizes( 27, cellCount );
+	F.fArray.setSizes( 27, cellCount.n );
 	F.fArray.setValue( 1.0f );
 	
 	MarkerStruct Marker;
-	Marker.fluidArray = MarkerArrayType( cellCount, 0);
-	Marker.bouncebackArray = MarkerArrayType( cellCount, 0);
-	Marker.givenRhoArray = MarkerArrayType( cellCount, 0);
-	Marker.givenUxUyUzArray = MarkerArrayType( cellCount, 0);
+	Marker.fluidArray = MarkerArrayType( cellCount.n, 0);
+	Marker.bouncebackArray = MarkerArrayType( cellCount.n, 0);
+	Marker.givenRhoArray = MarkerArrayType( cellCount.n, 0);
+	Marker.givenUxUyUzArray = MarkerArrayType( cellCount.n, 0);
 	
 	std::cout << "Initialization: Marking cells" << std::endl;
-	applyMarkers(Marker);
+	applyMarkers(Marker, cellCount);
 	
 	std::cout << "Initialization: Filling F" << std::endl;
-	applyInitialization( F );
+	applyInitialization( F, cellCount);
 	
 	#ifdef __CUDACC__
 	std::cout << "Starting simulation" << std::endl;
@@ -88,15 +71,15 @@ int main(int argc, char **argv)
 	lapTimer.start();
 	for (int i=0; i<iterationCount; i++)
 	{
-		applyStreaming( F );
-		applyLocalCellUpdate( Marker, F );
+		applyStreaming( F, cellCount );
+		applyLocalCellUpdate( Marker, F, cellCount );
 		
 		if (i%100 == 0 && i!=0)
 		{
 			lapTimer.stop();
 			std::cout << "Finished iteration " << i << std::endl;
 			auto lapTime = lapTimer.getRealTime();
-			float glups = (cellCount * 100) / lapTime / 1000000000;
+			float glups = (cellCount.n * 100) / lapTime / 1000000000;
 			std::cout << "GLUPS: " << glups << std::endl;
 			lapTimer.reset();
 			lapTimer.start();
@@ -106,7 +89,7 @@ int main(int argc, char **argv)
 	#endif
 	auto totalTime = timer.getRealTime();
 	std::cout << "This took " << totalTime << " s" << std::endl;
-	float glups = (cellCount * iterationCount) / totalTime / 1000000000;
+	float glups = (cellCount.n * iterationCount) / totalTime / 1000000000;
 	std::cout << "Total average GLUPS: " << glups << std::endl;
 	
 	std::cout << "Saving result" << std::endl;
@@ -114,27 +97,27 @@ int main(int argc, char **argv)
 	// Use /dev/shm/ for a pure RAM-based "file" on Linux
 	FILE* fp = fopen("/dev/shm/sim_data.bin", "wb");
 	// Write metadata first so Python knows the dimensions
-	int dims[2] = {(int)cellCountY, (int)cellCountZ};
+	int dims[2] = {(int)cellCount.ny, (int)cellCount.nz};
 	fwrite(dims, sizeof(int), 2, fp);
 	
 	DistributionStructCPU FCPU;
 	FCPU.shifter = IndexArrayType( 27, 0 );
-	FCPU.fArray.setSizes( 27, cellCount );
+	FCPU.fArray.setSizes( 27, cellCount.n );
 	FCPU.shifter = F.shifter;
 	FCPU.fArray = F.fArray;
 	
-	for (size_t j = 0; j < cellCountY; j++)
+	for (size_t j = 0; j < cellCount.ny; j++)
 	{
-		for (size_t k = 0; k < cellCountZ; k++)
+		for (size_t k = 0; k < cellCount.nz; k++)
 		{
-			size_t i = cellCountX / 2; 
-			size_t cell = convertIndex(i, j, k);
+			size_t i = cellCount.nx / 2; 
+			size_t cell = convertIndex(i, j, k, cellCount);
 			size_t shiftedIndex[27];
 			for (size_t i = 0; i < 27; i++) 
 			{
 				const size_t shift = FCPU.shifter[i];
 				shiftedIndex[i] = cell + shift;
-				if (shiftedIndex[i] >= cellCount) { shiftedIndex[i] -= cellCount; }
+				if (shiftedIndex[i] >= cellCount.n) { shiftedIndex[i] -= cellCount.n; }
 			}
 			float f[27];
 			float rho, ux, uy, uz;
