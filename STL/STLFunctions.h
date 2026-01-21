@@ -13,11 +13,6 @@ void readSTL( STLArbeiterStructCPU& STLArbeiterCPU )
     
     std::cout<<"	triangleCount: "<< triangleCount << std::endl;
 
-    // Allocate arrays
-    STLArbeiterCPU.nxArray = FloatArrayTypeCPU(triangleCount);
-    STLArbeiterCPU.nyArray = FloatArrayTypeCPU(triangleCount);
-    STLArbeiterCPU.nzArray = FloatArrayTypeCPU(triangleCount);
-
     STLArbeiterCPU.axArray = FloatArrayTypeCPU(triangleCount);
     STLArbeiterCPU.ayArray = FloatArrayTypeCPU(triangleCount);
     STLArbeiterCPU.azArray = FloatArrayTypeCPU(triangleCount);
@@ -65,10 +60,6 @@ void readSTL( STLArbeiterStructCPU& STLArbeiterCPU )
 
         file.read(reinterpret_cast<char*>(&attr), 2);
 
-        STLArbeiterCPU.nxArray[triangle] = nx;
-        STLArbeiterCPU.nyArray[triangle] = ny;
-        STLArbeiterCPU.nzArray[triangle] = nz;
-
         STLArbeiterCPU.axArray[triangle] = ax;
         STLArbeiterCPU.ayArray[triangle] = ay;
         STLArbeiterCPU.azArray[triangle] = az;
@@ -93,4 +84,26 @@ void readSTL( STLArbeiterStructCPU& STLArbeiterCPU )
     std::cout << "	xmin xmax: " << STLArbeiterCPU.xmin << " " << STLArbeiterCPU.xmax << "\n";
     std::cout << "	ymin ymax: " << STLArbeiterCPU.ymin << " " << STLArbeiterCPU.ymax << "\n";
     std::cout << "	zmin zmax: " << STLArbeiterCPU.zmin << " " << STLArbeiterCPU.zmax << "\n";
+}
+
+void applyMarkersFromSTL( MarkerStruct &Marker, STLArbeiterStruct &STLArbeiter, CellCountStruct &cellCount )
+{
+	auto fluidMarkerArrayView = Marker.fluidArray.getView();
+	auto bouncebackMarkerArrayView = Marker.bouncebackArray.getView();
+	auto givenRhoMarkerArrayView = Marker.givenRhoArray.getView();
+	auto givenUxUyUzMarkerArrayView = Marker.givenUxUyUzArray.getView();
+
+	auto axArrayView = STLArbeiter.axArray.getConstView();
+	auto ayArrayView = STLArbeiter.ayArray.getConstView();
+	auto azArrayView = STLArbeiter.azArray.getConstView();
+	auto bxArrayView = STLArbeiter.bxArray.getConstView();
+	auto byArrayView = STLArbeiter.byArray.getConstView();
+	auto bzArrayView = STLArbeiter.bzArray.getConstView();
+	auto cxArrayView = STLArbeiter.cxArray.getConstView();
+	auto cyArrayView = STLArbeiter.cyArray.getConstView();
+	auto czArrayView = STLArbeiter.czArray.getConstView();
+	
+	CounterArray2DType intersectionCounterArray;
+	intersectionCounterArray.setSizes(cellCount.nx, cellCount.ny);
+	intersectionCounterArray.setValue(0);
 }

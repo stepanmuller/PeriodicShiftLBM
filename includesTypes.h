@@ -27,13 +27,22 @@ using DistributionArrayTypeCPU = TNL::Containers::NDArray< float,
 
 using MarkerArrayType = TNL::Containers::Array< bool, TNL::Devices::Cuda, size_t >;
 
+using CounterArray2DType = TNL::Containers::NDArray< int, 
+												TNL::Containers::SizesHolder< std::size_t, 0, 0>,
+												std::index_sequence< 0, 1 >,
+												TNL::Devices::Cuda >;
+
 struct DistributionStruct { IndexArrayType shifter; DistributionArrayType fArray; };
 struct DistributionStructCPU { IndexArrayTypeCPU shifter; DistributionArrayTypeCPU fArray; };
 
 struct MarkerStruct { MarkerArrayType fluidArray; MarkerArrayType bouncebackArray; MarkerArrayType givenUxUyUzArray; MarkerArrayType givenRhoArray;  };
 
-struct STLArbeiterStructCPU { 	FloatArrayTypeCPU nxArray; FloatArrayTypeCPU nyArray; FloatArrayTypeCPU nzArray; 
-								FloatArrayTypeCPU axArray; FloatArrayTypeCPU ayArray; FloatArrayTypeCPU azArray; 
+struct STLArbeiterStruct { 	FloatArrayType axArray; FloatArrayType ayArray; FloatArrayType azArray; 
+							FloatArrayType bxArray; FloatArrayType byArray; FloatArrayType bzArray; 
+							FloatArrayType cxArray; FloatArrayType cyArray; FloatArrayType czArray; 
+							float xmin; float ymin; float zmin; float xmax; float ymax; float zmax; };
+
+struct STLArbeiterStructCPU { 	FloatArrayTypeCPU axArray; FloatArrayTypeCPU ayArray; FloatArrayTypeCPU azArray; 
 								FloatArrayTypeCPU bxArray; FloatArrayTypeCPU byArray; FloatArrayTypeCPU bzArray; 
 								FloatArrayTypeCPU cxArray; FloatArrayTypeCPU cyArray; FloatArrayTypeCPU czArray; 
 								float xmin; float ymin; float zmin; float xmax; float ymax; float zmax; };

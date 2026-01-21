@@ -45,17 +45,36 @@ int main(int argc, char **argv)
 	std::cout << "	ox: " << cellCount.ox << " mm \n";
     std::cout << "	oy: " << cellCount.oy << " mm \n";
     std::cout << "	oz: " << cellCount.oz << " mm \n";
+    
+    STLArbeiterStruct STLArbeiter; 
+    STLArbeiter.axArray = STLArbeiterCPU.axArray;
+    STLArbeiter.axArray = STLArbeiterCPU.ayArray;
+    STLArbeiter.axArray = STLArbeiterCPU.azArray; 
+	STLArbeiter.axArray = STLArbeiterCPU.bxArray;
+    STLArbeiter.axArray = STLArbeiterCPU.byArray;
+    STLArbeiter.axArray = STLArbeiterCPU.bzArray; 
+    STLArbeiter.axArray = STLArbeiterCPU.cxArray;
+    STLArbeiter.axArray = STLArbeiterCPU.cyArray;
+    STLArbeiter.axArray = STLArbeiterCPU.czArray; 
+    STLArbeiter.xmin = STLArbeiterCPU.xmin;
+    STLArbeiter.ymin = STLArbeiterCPU.ymin;
+    STLArbeiter.zmin = STLArbeiterCPU.zmin; 
+    STLArbeiter.xmax = STLArbeiterCPU.xmax;
+    STLArbeiter.ymax = STLArbeiterCPU.ymax;
+    STLArbeiter.zmax = STLArbeiterCPU.zmax; 
+    
+    MarkerStruct Marker;
+	Marker.fluidArray = MarkerArrayType( cellCount.n, 0);
+	Marker.bouncebackArray = MarkerArrayType( cellCount.n, 0);
+	Marker.givenRhoArray = MarkerArrayType( cellCount.n, 0);
+	Marker.givenUxUyUzArray = MarkerArrayType( cellCount.n, 0);
+	
+	applyMarkersFromSTL( Marker, STLArbeiter, cellCount );
 	
 	DistributionStruct F;
 	F.shifter = IndexArrayType( 27, 0 );
 	F.fArray.setSizes( 27, cellCount.n );
 	F.fArray.setValue( 1.0f );
-	
-	MarkerStruct Marker;
-	Marker.fluidArray = MarkerArrayType( cellCount.n, 0);
-	Marker.bouncebackArray = MarkerArrayType( cellCount.n, 0);
-	Marker.givenRhoArray = MarkerArrayType( cellCount.n, 0);
-	Marker.givenUxUyUzArray = MarkerArrayType( cellCount.n, 0);
 	
 	std::cout << "Initialization: Marking cells" << std::endl;
 	applyMarkers(Marker, cellCount);
