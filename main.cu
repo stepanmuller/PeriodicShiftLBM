@@ -31,37 +31,43 @@ int main(int argc, char **argv)
 	
 	std::cout << "Initialization: Sizing domain around the STL" << std::endl;
 	CellCountStruct cellCount;
-	cellCount.nx = static_cast<size_t>((STLArbeiterCPU.xmax - STLArbeiterCPU.xmin) / res) + 1;
-	cellCount.ny = static_cast<size_t>((STLArbeiterCPU.ymax - STLArbeiterCPU.ymin) / res) + 1;
-	cellCount.nz = static_cast<size_t>((STLArbeiterCPU.zmax - STLArbeiterCPU.zmin) / res) + 1;
+	cellCount.res = res;
+	cellCount.nx = static_cast<size_t>((STLArbeiterCPU.xmax - STLArbeiterCPU.xmin) / cellCount.res) + 1;
+	cellCount.ny = static_cast<size_t>((STLArbeiterCPU.ymax - STLArbeiterCPU.ymin) / cellCount.res) + 1;
+	cellCount.nz = static_cast<size_t>((STLArbeiterCPU.zmax - STLArbeiterCPU.zmin) / cellCount.res) + 1;
+	
+	cellCount.ox = STLArbeiterCPU.xmin + ( 0.5f * ( (STLArbeiterCPU.xmax - STLArbeiterCPU.xmin) - cellCount.res * (cellCount.nx-1) ) );
+	cellCount.oy = STLArbeiterCPU.ymin + ( 0.5f * ( (STLArbeiterCPU.ymax - STLArbeiterCPU.ymin) - cellCount.res * (cellCount.ny-1) ) );
+	cellCount.oz = STLArbeiterCPU.zmin + ( 0.5f * ( (STLArbeiterCPU.zmax - STLArbeiterCPU.zmin) - cellCount.res * (cellCount.nz-1) ) );
+	
+	cellCount.ny = cellCount.ny + 1; // adding one more "wall" layer on top
+	
 	cellCount.n = cellCount.nx * cellCount.ny * cellCount.nz;
 	std::cout << "	nx: " << cellCount.nx << "\n";
     std::cout << "	ny: " << cellCount.ny << "\n";
     std::cout << "	nz: " << cellCount.nz << "\n";
     std::cout << "	n: " << cellCount.n << "\n";
-	cellCount.ox = STLArbeiterCPU.xmin + ( 0.5f * ( (STLArbeiterCPU.xmax - STLArbeiterCPU.xmin) - res * (cellCount.nx-1) ) );
-	cellCount.oy = STLArbeiterCPU.ymin + ( 0.5f * ( (STLArbeiterCPU.ymax - STLArbeiterCPU.ymin) - res * (cellCount.ny-1) ) );
-	cellCount.oz = STLArbeiterCPU.zmin + ( 0.5f * ( (STLArbeiterCPU.zmax - STLArbeiterCPU.zmin) - res * (cellCount.nz-1) ) );
 	std::cout << "	ox: " << cellCount.ox << " mm \n";
     std::cout << "	oy: " << cellCount.oy << " mm \n";
     std::cout << "	oz: " << cellCount.oz << " mm \n";
     
     STLArbeiterStruct STLArbeiter; 
     STLArbeiter.axArray = STLArbeiterCPU.axArray;
-    STLArbeiter.axArray = STLArbeiterCPU.ayArray;
-    STLArbeiter.axArray = STLArbeiterCPU.azArray; 
-	STLArbeiter.axArray = STLArbeiterCPU.bxArray;
-    STLArbeiter.axArray = STLArbeiterCPU.byArray;
-    STLArbeiter.axArray = STLArbeiterCPU.bzArray; 
-    STLArbeiter.axArray = STLArbeiterCPU.cxArray;
-    STLArbeiter.axArray = STLArbeiterCPU.cyArray;
-    STLArbeiter.axArray = STLArbeiterCPU.czArray; 
+    STLArbeiter.ayArray = STLArbeiterCPU.ayArray;
+    STLArbeiter.azArray = STLArbeiterCPU.azArray; 
+	STLArbeiter.bxArray = STLArbeiterCPU.bxArray;
+    STLArbeiter.byArray = STLArbeiterCPU.byArray;
+    STLArbeiter.bzArray = STLArbeiterCPU.bzArray; 
+    STLArbeiter.cxArray = STLArbeiterCPU.cxArray;
+    STLArbeiter.cyArray = STLArbeiterCPU.cyArray;
+    STLArbeiter.czArray = STLArbeiterCPU.czArray; 
     STLArbeiter.xmin = STLArbeiterCPU.xmin;
     STLArbeiter.ymin = STLArbeiterCPU.ymin;
     STLArbeiter.zmin = STLArbeiterCPU.zmin; 
     STLArbeiter.xmax = STLArbeiterCPU.xmax;
     STLArbeiter.ymax = STLArbeiterCPU.ymax;
     STLArbeiter.zmax = STLArbeiterCPU.zmax; 
+    STLArbeiter.triangleCount = STLArbeiterCPU.triangleCount;
     
     MarkerStruct Marker;
 	Marker.fluidArray = MarkerArrayType( cellCount.n, 0);

@@ -5,6 +5,7 @@
 #include <limits>
 
 #include <TNL/Algorithms/parallelFor.h>
+#include <TNL/Algorithms/AtomicOperations.h>
 #include <TNL/Containers/Array.h>
 #include <TNL/Containers/NDArray.h>
 #include <TNL/Containers/StaticArray.h>
@@ -40,14 +41,14 @@ struct MarkerStruct { MarkerArrayType fluidArray; MarkerArrayType bouncebackArra
 struct STLArbeiterStruct { 	FloatArrayType axArray; FloatArrayType ayArray; FloatArrayType azArray; 
 							FloatArrayType bxArray; FloatArrayType byArray; FloatArrayType bzArray; 
 							FloatArrayType cxArray; FloatArrayType cyArray; FloatArrayType czArray; 
-							float xmin; float ymin; float zmin; float xmax; float ymax; float zmax; };
+							float xmin; float ymin; float zmin; float xmax; float ymax; float zmax; size_t triangleCount; };
 
 struct STLArbeiterStructCPU { 	FloatArrayTypeCPU axArray; FloatArrayTypeCPU ayArray; FloatArrayTypeCPU azArray; 
 								FloatArrayTypeCPU bxArray; FloatArrayTypeCPU byArray; FloatArrayTypeCPU bzArray; 
 								FloatArrayTypeCPU cxArray; FloatArrayTypeCPU cyArray; FloatArrayTypeCPU czArray; 
-								float xmin; float ymin; float zmin; float xmax; float ymax; float zmax; };
+								float xmin; float ymin; float zmin; float xmax; float ymax; float zmax; size_t triangleCount; };
 								
-struct CellCountStruct { size_t nx; size_t ny; size_t nz; size_t n; float ox; float oy; float oz; }; // ox, oy, oz is the position of cell i,j,k = 0 in global coordinates
+struct CellCountStruct { float res; size_t nx; size_t ny; size_t nz; size_t n; float ox; float oy; float oz; }; // ox, oy, oz is the position of cell i,j,k = 0 in global coordinates
 
 #include "applyMarkers.h"
 #include "applyInitialization.h"

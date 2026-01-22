@@ -10,6 +10,7 @@ void readSTL( STLArbeiterStructCPU& STLArbeiterCPU )
     uint32_t triangleCount32;
 	file.read(reinterpret_cast<char*>(&triangleCount32), sizeof(uint32_t));
 	size_t triangleCount = static_cast<size_t>(triangleCount32);
+	STLArbeiterCPU.triangleCount = triangleCount;
     
     std::cout<<"	triangleCount: "<< triangleCount << std::endl;
 
@@ -106,4 +107,54 @@ void applyMarkersFromSTL( MarkerStruct &Marker, STLArbeiterStruct &STLArbeiter, 
 	CounterArray2DType intersectionCounterArray;
 	intersectionCounterArray.setSizes(cellCount.nx, cellCount.ny);
 	intersectionCounterArray.setValue(0);
+	auto intersectionCounterArrayView = intersectionCounterArray.getView();
+
+    auto counterLambda = [ = ] __cuda_callable__( size_t triangleIndex ) mutable
+    {
+		float ax = axArrayView[ triangleIndex ];
+		float ay = ayArrayView[ triangleIndex ];
+		float az = azArrayView[ triangleIndex ];
+		float bx = bxArrayView[ triangleIndex ];
+		float by = byArrayView[ triangleIndex ];
+		float bz = bzArrayView[ triangleIndex ];
+		float cx = cxArrayView[ triangleIndex ];
+		float cy = cyArrayView[ triangleIndex ];
+		float cz = czArrayView[ triangleIndex ];
+		
+		float xmin = fminf(ax, fminf(bx, cx));
+		float ymin = fminf(ay, fminf(by, cy));
+		float xmax = fmaxf(ax, fmaxf(bx, cx)); 
+		float ymax = fmaxf(ay, fmaxf(by, cy));
+		size_t imin = (size_t)max(0LL, (long long)((xmin - cellCount.ox) / cellCount.res));
+		size_t jmin = (size_t)max(0LL, (long long)((ymin - cellCount.oy) / cellCount.res));
+		size_t imax = (size_t)min((long long)cellCount.nx - 1, (long long)((xmax - cellCount.ox) / cellCount.res) + 1);
+		size_t jmax = (size_t)min((long long)cellCount.ny - 1, (long long)((ymax - cellCount.oy) / cellCount.res) + 1);
+		
+		for (size_t j = jmin; j <= jmax; j++) 
+		{
+			for (size_t i = imin; i <= imax; i++) 
+			{
+				float rayX = i * cellCount.res + cellCount.ox;
+				float rayY = j * cellCount.res + cellCount.oy;
+
+				// 2. 2D Edge Functions (Point-in-Triangle test in the XY plane)
+				auto edgeFunction = [](float px, float py, float x0, float y0, float x1, float y1) {
+					return (px - x0) * (y1 - y0) - (py - y0) * (x1 - x0);
+				};
+
+				float w0 = edgeFunction(rayX, rayY, bx, by, cx, cy);
+				float w1 = edgeFunction(rayX, rayY, cx, cy, ax, ay);
+				float w2 = edgeFunction(rayX, rayY, ax, ay, bx, by);
+
+				// 3. Determine if the ray center is inside the triangle projection
+				bool intersectionHappens = (w0 >= 0 && w1 >= 0 && w2 >= 0) || (w0 <= 0 && w1 <= 0 && w2 <= 0);
+
+				if ( intersectionHappens ) 
+				{
+					TNL::Algorithms::AtomicOperations<TNL::Devices::Cuda>::add(intersectionCounterArrayView(i, j), 1);
+				}
+			}
+		}
+    };
+    TNL::Algorithms::parallelFor<TNL::Devices::Cuda>( 0, STLArbeiter.triangleCount, counterLambda );	    
 }
