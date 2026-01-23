@@ -1,5 +1,5 @@
 // input physics
-constexpr float res = 0.3f; 											// mm
+constexpr float res = 0.5f; 											// mm
 constexpr float uzInlet = 0.05f; 										// also works as nominal LBM Mach number
 
 constexpr float nuPhys = 1.4607e-5;										// m2/s air

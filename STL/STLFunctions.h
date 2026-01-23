@@ -155,6 +155,35 @@ void applyMarkersFromSTL( MarkerStruct &Marker, STLArbeiterStruct &STLArbeiter, 
 				}
 			}
 		}
-    };
-    TNL::Algorithms::parallelFor<TNL::Devices::Cuda>( 0, STLArbeiter.triangleCount, counterLambda );	    
+	};
+	TNL::Algorithms::parallelFor<TNL::Devices::Cuda>( 0, STLArbeiter.triangleCount, counterLambda );	
+	
+	auto fetch = [ = ] __cuda_callable__( const size_t singleIndex )
+	{
+		const size_t i = singleIndex % cellCount.nx;
+		const size_t j = singleIndex / cellCount.ny;
+		return intersectionCounterArrayView(i, j);
+	};
+	auto reduction = [] __cuda_callable__( const int& a, const int& b )
+	{
+		return TNL::max( a, b );
+	};
+	size_t start = 0;
+	size_t end = cellCount.nx * cellCount.ny;
+	int intersectionCountMax = TNL::Algorithms::reduce<TNL::Devices::Cuda>( start, end, fetch, reduction, 0.0 );
+	std::cout << "intersectionCountMax: " << intersectionCountMax << std::endl; 
+	
+	//test
+	for (size_t j = 0; j < cellCount.ny; j++) 
+	{
+		for (size_t i = 0; i < cellCount.nx; i++) 
+		{
+			int number = intersectionCounterArray.getElement(i, j);
+			if (number > 10) 
+			{
+				std::cout << "Intersection count for i: " << i << ", j: " << j << ", :" << number << std::endl;
+			}
+		}
+	}
+	     
 }

@@ -6,6 +6,7 @@
 
 #include <TNL/Algorithms/parallelFor.h>
 #include <TNL/Algorithms/AtomicOperations.h>
+#include <TNL/Algorithms/reduce.h>
 #include <TNL/Containers/Array.h>
 #include <TNL/Containers/NDArray.h>
 #include <TNL/Containers/StaticArray.h>
