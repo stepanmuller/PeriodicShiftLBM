@@ -111,46 +111,58 @@ void applyMarkersFromSTL( MarkerStruct &Marker, STLArbeiterStruct &STLArbeiter, 
 
     auto counterLambda = [ = ] __cuda_callable__( size_t triangleIndex ) mutable
     {
-		float ax = axArrayView[ triangleIndex ];
-		float ay = ayArrayView[ triangleIndex ];
-		float az = azArrayView[ triangleIndex ];
-		float bx = bxArrayView[ triangleIndex ];
-		float by = byArrayView[ triangleIndex ];
-		float bz = bzArrayView[ triangleIndex ];
-		float cx = cxArrayView[ triangleIndex ];
-		float cy = cyArrayView[ triangleIndex ];
-		float cz = czArrayView[ triangleIndex ];
+		const float ax = axArrayView[ triangleIndex ];
+		const float ay = ayArrayView[ triangleIndex ];
+		const float bx = bxArrayView[ triangleIndex ];
+		const float by = byArrayView[ triangleIndex ];
+		const float cx = cxArrayView[ triangleIndex ];
+		const float cy = cyArrayView[ triangleIndex ];
 		
-		float xmin = fminf(ax, fminf(bx, cx));
-		float ymin = fminf(ay, fminf(by, cy));
-		float xmax = fmaxf(ax, fmaxf(bx, cx)); 
-		float ymax = fmaxf(ay, fmaxf(by, cy));
-		size_t imin = (size_t)max(0LL, (long long)((xmin - cellCount.ox) / cellCount.res));
-		size_t jmin = (size_t)max(0LL, (long long)((ymin - cellCount.oy) / cellCount.res));
-		size_t imax = (size_t)min((long long)cellCount.nx - 1, (long long)((xmax - cellCount.ox) / cellCount.res) + 1);
-		size_t jmax = (size_t)min((long long)cellCount.ny - 1, (long long)((ymax - cellCount.oy) / cellCount.res) + 1);
+		const float xmin = fminf(ax, fminf(bx, cx));
+		const float ymin = fminf(ay, fminf(by, cy));
+		const float xmax = fmaxf(ax, fmaxf(bx, cx)); 
+		const float ymax = fmaxf(ay, fmaxf(by, cy));
+		const size_t imin = (size_t)max(0LL, (long long)((xmin - cellCount.ox) / cellCount.res));
+		const size_t jmin = (size_t)max(0LL, (long long)((ymin - cellCount.oy) / cellCount.res));
+		const size_t imax = (size_t)min((long long)cellCount.nx - 1, (long long)((xmax - cellCount.ox) / cellCount.res) + 1);
+		const size_t jmax = (size_t)min((long long)cellCount.ny - 1, (long long)((ymax - cellCount.oy) / cellCount.res) + 1);
 		
 		for (size_t j = jmin; j <= jmax; j++) 
 		{
 			for (size_t i = imin; i <= imax; i++) 
 			{
-				float rayX = i * cellCount.res + cellCount.ox;
-				float rayY = j * cellCount.res + cellCount.oy;
+				const float rayX = (float)i * cellCount.res + cellCount.ox;
+				const float rayY = (float)j * cellCount.res + cellCount.oy;
 
-				// 2. 2D Edge Functions (Point-in-Triangle test in the XY plane)
-				auto edgeFunction = [](float px, float py, float x0, float y0, float x1, float y1) {
-					return (px - x0) * (y1 - y0) - (py - y0) * (x1 - x0);
+				const float axShifted = ax - rayX, ayShifted = ay - rayY;
+				const float bxShifted = bx - rayX, byShifted = by - rayY;
+				const float cxShifted = cx - rayX, cyShifted = cy - rayY;
+
+				auto edgeFunc = [](float x0, float y0, float x1, float y1) 
+				{
+					return x0 * y1 - y0 * x1;
 				};
 
-				float w0 = edgeFunction(rayX, rayY, bx, by, cx, cy);
-				float w1 = edgeFunction(rayX, rayY, cx, cy, ax, ay);
-				float w2 = edgeFunction(rayX, rayY, ax, ay, bx, by);
+				float w0 = edgeFunc(bxShifted, byShifted, cxShifted, cyShifted);
+				float w1 = edgeFunc(cxShifted, cyShifted, axShifted, ayShifted);
+				float w2 = edgeFunc(axShifted, ayShifted, bxShifted, byShifted);
 
-				// 3. Determine if the ray center is inside the triangle projection
-				bool intersectionHappens = (w0 >= 0 && w1 >= 0 && w2 >= 0) || (w0 <= 0 && w1 <= 0 && w2 <= 0);
+				const float area = w0 + w1 + w2;
+				if (fabsf(area) < 1e-7f) continue;
 
-				if ( intersectionHappens ) 
-				{
+				if (area < 0) { w0 = -w0; w1 = -w1; w2 = -w2; }
+
+				auto isTopLeft = [&](float x0, float y0, float x1, float y1) {
+					float dx = x1 - x0;
+					float dy = y1 - y0;
+					return (dy < 0) || (dy == 0 && dx > 0);
+				};
+
+				bool hit0 = (w0 > 0) || (w0 == 0 && isTopLeft(bx, by, cx, cy));
+				bool hit1 = (w1 > 0) || (w1 == 0 && isTopLeft(cx, cy, ax, ay));
+				bool hit2 = (w2 > 0) || (w2 == 0 && isTopLeft(ax, ay, bx, by));
+
+				if (hit0 && hit1 && hit2) {
 					TNL::Algorithms::AtomicOperations<TNL::Devices::Cuda>::add(intersectionCounterArrayView(i, j), 1);
 				}
 			}
@@ -179,11 +191,18 @@ void applyMarkersFromSTL( MarkerStruct &Marker, STLArbeiterStruct &STLArbeiter, 
 		for (size_t i = 0; i < cellCount.nx; i++) 
 		{
 			int number = intersectionCounterArray.getElement(i, j);
-			if (number > 10) 
+			if (number > 4) 
 			{
-				std::cout << "Intersection count for i: " << i << ", j: " << j << ", :" << number << std::endl;
+				std::cout << "Intersection count for i: " << i << ", j: " << j << ", : " << number << std::endl;
 			}
 		}
 	}
-	     
+	
+	//more test
+	std::cout << std::endl;
+	const size_t i = 64;
+	const size_t j = 120;
+	int number = intersectionCounterArray.getElement(i, j);
+	std::cout << "Intersection count for i: " << i << ", j: " << j << ", : " << number << std::endl;
+		     
 }
