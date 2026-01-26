@@ -12,6 +12,8 @@
 #include <TNL/Containers/StaticArray.h>
 #include <TNL/Timer.h>
 
+using IntArrayType = TNL::Containers::Array< int, TNL::Devices::Cuda, size_t >;
+
 using IndexArrayType = TNL::Containers::Array< size_t, TNL::Devices::Cuda, size_t >;
 using IndexArrayTypeCPU = TNL::Containers::Array< size_t, TNL::Devices::Host, size_t >;
 

@@ -26,10 +26,10 @@ constexpr int iterationCount = 100;
 int main(int argc, char **argv)
 {
 	STLArbeiterStructCPU STLArbeiterCPU;
-	std::cout << "Initialization: Reading STL" << std::endl;
+	std::cout << "Reading STL" << std::endl;
 	readSTL( STLArbeiterCPU );
 	
-	std::cout << "Initialization: Sizing domain around the STL" << std::endl;
+	std::cout << "Sizing domain around the STL" << std::endl;
 	CellCountStruct cellCount;
 	cellCount.res = res;
 	cellCount.nx = static_cast<size_t>((STLArbeiterCPU.xmax - STLArbeiterCPU.xmin) / cellCount.res) + 1;
@@ -69,6 +69,9 @@ int main(int argc, char **argv)
     STLArbeiter.zmax = STLArbeiterCPU.zmax; 
     STLArbeiter.triangleCount = STLArbeiterCPU.triangleCount;
     
+    std::cout << "Starting STL check for edge pairs" << std::endl;
+	checkSTLEdges( STLArbeiter );
+    
     MarkerStruct Marker;
 	Marker.fluidArray = MarkerArrayType( cellCount.n, 0);
 	Marker.bouncebackArray = MarkerArrayType( cellCount.n, 0);
@@ -82,10 +85,10 @@ int main(int argc, char **argv)
 	F.fArray.setSizes( 27, cellCount.n );
 	F.fArray.setValue( 1.0f );
 	
-	std::cout << "Initialization: Marking cells" << std::endl;
+	std::cout << "Marking cells" << std::endl;
 	applyMarkers(Marker, cellCount);
 	
-	std::cout << "Initialization: Filling F" << std::endl;
+	std::cout << "Filling F" << std::endl;
 	applyInitialization( F, cellCount);
 	
 	#ifdef __CUDACC__
