@@ -19,7 +19,7 @@ const float soundspeedPhys = (1.f / sqrt(3.f)) * res / dtPhys; 		// m/s
 constexpr float nu = (dtPhys * nuPhys) / (res * res);				// LBM nu
 constexpr float tau = 3.f * nu + 0.5f;								// LBM tau
 
-constexpr int iterationCount = 2000;
+constexpr int iterationCount = 100;
 
 #include "includesTypes.h"
 

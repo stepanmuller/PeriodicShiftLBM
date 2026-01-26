@@ -87,6 +87,53 @@ void readSTL( STLArbeiterStructCPU& STLArbeiterCPU )
     std::cout << "	zmin zmax: " << STLArbeiterCPU.zmin << " " << STLArbeiterCPU.zmax << "\n";
 }
 
+__host__ __device__ void rayHitDetector(const long long &ak, const long long &al, 
+										const long long &bk, const long long &bl,
+										const long long &ck, const long long &cl,
+										bool &rayHit)
+{
+    // Calculate Edge Functions
+    long long w0 = bk * cl - bl * ck;
+    long long w1 = ck * al - cl * ak;
+    long long w2 = ak * bl - al * bk;
+
+    long long area = w0 + w1 + w2;
+    if (area == 0) {
+        rayHit = false; 
+        return;
+    }
+
+    bool flipped = (area < 0);
+    if (flipped) { w0 = -w0; w1 = -w1; w2 = -w2; }
+    
+    // EDGE 0 CHECK
+    if (w0 < 0) { rayHit = false; return; }
+    if (w0 == 0) {
+        long long dx = flipped ? (ak - bk) : (bk - ak);
+        long long dy = flipped ? (al - bl) : (bl - al);
+        if (!((dy < 0) || (dy == 0 && dx > 0))) { rayHit = false; return; }
+    }
+
+    // EDGE 1 CHECK
+    if (w1 < 0) { rayHit = false; return; }
+    if (w1 == 0) {
+        long long dx = flipped ? (bk - ck) : (ck - bk);
+        long long dy = flipped ? (bl - cl) : (cl - bl);
+        if (!((dy < 0) || (dy == 0 && dx > 0))) { rayHit = false; return; }
+    }
+
+    // EDGE 2 CHECK
+    if (w2 < 0) { rayHit = false; return; }
+    if (w2 == 0) {
+        long long dx = flipped ? (ck - ak) : (ak - ck);
+        long long dy = flipped ? (cl - al) : (al - cl);
+        if (!((dy < 0) || (dy == 0 && dx > 0))) { rayHit = false; return; }
+    }
+
+    // If we reached this point, all checks passed!
+    rayHit = true;
+}
+
 void applyMarkersFromSTL( MarkerStruct &Marker, STLArbeiterStruct &STLArbeiter, CellCountStruct &cellCount )
 {
 	auto fluidMarkerArrayView = Marker.fluidArray.getView();
@@ -111,58 +158,55 @@ void applyMarkersFromSTL( MarkerStruct &Marker, STLArbeiterStruct &STLArbeiter, 
 
     auto counterLambda = [ = ] __cuda_callable__( size_t triangleIndex ) mutable
     {
-		const float ax = axArrayView[ triangleIndex ];
-		const float ay = ayArrayView[ triangleIndex ];
-		const float bx = bxArrayView[ triangleIndex ];
-		const float by = byArrayView[ triangleIndex ];
-		const float cx = cxArrayView[ triangleIndex ];
-		const float cy = cyArrayView[ triangleIndex ];
+		const float a0x = axArrayView[ triangleIndex ];
+		const float a0y = ayArrayView[ triangleIndex ];
+		const float b0x = bxArrayView[ triangleIndex ];
+		const float b0y = byArrayView[ triangleIndex ];
+		const float c0x = cxArrayView[ triangleIndex ];
+		const float c0y = cyArrayView[ triangleIndex ];
+		// transform STL floats to integer grid that is 100x finer than the LBM grid to prevent float errors
+		// transform into coordinate system of the LBM grid
+		// make the STL coords odd, rays will be even, this prevents hitting a vortex
+		const float scale = 50.0f / cellCount.res;
+		const long long ok = round( cellCount.ox * scale );
+		const long long ol = round( cellCount.oy * scale );
+		const long long a0k = (long long)(round( a0x * scale ) - ok) * 2 + 1;
+		const long long a0l = (long long)(round( a0y * scale ) - ol) * 2 + 1;
+		const long long b0k = (long long)(round( b0x * scale ) - ok) * 2 + 1;
+		const long long b0l = (long long)(round( b0y * scale ) - ol) * 2 + 1;
+		const long long c0k = (long long)(round( c0x * scale ) - ok) * 2 + 1;
+		const long long c0l = (long long)(round( c0y * scale ) - ol) * 2 + 1;
 		
-		const float xmin = fminf(ax, fminf(bx, cx));
-		const float ymin = fminf(ay, fminf(by, cy));
-		const float xmax = fmaxf(ax, fmaxf(bx, cx)); 
-		const float ymax = fmaxf(ay, fmaxf(by, cy));
-		const size_t imin = (size_t)max(0LL, (long long)((xmin - cellCount.ox) / cellCount.res));
-		const size_t jmin = (size_t)max(0LL, (long long)((ymin - cellCount.oy) / cellCount.res));
-		const size_t imax = (size_t)min((long long)cellCount.nx - 1, (long long)((xmax - cellCount.ox) / cellCount.res) + 1);
-		const size_t jmax = (size_t)min((long long)cellCount.ny - 1, (long long)((ymax - cellCount.oy) / cellCount.res) + 1);
+		const long long kmin = std::min({ a0k, b0k, c0k });
+		const long long kmax = std::max({ a0k, b0k, c0k });
+		const long long lmin = std::min({ a0l, b0l, c0l });
+		const long long lmax = std::max({ a0l, b0l, c0l });
+		
+		const size_t imin = min( (size_t)max(0LL, (kmin / 100) ), cellCount.nx-1 );
+		const size_t imax = min( (size_t)max(0LL, (kmax / 100) + 1), cellCount.nx-1 );
+		const size_t jmin = min( (size_t)max(0LL, (lmin / 100) ), cellCount.ny-1 );
+		const size_t jmax = min( (size_t)max(0LL, (lmax / 100) + 1), cellCount.ny-1 );
 		
 		for (size_t j = jmin; j <= jmax; j++) 
 		{
 			for (size_t i = imin; i <= imax; i++) 
 			{
-				const float rayX = (float)i * cellCount.res + cellCount.ox;
-				const float rayY = (float)j * cellCount.res + cellCount.oy;
+				const long long rayK = i * 100;
+				const long long rayL = j * 100;
+				// finally, transform the triangle into coordinate system where ray is [0, 0]
+				const long long ak = a0k - rayK;
+				const long long al = a0l - rayL;
+				const long long bk = b0k - rayK;
+				const long long bl = b0l - rayL;
+				const long long ck = c0k - rayK;
+				const long long cl = c0l - rayL;
 
-				const float axShifted = ax - rayX, ayShifted = ay - rayY;
-				const float bxShifted = bx - rayX, byShifted = by - rayY;
-				const float cxShifted = cx - rayX, cyShifted = cy - rayY;
+				bool rayHit = true;
+				
+				rayHitDetector(ak, al, bk, bl, ck, cl, rayHit);
 
-				auto edgeFunc = [](float x0, float y0, float x1, float y1) 
+				if (rayHit) 
 				{
-					return x0 * y1 - y0 * x1;
-				};
-
-				float w0 = edgeFunc(bxShifted, byShifted, cxShifted, cyShifted);
-				float w1 = edgeFunc(cxShifted, cyShifted, axShifted, ayShifted);
-				float w2 = edgeFunc(axShifted, ayShifted, bxShifted, byShifted);
-
-				const float area = w0 + w1 + w2;
-				if (fabsf(area) < 1e-7f) continue;
-
-				if (area < 0) { w0 = -w0; w1 = -w1; w2 = -w2; }
-
-				auto isTopLeft = [&](float x0, float y0, float x1, float y1) {
-					float dx = x1 - x0;
-					float dy = y1 - y0;
-					return (dy < 0) || (dy == 0 && dx > 0);
-				};
-
-				bool hit0 = (w0 > 0) || (w0 == 0 && isTopLeft(bx, by, cx, cy));
-				bool hit1 = (w1 > 0) || (w1 == 0 && isTopLeft(cx, cy, ax, ay));
-				bool hit2 = (w2 > 0) || (w2 == 0 && isTopLeft(ax, ay, bx, by));
-
-				if (hit0 && hit1 && hit2) {
 					TNL::Algorithms::AtomicOperations<TNL::Devices::Cuda>::add(intersectionCounterArrayView(i, j), 1);
 				}
 			}
@@ -191,18 +235,10 @@ void applyMarkersFromSTL( MarkerStruct &Marker, STLArbeiterStruct &STLArbeiter, 
 		for (size_t i = 0; i < cellCount.nx; i++) 
 		{
 			int number = intersectionCounterArray.getElement(i, j);
-			if (number > 4) 
+			if (number % 2 != 0) 
 			{
 				std::cout << "Intersection count for i: " << i << ", j: " << j << ", : " << number << std::endl;
 			}
 		}
-	}
-	
-	//more test
-	std::cout << std::endl;
-	const size_t i = 64;
-	const size_t j = 120;
-	int number = intersectionCounterArray.getElement(i, j);
-	std::cout << "Intersection count for i: " << i << ", j: " << j << ", : " << number << std::endl;
-		     
+	}		     
 }
