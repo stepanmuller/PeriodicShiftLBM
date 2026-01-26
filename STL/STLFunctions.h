@@ -1,5 +1,6 @@
 void readSTL( STLArbeiterStructCPU& STLArbeiterCPU )
 {
+	std::cout << "Reading STL" << std::endl;
 	std::ifstream file("STL/M35IntakeSTL.STL", std::ios::binary);
 	if (!file.is_open()) throw std::runtime_error("Failed to open STL file");
 	
@@ -87,6 +88,97 @@ void readSTL( STLArbeiterStructCPU& STLArbeiterCPU )
     std::cout << "	zmin zmax: " << STLArbeiterCPU.zmin << " " << STLArbeiterCPU.zmax << "\n";
 }
 
+void checkSTLEdges( STLArbeiterStruct &STLArbeiter )
+{
+	std::cout << "Starting STL check for shared edges" << std::endl;
+	auto axArrayView = STLArbeiter.axArray.getConstView();
+	auto ayArrayView = STLArbeiter.ayArray.getConstView();
+	auto azArrayView = STLArbeiter.azArray.getConstView();
+	auto bxArrayView = STLArbeiter.bxArray.getConstView();
+	auto byArrayView = STLArbeiter.byArray.getConstView();
+	auto bzArrayView = STLArbeiter.bzArray.getConstView();
+	auto cxArrayView = STLArbeiter.cxArray.getConstView();
+	auto cyArrayView = STLArbeiter.cyArray.getConstView();
+	auto czArrayView = STLArbeiter.czArray.getConstView();
+	
+	CounterArray2DType edgeCounterArray;
+	edgeCounterArray.setSizes(STLArbeiter.triangleCount, 3);
+	edgeCounterArray.setValue(0);
+	auto edgeCounterArrayView = edgeCounterArray.getView();
+
+    auto counterLambda = [ = ] __cuda_callable__( size_t triangle1Index ) mutable
+    {		
+		float triangle1[9];
+		triangle1[0] = axArrayView[ triangle1Index ];
+		triangle1[1] = ayArrayView[ triangle1Index ];
+		triangle1[2] = azArrayView[ triangle1Index ];
+		triangle1[3] = bxArrayView[ triangle1Index ];
+		triangle1[4] = byArrayView[ triangle1Index ];
+		triangle1[5] = bzArrayView[ triangle1Index ];
+		triangle1[6] = cxArrayView[ triangle1Index ];
+		triangle1[7] = cyArrayView[ triangle1Index ];
+		triangle1[8] = czArrayView[ triangle1Index ];
+		
+		for (size_t triangle2Index = 0; triangle2Index < STLArbeiter.triangleCount; triangle2Index++) 
+		{
+			float triangle2[9];
+			triangle2[0] = axArrayView[ triangle2Index ];
+			triangle2[1] = ayArrayView[ triangle2Index ];
+			triangle2[2] = azArrayView[ triangle2Index ];
+			triangle2[3] = bxArrayView[ triangle2Index ];
+			triangle2[4] = byArrayView[ triangle2Index ];
+			triangle2[5] = bzArrayView[ triangle2Index ];
+			triangle2[6] = cxArrayView[ triangle2Index ];
+			triangle2[7] = cyArrayView[ triangle2Index ];
+			triangle2[8] = czArrayView[ triangle2Index ];
+			
+			for (int edge1 = 0; edge1 < 3; edge1++)
+			{
+				for (int edge2 = 0; edge2 < 3; edge2++)
+				{
+					float ax1 = triangle1[3*edge1];
+					float ay1 = triangle1[3*edge1+1];
+					float az1 = triangle1[3*edge1+2];
+					float bx1 = triangle1[3*((edge1+1)%3)];
+					float by1 = triangle1[3*((edge1+1)%3)+1];
+					float bz1 = triangle1[3*((edge1+1)%3)+2];
+					
+					float ax2 = triangle2[3*edge2];
+					float ay2 = triangle2[3*edge2+1];
+					float az2 = triangle2[3*edge2+2];
+					float bx2 = triangle2[3*((edge2+1)%3)];
+					float by2 = triangle2[3*((edge2+1)%3)+1];
+					float bz2 = triangle2[3*((edge2+1)%3)+2];
+					// testing same orientation of the edge
+					if (ax1 == ax2 && ay1 == ay2 && az1 == az2 && bx1 == bx2 && by1 == by2 && bz1 == bz2) 
+					{
+						TNL::Algorithms::AtomicOperations<TNL::Devices::Cuda>::add(edgeCounterArrayView(triangle1Index, edge1), 1);
+					}
+					// testing reverse orientation of the edge
+					if (ax1 == bx2 && ay1 == by2 && az1 == bz2 && bx1 == ax2 && by1 == ay2 && bz1 == az2) 
+					{
+						TNL::Algorithms::AtomicOperations<TNL::Devices::Cuda>::add(edgeCounterArrayView(triangle1Index, edge1), 1);
+					}
+				}
+			}
+		}
+	};
+	TNL::Algorithms::parallelFor<TNL::Devices::Cuda>( 0, STLArbeiter.triangleCount, counterLambda );
+	int errorCounter = 0;
+	for (size_t triangleIndex = 0; triangleIndex < STLArbeiter.triangleCount; triangleIndex++ )
+    {
+		int ABcount = edgeCounterArray.getElement(triangleIndex, 0);
+		int BCcount = edgeCounterArray.getElement(triangleIndex, 1);
+		int CAcount = edgeCounterArray.getElement(triangleIndex, 2);
+		if (ABcount != 2 || BCcount != 2 || CAcount != 2)
+		{
+			errorCounter++;
+			std::cout << "	Edge problem on triangle " << triangleIndex << ", ABcount: " << ABcount << ", BCcount: " << BCcount << ", CAcount: " << CAcount << std::endl;
+		}
+	}    
+	std::cout<< "	Total shared edge problems: " << errorCounter << std::endl; 
+}
+
 __host__ __device__ void rayHitDetector(const long long &ak, const long long &al, 
 										const long long &bk, const long long &bl,
 										const long long &ck, const long long &cl,
@@ -134,8 +226,30 @@ __host__ __device__ void rayHitDetector(const long long &ak, const long long &al
     rayHit = true;
 }
 
+__host__ __device__ void rayHitCoordinate(	const float &ax, const float &ay, const float &az,
+											const float &bx, const float &by, const float &bz,
+											const float &cx, const float &cy, const float &cz,
+											const float &rayX, const float &rayY, float &rayZ)
+{
+    float v1x = bx - ax;
+    float v1y = by - ay;
+    float v1z = bz - az;
+
+    float v2x = cx - ax;
+    float v2y = cy - ay;
+    float v2z = cz - az;
+
+    float nx = v1y * v2z - v1z * v2y;
+    float ny = v1z * v2x - v1x * v2z;
+    float nz = v1x * v2y - v1y * v2x;
+
+    if (nz != 0.0f) rayZ = az - (nx * (rayX - ax) + ny * (rayY - ay)) / nz;
+    else rayZ = std::numeric_limits<float>::max();
+}
+
 void applyMarkersFromSTL( MarkerStruct &Marker, STLArbeiterStruct &STLArbeiter, CellCountStruct &cellCount )
 {
+	std::cout << "Applying markers from STL" << std::endl;
 	auto fluidMarkerArrayView = Marker.fluidArray.getView();
 	auto bouncebackMarkerArrayView = Marker.bouncebackArray.getView();
 	auto givenRhoMarkerArrayView = Marker.givenRhoArray.getView();
@@ -227,9 +341,10 @@ void applyMarkersFromSTL( MarkerStruct &Marker, STLArbeiterStruct &STLArbeiter, 
 	size_t start = 0;
 	size_t end = cellCount.nx * cellCount.ny;
 	int intersectionCountMax = TNL::Algorithms::reduce<TNL::Devices::Cuda>( start, end, fetch, reduction, 0.0 );
-	std::cout << "intersectionCountMax: " << intersectionCountMax << std::endl; 
+	std::cout << "	intersectionCountMax: " << intersectionCountMax << std::endl; 
 	
-	//test
+	// check for odd intersections
+	int oddIntersectionCounter = 0;
 	for (size_t j = 0; j < cellCount.ny; j++) 
 	{
 		for (size_t i = 0; i < cellCount.nx; i++) 
@@ -237,20 +352,31 @@ void applyMarkersFromSTL( MarkerStruct &Marker, STLArbeiterStruct &STLArbeiter, 
 			int number = intersectionCounterArray.getElement(i, j);
 			if (number % 2 != 0) 
 			{
-				std::cout << "Intersection count for i: " << i << ", j: " << j << ", : " << number << std::endl;
+				std::cout << "	Odd intersection count for i: " << i << ", j: " << j << ", : " << number << std::endl;
+				oddIntersectionCounter++;
 			}
 		}
-	}	
+	}		
+	std::cout<< "	Total rays with odd intersection count: " << oddIntersectionCounter << std::endl;      
 	
-	// another test
-	for (size_t triangleIndex = 0; triangleIndex < STLArbeiter.triangleCount; triangleIndex++ )
+	// extracting the intersection indexes
+	IndexArray3DType intersectionIndexArray;
+	intersectionIndexArray.setSizes(intersectionCountMax, cellCount.nx, cellCount.ny);
+	intersectionIndexArray.setValue(cellCount.nz+1);
+	auto intersectionIndexArrayView = intersectionIndexArray.getView();
+	intersectionCounterArray.setValue(0);
+	
+	auto rayHitIndexLambda = [ = ] __cuda_callable__( size_t triangleIndex ) mutable
     {
-		const float a0x = STLArbeiter.axArray.getElement(triangleIndex);
-		const float a0y = STLArbeiter.ayArray.getElement(triangleIndex);
-		const float b0x = STLArbeiter.bxArray.getElement(triangleIndex);
-		const float b0y = STLArbeiter.byArray.getElement(triangleIndex);
-		const float c0x = STLArbeiter.cxArray.getElement(triangleIndex);
-		const float c0y = STLArbeiter.cyArray.getElement(triangleIndex);
+		const float a0x = axArrayView[ triangleIndex ];
+		const float a0y = ayArrayView[ triangleIndex ];
+		const float a0z = azArrayView[ triangleIndex ];
+		const float b0x = bxArrayView[ triangleIndex ];
+		const float b0y = byArrayView[ triangleIndex ];
+		const float b0z = bzArrayView[ triangleIndex ];
+		const float c0x = cxArrayView[ triangleIndex ];
+		const float c0y = cyArrayView[ triangleIndex ];
+		const float c0z = czArrayView[ triangleIndex ];
 		// transform STL floats to integer grid that is 100x finer than the LBM grid to prevent float errors
 		// transform into coordinate system of the LBM grid
 		// make the STL coords odd, rays will be even, this prevents hitting a vortex
@@ -294,115 +420,33 @@ void applyMarkersFromSTL( MarkerStruct &Marker, STLArbeiterStruct &STLArbeiter, 
 
 				if (rayHit) 
 				{
-					if (i==57 && j==121)
-					{
-						std::cout << "i: " << i << ", j: " << j << std::endl;
-						std::cout << "triangleIndex: " << triangleIndex << std::endl;
-						std::cout << "ak: " << ak << ", al: " << al << std::endl;
-						std::cout << "bk: " << bk << ", bl: " << bl << std::endl;
-						std::cout << "ck: " << ck << ", cl: " << cl << std::endl;
-					}
+					const int writePosition = TNL::Algorithms::AtomicOperations<TNL::Devices::Cuda>::add(intersectionCounterArrayView(i, j), 1);
+					// here I need to find the Z coordinate of the hit and the nearest larger k index in Z
+					const float rayX = i * cellCount.res + cellCount.ox;
+					const float rayY = j * cellCount.res + cellCount.oy;
+					float rayZ = std::numeric_limits<float>::max();
+					rayHitCoordinate(a0x, a0y, a0z, b0x, b0y, b0z, c0x, c0y, c0z, rayX, rayY, rayZ);
+					size_t k = (size_t)max(0.0f, ceilf((rayZ - cellCount.oz) / cellCount.res));
+					k = min(k, cellCount.nz+1);
+					intersectionIndexArrayView(writePosition, i, j) = k;
 				}
 			}
 		}
-	}		     
-}
-
-void checkSTLEdges( STLArbeiterStruct &STLArbeiter )
-{
-	auto axArrayView = STLArbeiter.axArray.getConstView();
-	auto ayArrayView = STLArbeiter.ayArray.getConstView();
-	auto azArrayView = STLArbeiter.azArray.getConstView();
-	auto bxArrayView = STLArbeiter.bxArray.getConstView();
-	auto byArrayView = STLArbeiter.byArray.getConstView();
-	auto bzArrayView = STLArbeiter.bzArray.getConstView();
-	auto cxArrayView = STLArbeiter.cxArray.getConstView();
-	auto cyArrayView = STLArbeiter.cyArray.getConstView();
-	auto czArrayView = STLArbeiter.czArray.getConstView();
+	};
+	TNL::Algorithms::parallelFor<TNL::Devices::Cuda>( 0, STLArbeiter.triangleCount, rayHitIndexLambda );
 	
-	IntArrayType ABcounterArray = IntArrayType(STLArbeiter.triangleCount, 0);
-	IntArrayType BCcounterArray = IntArrayType(STLArbeiter.triangleCount, 0);
-	IntArrayType CAcounterArray = IntArrayType(STLArbeiter.triangleCount, 0);
-	auto ABcounterArrayView = ABcounterArray.getView();
-	auto BCcounterArrayView = BCcounterArray.getView();
-	auto CAcounterArrayView = CAcounterArray.getView();
-
-    auto counterLambda = [ = ] __cuda_callable__( size_t triangleIndex ) mutable
-    {		
-		const float ax1 = axArrayView[ triangleIndex ];
-		const float ay1 = ayArrayView[ triangleIndex ];
-		const float bx1 = bxArrayView[ triangleIndex ];
-		const float by1 = byArrayView[ triangleIndex ];
-		const float cx1 = cxArrayView[ triangleIndex ];
-		const float cy1 = cyArrayView[ triangleIndex ];
-		
-		for (size_t comparedTriangleIndex = 0; comparedTriangleIndex < STLArbeiter.triangleCount; comparedTriangleIndex++) 
+	auto rayLambda = [=] __cuda_callable__ (const TNL::Containers::StaticArray< 2, int >& doubleIndex) mutable
+	{
+		const size_t i = doubleIndex.x();
+		const size_t j = doubleIndex.y();
+		IndexArrayType kIndexArray = IndexArrayType(intersectionCountMax, 0);
+		auto kIndexArrayView = kIndexArray.getView();
+		for (int intersectionIndex = 0; intersectionIndex < intersectionCountMax; intersectionIndex++) 
 		{
-			const float ax2 = axArrayView[ comparedTriangleIndex ];
-			const float ay2 = ayArrayView[ comparedTriangleIndex ];
-			const float bx2 = bxArrayView[ comparedTriangleIndex ];
-			const float by2 = byArrayView[ comparedTriangleIndex ];
-			const float cx2 = cxArrayView[ comparedTriangleIndex ];
-			const float cy2 = cyArrayView[ comparedTriangleIndex ];
-			
-			// ---------------------------------------------------------
-			// CHECK EDGE AB (Triangle 1)
-			// ---------------------------------------------------------
-			// vs AB2
-			if (ax1 == ax2 && ay1 == ay2 && bx1 == bx2 && by1 == by2) TNL::Algorithms::AtomicOperations<TNL::Devices::Cuda>::add(ABcounterArrayView(triangleIndex), 1);
-			// vs BA2
-			if (ax1 == bx2 && ay1 == by2 && bx1 == ax2 && by1 == ay2) TNL::Algorithms::AtomicOperations<TNL::Devices::Cuda>::add(ABcounterArrayView(triangleIndex), 1);
-			// vs BC2
-			if (ax1 == bx2 && ay1 == by2 && bx1 == cx2 && by1 == cy2) TNL::Algorithms::AtomicOperations<TNL::Devices::Cuda>::add(ABcounterArrayView(triangleIndex), 1);
-			// vs CB2
-			if (ax1 == cx2 && ay1 == cy2 && bx1 == bx2 && by1 == by2) TNL::Algorithms::AtomicOperations<TNL::Devices::Cuda>::add(ABcounterArrayView(triangleIndex), 1);
-			// vs CA2
-			if (ax1 == cx2 && ay1 == cy2 && bx1 == ax2 && by1 == ay2) TNL::Algorithms::AtomicOperations<TNL::Devices::Cuda>::add(ABcounterArrayView(triangleIndex), 1);
-			// vs AC2
-			if (ax1 == ax2 && ay1 == ay2 && bx1 == cx2 && by1 == cy2) TNL::Algorithms::AtomicOperations<TNL::Devices::Cuda>::add(ABcounterArrayView(triangleIndex), 1);
-			// ---------------------------------------------------------
-			// CHECK EDGE BC (Triangle 1)
-			// ---------------------------------------------------------
-			// vs AB2
-			if (bx1 == ax2 && by1 == ay2 && cx1 == bx2 && cy1 == by2) TNL::Algorithms::AtomicOperations<TNL::Devices::Cuda>::add(BCcounterArrayView(triangleIndex), 1);
-			// vs BA2
-			if (bx1 == bx2 && by1 == by2 && cx1 == ax2 && cy1 == ay2) TNL::Algorithms::AtomicOperations<TNL::Devices::Cuda>::add(BCcounterArrayView(triangleIndex), 1);
-			// vs BC2
-			if (bx1 == bx2 && by1 == by2 && cx1 == cx2 && cy1 == cy2) TNL::Algorithms::AtomicOperations<TNL::Devices::Cuda>::add(BCcounterArrayView(triangleIndex), 1);
-			// vs CB2
-			if (bx1 == cx2 && by1 == cy2 && cx1 == bx2 && cy1 == by2) TNL::Algorithms::AtomicOperations<TNL::Devices::Cuda>::add(BCcounterArrayView(triangleIndex), 1);
-			// vs CA2
-			if (bx1 == cx2 && by1 == cy2 && cx1 == ax2 && cy1 == ay2) TNL::Algorithms::AtomicOperations<TNL::Devices::Cuda>::add(BCcounterArrayView(triangleIndex), 1);
-			// vs AC2
-			if (bx1 == ax2 && by1 == ay2 && cx1 == cx2 && cy1 == cy2) TNL::Algorithms::AtomicOperations<TNL::Devices::Cuda>::add(BCcounterArrayView(triangleIndex), 1);
-			// ---------------------------------------------------------
-			// CHECK EDGE CA (Triangle 1)
-			// ---------------------------------------------------------
-			// vs AB2
-			if (cx1 == ax2 && cy1 == ay2 && ax1 == bx2 && ay1 == by2) TNL::Algorithms::AtomicOperations<TNL::Devices::Cuda>::add(CAcounterArrayView(triangleIndex), 1);
-			// vs BA2
-			if (cx1 == bx2 && cy1 == by2 && ax1 == ax2 && ay1 == ay2) TNL::Algorithms::AtomicOperations<TNL::Devices::Cuda>::add(CAcounterArrayView(triangleIndex), 1);
-			// vs BC2
-			if (cx1 == bx2 && cy1 == by2 && ax1 == cx2 && ay1 == cy2) TNL::Algorithms::AtomicOperations<TNL::Devices::Cuda>::add(CAcounterArrayView(triangleIndex), 1);
-			// vs CB2
-			if (cx1 == cx2 && cy1 == cy2 && ax1 == bx2 && ay1 == by2) TNL::Algorithms::AtomicOperations<TNL::Devices::Cuda>::add(CAcounterArrayView(triangleIndex), 1);
-			// vs CA2
-			if (cx1 == cx2 && cy1 == cy2 && ax1 == ax2 && ay1 == ay2) TNL::Algorithms::AtomicOperations<TNL::Devices::Cuda>::add(CAcounterArrayView(triangleIndex), 1);
-			// vs AC2
-			if (cx1 == ax2 && cy1 == ay2 && ax1 == cx2 && ay1 == cy2) TNL::Algorithms::AtomicOperations<TNL::Devices::Cuda>::add(CAcounterArrayView(triangleIndex), 1);
+			kIndexArrayView[intersectionIndex] = intersectionIndexArrayView(intersectionIndex, i, j);
 		}
 	};
-	TNL::Algorithms::parallelFor<TNL::Devices::Cuda>( 0, STLArbeiter.triangleCount, counterLambda );	
-
-	for (size_t triangleIndex = 0; triangleIndex < STLArbeiter.triangleCount; triangleIndex++ )
-    {
-		int ABcount = ABcounterArray.getElement(triangleIndex);
-		int BCcount = BCcounterArray.getElement(triangleIndex);
-		int CAcount = CAcounterArray.getElement(triangleIndex);
-		if (ABcount != 2 || BCcount != 2 || CAcount != 2)
-		{
-			std::cout << "	Edge problem on triangle " << triangleIndex << ", ABcount: " << ABcount << ", BCcount: " << BCcount << ", CAcount: " << CAcount << std::endl;
-		}
-	}
-		     
+	TNL::Containers::StaticArray< 2, size_t > startList{ 0, 0 };
+	TNL::Containers::StaticArray< 2, size_t > endList{ cellCount.nx, cellCount.ny };
+	TNL::Algorithms::parallelFor<TNL::Devices::Cuda>(startList, endList, rayLambda );	
 }

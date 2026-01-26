@@ -12,10 +12,13 @@
 #include <TNL/Containers/StaticArray.h>
 #include <TNL/Timer.h>
 
-using IntArrayType = TNL::Containers::Array< int, TNL::Devices::Cuda, size_t >;
-
 using IndexArrayType = TNL::Containers::Array< size_t, TNL::Devices::Cuda, size_t >;
 using IndexArrayTypeCPU = TNL::Containers::Array< size_t, TNL::Devices::Host, size_t >;
+
+using IndexArray3DType = TNL::Containers::NDArray< size_t, 
+												TNL::Containers::SizesHolder< std::size_t, 0, 0, 0>,
+												std::index_sequence< 0, 1, 2 >,
+												TNL::Devices::Cuda >;
 
 using FloatArrayType = TNL::Containers::Array< float, TNL::Devices::Cuda, size_t >;
 using FloatArrayTypeCPU = TNL::Containers::Array< float, TNL::Devices::Host, size_t >;

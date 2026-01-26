@@ -1,7 +1,8 @@
 import pyvista as pv
 import numpy as np
 
-triangleList = [223, 224]
+#triangleList = [885, 1689, 1690, 5864, 5865, 8955, 8956, 8957, 8968, 8971, 8972, 8975, 8979, 8958, 8986, 9517, 9629, 9644, 9645, 10461, 16734]
+triangleList = [8955, 8956, 8968, 8971, 8975]
 
 
 filename = "M35IntakeSTL.STL"

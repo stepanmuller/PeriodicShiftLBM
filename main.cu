@@ -26,7 +26,7 @@ constexpr int iterationCount = 100;
 int main(int argc, char **argv)
 {
 	STLArbeiterStructCPU STLArbeiterCPU;
-	std::cout << "Reading STL" << std::endl;
+	
 	readSTL( STLArbeiterCPU );
 	
 	std::cout << "Sizing domain around the STL" << std::endl;
@@ -69,7 +69,6 @@ int main(int argc, char **argv)
     STLArbeiter.zmax = STLArbeiterCPU.zmax; 
     STLArbeiter.triangleCount = STLArbeiterCPU.triangleCount;
     
-    std::cout << "Starting STL check for edge pairs" << std::endl;
 	checkSTLEdges( STLArbeiter );
     
     MarkerStruct Marker;
