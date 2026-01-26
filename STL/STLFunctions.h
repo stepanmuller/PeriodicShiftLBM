@@ -439,12 +439,43 @@ void applyMarkersFromSTL( MarkerStruct &Marker, STLArbeiterStruct &STLArbeiter, 
 	{
 		const size_t i = doubleIndex.x();
 		const size_t j = doubleIndex.y();
-		IndexArrayType kIndexArray = IndexArrayType(intersectionCountMax, 0);
-		auto kIndexArrayView = kIndexArray.getView();
-		for (int intersectionIndex = 0; intersectionIndex < intersectionCountMax; intersectionIndex++) 
+		
+		for (int layer = 1; layer < intersectionCountMax; layer++) 
 		{
-			kIndexArrayView[intersectionIndex] = intersectionIndexArrayView(intersectionIndex, i, j);
+			size_t key = intersectionIndexArrayView(layer, i, j);
+			int slider = layer - 1;
+			while (slider >= 0 && intersectionIndexArrayView(slider, i, j) > key) 
+			{
+				intersectionIndexArrayView(slider + 1, i, j) = intersectionIndexArrayView(slider, i, j);
+				slider = slider - 1;
+			}
+			intersectionIndexArrayView(slider + 1, i, j) = key;
 		}
+		bool markerValue = 1;
+		for (int interval = 0; interval <= intersectionCountMax; interval++)
+		{
+			size_t start = 0;
+			size_t end = 0;
+			if (interval == 0) end = intersectionIndexArrayView(0, i, j);
+			else if (interval == intersectionCountMax) 
+			{
+				start = intersectionIndexArrayView(intersectionCountMax-1, i, j);
+				end = cellCount.nz;
+			}
+			else
+			{
+				start = intersectionIndexArrayView(interval-1, i, j);
+				end = intersectionIndexArrayView(interval, i, j);
+			}
+			size_t runner = start;
+			while (runner < end)
+			{
+				size_t cell = convertIndex(i, j, runner, cellCount);
+				bouncebackMarkerArrayView[cell] = markerValue;
+				runner++;
+			}
+			markerValue = !markerValue;
+		}		
 	};
 	TNL::Containers::StaticArray< 2, size_t > startList{ 0, 0 };
 	TNL::Containers::StaticArray< 2, size_t > endList{ cellCount.nx, cellCount.ny };

@@ -151,6 +151,7 @@ int main(int argc, char **argv)
 			for (size_t i = 0; i < 27; i++)	f[i] = FCPU.fArray.getElement(i, shiftedIndex[i]);
 			getRhoUxUyUz(rho, ux, uy, uz, f);
 			float uMag = sqrt(uy * uy + uz * uz);
+			uMag = (float)Marker.bouncebackArray.getElement(cell);
 			fwrite(&uMag, sizeof(float), 1, fp);
 		}
 	}
