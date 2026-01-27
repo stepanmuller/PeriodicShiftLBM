@@ -1,5 +1,3 @@
-#include "boundaryConditions/applyBounceback.h"
-
 void applyLocalCellUpdate( 	MarkerStruct& Marker, DistributionStruct& F, CellCountStruct &cellCount )
 {
 	auto fluidMarkerArrayView = Marker.fluidArray.getConstView();

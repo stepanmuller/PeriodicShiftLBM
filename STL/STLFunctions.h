@@ -1,7 +1,7 @@
 void readSTL( STLArbeiterStructCPU& STLArbeiterCPU )
 {
 	std::cout << "Reading STL" << std::endl;
-	std::ifstream file("STL/M35IntakeSTL.STL", std::ios::binary);
+	std::ifstream file("STL/M35IntakeSTL2.STL", std::ios::binary);
 	if (!file.is_open()) throw std::runtime_error("Failed to open STL file");
 	
 	 // Skip header

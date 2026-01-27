@@ -23,11 +23,11 @@ using IndexArray3DType = TNL::Containers::NDArray< size_t,
 using FloatArrayType = TNL::Containers::Array< float, TNL::Devices::Cuda, size_t >;
 using FloatArrayTypeCPU = TNL::Containers::Array< float, TNL::Devices::Host, size_t >;
 
-using DistributionArrayType = TNL::Containers::NDArray< float, 
+using FloatArray2DType = TNL::Containers::NDArray< float, 
 												TNL::Containers::SizesHolder< std::size_t, 0, 0>,
 												std::index_sequence< 0, 1 >,
 												TNL::Devices::Cuda >;
-using DistributionArrayTypeCPU = TNL::Containers::NDArray< float, 
+using FloatArray2DTypeCPU = TNL::Containers::NDArray< float, 
 												TNL::Containers::SizesHolder< std::size_t, 0, 0>,
 												std::index_sequence< 0, 1 >,
 												TNL::Devices::Host >;
@@ -39,8 +39,11 @@ using CounterArray2DType = TNL::Containers::NDArray< int,
 												std::index_sequence< 0, 1 >,
 												TNL::Devices::Cuda >;
 
-struct DistributionStruct { IndexArrayType shifter; DistributionArrayType fArray; };
-struct DistributionStructCPU { IndexArrayTypeCPU shifter; DistributionArrayTypeCPU fArray; };
+struct DistributionStruct { IndexArrayType shifter; FloatArray2DType fArray; };
+struct DistributionStructCPU { IndexArrayTypeCPU shifter; FloatArray2DTypeCPU fArray; };
+
+struct SectionCutStruct { FloatArray2DType rhoArray; FloatArray2DType uxArray; FloatArray2DType uyArray; FloatArray2DType uzArray; FloatArray2DType maskArray; };
+struct SectionCutStructCPU { FloatArray2DTypeCPU rhoArray; FloatArray2DTypeCPU uxArray; FloatArray2DTypeCPU uyArray; FloatArray2DTypeCPU uzArray; FloatArray2DTypeCPU maskArray; };
 
 struct MarkerStruct { MarkerArrayType fluidArray; MarkerArrayType bouncebackArray; MarkerArrayType givenUxUyUzArray; MarkerArrayType givenRhoArray;  };
 

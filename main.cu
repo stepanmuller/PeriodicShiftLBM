@@ -2,33 +2,28 @@
 constexpr float res = 0.5f; 											// mm
 constexpr float uzInlet = 0.05f; 										// also works as nominal LBM Mach number
 
-constexpr float nuPhys = 1.4607e-5;										// m2/s air
-constexpr float rhoNominalPhys = 1.225f;								// kg/m3 air
+constexpr float nuPhys = 10e-6;											// m2/s water
+constexpr float rhoNominalPhys = 1000.0f;								// kg/m3 water
 constexpr float SmagorinskyConstant = 0.0f; 							// set to zero to turn off LES
 
-// box dimensions
-constexpr size_t boxStartJ = 440;
-constexpr size_t boxEndJ = 560;
-constexpr size_t boxStartK = 340;
-constexpr size_t boxEndK = 460;
-
 // calculated from input
-constexpr float uzInletPhys = 1.f; 									// m/s
+constexpr float uzInletPhys = 15.f; 								// m/s
 constexpr float dtPhys = (uzInlet / uzInletPhys) * res; 			// s
 const float soundspeedPhys = (1.f / sqrt(3.f)) * res / dtPhys; 		// m/s
 constexpr float nu = (dtPhys * nuPhys) / (res * res);				// LBM nu
 constexpr float tau = 3.f * nu + 0.5f;								// LBM tau
 
-constexpr int iterationCount = 100;
+constexpr int iterationCount = 10000;
 
 #include "includesTypes.h"
+#include "exportSectionCutPlot.h"
 
 void applyMarkers( MarkerStruct& Marker, CellCountStruct &cellCount )
 {
-	auto fluidMarkerArrayView = Marker.fluidArray.getView();
-	auto bouncebackMarkerArrayView = Marker.bouncebackArray.getView();
-	auto givenRhoMarkerArrayView = Marker.givenRhoArray.getView();
-	auto givenUxUyUzMarkerArrayView = Marker.givenUxUyUzArray.getView();
+	auto fluidArrayView = Marker.fluidArray.getView();
+	auto bouncebackArrayView = Marker.bouncebackArray.getView();
+	auto givenRhoArrayView = Marker.givenRhoArray.getView();
+	auto givenUxUyUzArrayView = Marker.givenUxUyUzArray.getView();
 
 	auto cellLambda = [=] __cuda_callable__ (const TNL::Containers::StaticArray< 3, int >& tripleIndex) mutable
 	{
@@ -36,22 +31,20 @@ void applyMarkers( MarkerStruct& Marker, CellCountStruct &cellCount )
 		const size_t j = tripleIndex.y();
 		const size_t k = tripleIndex.z();
 		size_t cell = convertIndex(i, j, k, cellCount);
-		if ( j>=boxStartJ && j<=boxEndJ && k>=boxStartK && k<=boxEndK ) 
+		if (bouncebackArrayView[cell] == 0)
 		{
-			bouncebackMarkerArrayView[cell] = 1;
-			return;
-		}
-		if ( k==0  || i == 0 || i == cellCount.nx - 1 || j == 0 || j == cellCount.ny - 1 ) 
-		{
-			givenUxUyUzMarkerArrayView[cell] = 1;
-		}
-		if ( k==cellCount.nz - 1 )
-		{
-			givenRhoMarkerArrayView[cell] = 1;
-		}
-		if ( i > 0 && i < cellCount.nx - 1 && j > 0 && j < cellCount.ny - 1 && k > 0 && k < cellCount.nz - 1 )
-		{
-			fluidMarkerArrayView[cell] = 1;
+			if (k==0  || j == 0)  
+			{
+				givenUxUyUzArrayView[cell] = 1;
+			}
+			else if ( k==cellCount.nz-1 || i==0 || i==cellCount.nx-1 )
+			{
+				givenRhoArrayView[cell] = 1;
+			}
+			else
+			{
+				fluidArrayView[cell] = 1;
+			}
 		}
 	};
 	TNL::Containers::StaticArray< 3, size_t > start{ 0, 0, 0 };
@@ -126,11 +119,12 @@ int main(int argc, char **argv)
 	std::cout << "Filling F" << std::endl;
 	applyInitialization( F, cellCount);
 	
-	#ifdef __CUDACC__
 	std::cout << "Starting simulation" << std::endl;
-	TNL::Timer timer;
+	
+	const size_t iCut = (size_t)cellCount.nx / 2;
+	int plotNumber = 0;
+	
 	TNL::Timer lapTimer;
-	timer.start();
 	lapTimer.start();
 	for (int i=0; i<iterationCount; i++)
 	{
@@ -145,53 +139,13 @@ int main(int argc, char **argv)
 			float glups = (cellCount.n * 100) / lapTime / 1000000000;
 			std::cout << "GLUPS: " << glups << std::endl;
 			lapTimer.reset();
+			
+			exportSectionCutPlot( Marker, F, cellCount, iCut, plotNumber );
+			plotNumber++;
+			
 			lapTimer.start();
 		}
 	}
-	timer.stop();
-	#endif
-	auto totalTime = timer.getRealTime();
-	std::cout << "This took " << totalTime << " s" << std::endl;
-	float glups = (cellCount.n * iterationCount) / totalTime / 1000000000;
-	std::cout << "Total average GLUPS: " << glups << std::endl;
-	
-	std::cout << "Saving result" << std::endl;
-	
-	// Use /dev/shm/ for a pure RAM-based "file" on Linux
-	FILE* fp = fopen("/dev/shm/sim_data.bin", "wb");
-	// Write metadata first so Python knows the dimensions
-	int dims[2] = {(int)cellCount.ny, (int)cellCount.nz};
-	fwrite(dims, sizeof(int), 2, fp);
-	
-	DistributionStructCPU FCPU;
-	FCPU.shifter = IndexArrayType( 27, 0 );
-	FCPU.fArray.setSizes( 27, cellCount.n );
-	FCPU.shifter = F.shifter;
-	FCPU.fArray = F.fArray;
-	
-	for (size_t j = 0; j < cellCount.ny; j++)
-	{
-		for (size_t k = 0; k < cellCount.nz; k++)
-		{
-			size_t i = cellCount.nx / 2; 
-			size_t cell = convertIndex(i, j, k, cellCount);
-			size_t shiftedIndex[27];
-			for (size_t i = 0; i < 27; i++) 
-			{
-				const size_t shift = FCPU.shifter[i];
-				shiftedIndex[i] = cell + shift;
-				if (shiftedIndex[i] >= cellCount.n) { shiftedIndex[i] -= cellCount.n; }
-			}
-			float f[27];
-			float rho, ux, uy, uz;
-			for (size_t i = 0; i < 27; i++)	f[i] = FCPU.fArray.getElement(i, shiftedIndex[i]);
-			getRhoUxUyUz(rho, ux, uy, uz, f);
-			float uMag = sqrt(uy * uy + uz * uz);
-			//uMag = (float)Marker.bouncebackArray.getElement(cell);
-			fwrite(&uMag, sizeof(float), 1, fp);
-		}
-	}
-	fclose(fp);
-	system("python3 visualizer.py");
+	std::cout << "Finshed successfuly" << std::endl;	
 	return EXIT_SUCCESS;
 }
