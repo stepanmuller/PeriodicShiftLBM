@@ -1,19 +1,20 @@
 // input physics
-constexpr float res = 0.5f; 											// mm
+constexpr float res = 0.25f; 											// mm
 constexpr float uzInlet = 0.05f; 										// also works as nominal LBM Mach number
 
-constexpr float nuPhys = 10e-6;											// m2/s water
+constexpr float nuPhys = 1e-6;											// m2/s water
 constexpr float rhoNominalPhys = 1000.0f;								// kg/m3 water
 constexpr float SmagorinskyConstant = 0.0f; 							// set to zero to turn off LES
 
 // calculated from input
 constexpr float uzInletPhys = 15.f; 								// m/s
-constexpr float dtPhys = (uzInlet / uzInletPhys) * res; 			// s
-const float soundspeedPhys = (1.f / sqrt(3.f)) * res / dtPhys; 		// m/s
-constexpr float nu = (dtPhys * nuPhys) / (res * res);				// LBM nu
+constexpr float dtPhys = (uzInlet / uzInletPhys) * (res/1000); 		// s
+constexpr float invSqrt3 = 0.577350269f; 
+constexpr float soundspeedPhys = invSqrt3 * (res/1000) / dtPhys; 	// m/s
+constexpr float nu = (dtPhys * nuPhys) / ((res/1000) * (res/1000));	// LBM nu
 constexpr float tau = 3.f * nu + 0.5f;								// LBM tau
 
-constexpr int iterationCount = 10000;
+constexpr int iterationCount = 200000;
 
 #include "includesTypes.h"
 #include "exportSectionCutPlot.h"

@@ -68,7 +68,9 @@ void exportSectionCutPlot( 	MarkerStruct& Marker, DistributionStruct& F, CellCou
 			float uy = SectionCutCPU.uyArray.getElement(j, k);
 			float uz = SectionCutCPU.uzArray.getElement(j, k);
 			float mask = SectionCut.maskArray.getElement(j, k);
-			float data[5] = {rho, ux, uy, uz, mask};
+			float p = 0.f;
+			convertToPhysicalUnits(rho, p, ux, uy, uz);
+			float data[5] = {p, ux, uy, uz, mask};
 			fwrite(data, sizeof(float), 5, fp);
 		}
 	}

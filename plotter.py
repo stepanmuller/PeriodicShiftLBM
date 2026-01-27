@@ -1,47 +1,85 @@
 import os
 import numpy as np
 import matplotlib.pyplot as plt
+import matplotlib as mpl
+from mpl_toolkits.axes_grid1 import make_axes_locatable
+import numpy.ma as ma
 
-# 1. Read dimensions and data directly from RAM-disk
-with open("/dev/shm/sim_data.bin", "rb") as f:
-	plotNumber = np.fromfile(f, dtype=np.int32, count=1)[0]
-	dims = np.fromfile(f, dtype=np.int32, count=3)
-	# Read the rest as float32
-	ny, nz, variables = dims
-	data = np.fromfile(f, dtype=np.float32).reshape(dims)
-
-# Use LaTeX-style fonts and smaller text
+# --- Configuration & Styling ---
 plt.rcParams.update({
-	"text.usetex": True,                  # enable LaTeX
-	"font.family": "serif",               # serif font
-	"font.size": 8,                       # global font size
-	"axes.labelsize": 8,
-	"xtick.labelsize": 6,
-	"ytick.labelsize": 6,
-	"legend.fontsize": 7,
-	"figure.titlesize": 9
+    "text.usetex": True, # Set to True if you have working LaTeX on your system
+    "font.family": "serif",
+    "font.size": 10
 })
 
-# Create results directory if it doesn't exist
-results_dir = "results"
-os.makedirs(results_dir, exist_ok=True)
+file_path = "/dev/shm/sim_data.bin"
 
-plt.figure(figsize=(6, 4))
+# 1. Read binary data
+with open(file_path, "rb") as f:
+	plotNumber = np.fromfile(f, dtype=np.int32, count=1)[0]
+	dims = np.fromfile(f, dtype=np.int32, count=3)
+	ny, nz, n_vars = dims
+	data = np.fromfile(f, dtype=np.float32).reshape((ny, nz, n_vars))
 
-rho = data[:, :, 0]
-ux = data[:, :, 1]
-uy = data[:, :, 2]
-uz = data[:, :, 3]
-mask = data[:, :, 4]
+# 2. Extract variables
+# Data is saved as {p, ux, uy, uz, mask}
+p  = data[:, :, 0]
+ux   = data[:, :, 1]
+uy   = data[:, :, 2]
+uz   = data[:, :, 3]
+mask = data[:, :, 4]  # 1.0 = solid, 0.0 = fluid
 
-uMag = (uy**2 + uz**2)**0.5
+uMag = np.sqrt(uy**2 + uz**2)
 
-plt.imshow(uMag, origin="lower", cmap="viridis", interpolation="nearest", zorder=3)
-ax = plt.gca()
-for spine in ax.spines.values():
-	spine.set_zorder(1)
+# 3. Setup Figure (2 plots side-by-side)
+fig = plt.figure(figsize=(10, 4))
+gs = fig.add_gridspec(1, 2, width_ratios=[1, 1], wspace=0.1, left=0.05, right=0.95, top=0.95, bottom=0.15)
+ax1 = fig.add_subplot(gs[0])
+ax2 = fig.add_subplot(gs[1])
 
-# Save image into results directory
-filename = str(plotNumber) + ".png"
-plt.savefig(os.path.join(results_dir, filename),
-			dpi=1000, bbox_inches="tight")
+
+# Create masks for plotting (Mask where mask == 1)
+# We use a boolean array where True means "hide this"
+is_solid = mask > 0.5 
+uMag_masked = ma.array(uMag, mask=is_solid)
+p_masked  = ma.array(p, mask=is_solid)
+
+# --- Velocity plot ---
+imgv = ax1.imshow(uMag_masked, origin="lower", cmap="viridis", aspect="equal")
+imgv.cmap.set_bad(color="black")
+divider1 = make_axes_locatable(ax1)
+caxv = divider1.append_axes("bottom", size="5%", pad=0.4)  # moved below
+cbarv = fig.colorbar(imgv, cax=caxv, orientation="horizontal")
+cbarv.set_label("In-surface velocity magnitude [m/s]", labelpad=5)
+imgv.set_clim(0.0, 30)
+
+# --- streamlines ---
+s_vals = np.arange(ny) # Vertical axis (y)
+z_vals = np.arange(nz) # Horizontal axis (z)
+uz_masked_stream = np.where(mask > 0.5, np.nan, uz)
+uy_masked_stream = np.where(mask > 0.5, np.nan, uy)
+
+streamlines = ax1.streamplot(
+    z_vals, s_vals, uz_masked_stream, uy_masked_stream,
+    density=1.5, color="white", linewidth=0.5, arrowsize=0.8
+)
+ax1.set_xlim(z_vals[0], z_vals[-1])
+ax1.set_ylim(s_vals[0], s_vals[-1])
+ax1.set_aspect("equal")
+
+
+# --- Pressure plot ---
+imgp = ax2.imshow(p_masked, origin="lower", cmap="viridis", aspect="equal")
+imgp.cmap.set_bad(color="black")
+divider2 = make_axes_locatable(ax2)
+caxp = divider2.append_axes("bottom", size="5%", pad=0.4)  # moved below
+cbarp = fig.colorbar(imgp, cax=caxp, orientation="horizontal")
+cbarp.set_label("Static pressure [Pa]", labelpad=5)
+imgp.set_clim(-20000, 120000)
+
+# 4. Save results
+os.makedirs("results", exist_ok=True)
+save_path = os.path.join("results", f"{plotNumber}.png")
+plt.savefig(save_path, dpi=300, bbox_inches="tight")
+print(f"Saved plot to {save_path}")
+plt.close(fig)

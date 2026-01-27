@@ -178,3 +178,10 @@ __host__ __device__ size_t convertIndex(size_t i, size_t j, size_t k, CellCountS
 	return cell;
 }
 
+__host__ __device__ void convertToPhysicalUnits(const float &rho, float &p, float &ux, float &uy, float &uz)
+{
+	ux = ux * (res/1000.f) / dtPhys;
+	uy = uy * (res/1000.f) / dtPhys;
+	uz = uz * (res/1000.f) / dtPhys;
+	p = (rho - 1.f) * rhoNominalPhys * soundspeedPhys * soundspeedPhys;
+}
