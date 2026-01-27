@@ -114,6 +114,12 @@ __host__ __device__ void getRhoUxUyUz(
 
 __host__ __device__ void getOmegaLES(const float (&fneq)[27], const float &rho, float &omegaLES)
 {
+	if (SmagorinskyConstant == 0)
+	{
+		omegaLES = 1 / tau;
+		return;
+	}
+	
 	float P = 0.f;
 
 	const float cxcx = (fneq[1] + fneq[2] + fneq[7] + fneq[8] + fneq[9] + fneq[10] + fneq[11] + fneq[12] + fneq[15] 

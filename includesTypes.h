@@ -56,14 +56,13 @@ struct STLArbeiterStructCPU { 	FloatArrayTypeCPU axArray; FloatArrayTypeCPU ayAr
 								
 struct CellCountStruct { float res; size_t nx; size_t ny; size_t nz; size_t n; float ox; float oy; float oz; }; // ox, oy, oz is the position of cell i,j,k = 0 in global coordinates
 
-#include "applyMarkers.h"
-#include "applyInitialization.h"
+#include "cellFunctions.h"
+#include "applyStreaming.h"
+#include "applyCollision.h"
 
 #include "STL/STLFunctions.h"
 
-#include "applyStreaming.h"
-#include "applyCollision.h"
-#include "cellFunctions.h"
+#include "applyInitialization.h"
 
 #include "boundaryConditions/applyBounceback.h"
 #include "boundaryConditions/restoreRho.h"

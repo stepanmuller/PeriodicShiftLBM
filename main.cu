@@ -23,6 +23,42 @@ constexpr int iterationCount = 100;
 
 #include "includesTypes.h"
 
+void applyMarkers( MarkerStruct& Marker, CellCountStruct &cellCount )
+{
+	auto fluidMarkerArrayView = Marker.fluidArray.getView();
+	auto bouncebackMarkerArrayView = Marker.bouncebackArray.getView();
+	auto givenRhoMarkerArrayView = Marker.givenRhoArray.getView();
+	auto givenUxUyUzMarkerArrayView = Marker.givenUxUyUzArray.getView();
+
+	auto cellLambda = [=] __cuda_callable__ (const TNL::Containers::StaticArray< 3, int >& tripleIndex) mutable
+	{
+		const size_t i = tripleIndex.x();
+		const size_t j = tripleIndex.y();
+		const size_t k = tripleIndex.z();
+		size_t cell = convertIndex(i, j, k, cellCount);
+		if ( j>=boxStartJ && j<=boxEndJ && k>=boxStartK && k<=boxEndK ) 
+		{
+			bouncebackMarkerArrayView[cell] = 1;
+			return;
+		}
+		if ( k==0  || i == 0 || i == cellCount.nx - 1 || j == 0 || j == cellCount.ny - 1 ) 
+		{
+			givenUxUyUzMarkerArrayView[cell] = 1;
+		}
+		if ( k==cellCount.nz - 1 )
+		{
+			givenRhoMarkerArrayView[cell] = 1;
+		}
+		if ( i > 0 && i < cellCount.nx - 1 && j > 0 && j < cellCount.ny - 1 && k > 0 && k < cellCount.nz - 1 )
+		{
+			fluidMarkerArrayView[cell] = 1;
+		}
+	};
+	TNL::Containers::StaticArray< 3, size_t > start{ 0, 0, 0 };
+	TNL::Containers::StaticArray< 3, size_t > end{ cellCount.nx, cellCount.ny, cellCount.nz };
+	TNL::Algorithms::parallelFor<TNL::Devices::Cuda>(start, end, cellLambda );
+}
+
 int main(int argc, char **argv)
 {
 	STLArbeiterStructCPU STLArbeiterCPU;
@@ -32,9 +68,9 @@ int main(int argc, char **argv)
 	std::cout << "Sizing domain around the STL" << std::endl;
 	CellCountStruct cellCount;
 	cellCount.res = res;
-	cellCount.nx = static_cast<size_t>((STLArbeiterCPU.xmax - STLArbeiterCPU.xmin) / cellCount.res) + 1;
-	cellCount.ny = static_cast<size_t>((STLArbeiterCPU.ymax - STLArbeiterCPU.ymin) / cellCount.res) + 1;
-	cellCount.nz = static_cast<size_t>((STLArbeiterCPU.zmax - STLArbeiterCPU.zmin) / cellCount.res) + 1;
+	cellCount.nx = static_cast<size_t>(std::ceil((STLArbeiterCPU.xmax - STLArbeiterCPU.xmin) / cellCount.res));
+	cellCount.ny = static_cast<size_t>(std::ceil((STLArbeiterCPU.ymax - STLArbeiterCPU.ymin) / cellCount.res));
+	cellCount.nz = static_cast<size_t>(std::ceil((STLArbeiterCPU.zmax - STLArbeiterCPU.zmin) / cellCount.res));
 	
 	cellCount.ox = STLArbeiterCPU.xmin + ( 0.5f * ( (STLArbeiterCPU.xmax - STLArbeiterCPU.xmin) - cellCount.res * (cellCount.nx-1) ) );
 	cellCount.oy = STLArbeiterCPU.ymin + ( 0.5f * ( (STLArbeiterCPU.ymax - STLArbeiterCPU.ymin) - cellCount.res * (cellCount.ny-1) ) );
@@ -151,7 +187,7 @@ int main(int argc, char **argv)
 			for (size_t i = 0; i < 27; i++)	f[i] = FCPU.fArray.getElement(i, shiftedIndex[i]);
 			getRhoUxUyUz(rho, ux, uy, uz, f);
 			float uMag = sqrt(uy * uy + uz * uz);
-			uMag = (float)Marker.bouncebackArray.getElement(cell);
+			//uMag = (float)Marker.bouncebackArray.getElement(cell);
 			fwrite(&uMag, sizeof(float), 1, fp);
 		}
 	}

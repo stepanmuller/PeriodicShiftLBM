@@ -25,9 +25,13 @@ results_dir = "results"
 os.makedirs(results_dir, exist_ok=True)
 
 plt.figure(figsize=(6, 4))
-img = plt.imshow(data, origin="lower", cmap="viridis", aspect="equal")
+rows, cols = data.shape
+
+plt.imshow(data, origin="lower", cmap="viridis", interpolation="nearest", zorder=3)
+ax = plt.gca()
+for spine in ax.spines.values():
+    spine.set_zorder(1)
 
 # Save image into results directory
 plt.savefig(os.path.join(results_dir, "result.png"),
             dpi=1000, bbox_inches="tight")
-

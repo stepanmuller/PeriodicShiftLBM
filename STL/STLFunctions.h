@@ -421,13 +421,12 @@ void applyMarkersFromSTL( MarkerStruct &Marker, STLArbeiterStruct &STLArbeiter, 
 				if (rayHit) 
 				{
 					const int writePosition = TNL::Algorithms::AtomicOperations<TNL::Devices::Cuda>::add(intersectionCounterArrayView(i, j), 1);
-					// here I need to find the Z coordinate of the hit and the nearest larger k index in Z
 					const float rayX = i * cellCount.res + cellCount.ox;
 					const float rayY = j * cellCount.res + cellCount.oy;
-					float rayZ = std::numeric_limits<float>::max();
+					float rayZ;
 					rayHitCoordinate(a0x, a0y, a0z, b0x, b0y, b0z, c0x, c0y, c0z, rayX, rayY, rayZ);
 					size_t k = (size_t)max(0.0f, ceilf((rayZ - cellCount.oz) / cellCount.res));
-					k = min(k, cellCount.nz+1);
+					k = min(k, cellCount.nz);
 					intersectionIndexArrayView(writePosition, i, j) = k;
 				}
 			}
@@ -440,7 +439,7 @@ void applyMarkersFromSTL( MarkerStruct &Marker, STLArbeiterStruct &STLArbeiter, 
 		const size_t i = doubleIndex.x();
 		const size_t j = doubleIndex.y();
 		
-		for (int layer = 1; layer < intersectionCountMax; layer++) 
+		for (int layer = 1; layer < intersectionCountMax; layer++) // sort
 		{
 			size_t key = intersectionIndexArrayView(layer, i, j);
 			int slider = layer - 1;
@@ -467,12 +466,10 @@ void applyMarkersFromSTL( MarkerStruct &Marker, STLArbeiterStruct &STLArbeiter, 
 				start = intersectionIndexArrayView(interval-1, i, j);
 				end = intersectionIndexArrayView(interval, i, j);
 			}
-			size_t runner = start;
-			while (runner < end)
+			for (size_t runner = start; runner < end; runner++)
 			{
 				size_t cell = convertIndex(i, j, runner, cellCount);
 				bouncebackMarkerArrayView[cell] = markerValue;
-				runner++;
 			}
 			markerValue = !markerValue;
 		}		
@@ -480,4 +477,5 @@ void applyMarkersFromSTL( MarkerStruct &Marker, STLArbeiterStruct &STLArbeiter, 
 	TNL::Containers::StaticArray< 2, size_t > startList{ 0, 0 };
 	TNL::Containers::StaticArray< 2, size_t > endList{ cellCount.nx, cellCount.ny };
 	TNL::Algorithms::parallelFor<TNL::Devices::Cuda>(startList, endList, rayLambda );	
+	std::cout << "	Bounceback markers applied from STL" << std::endl;
 }
