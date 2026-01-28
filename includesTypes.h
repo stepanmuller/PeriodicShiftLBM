@@ -3,6 +3,7 @@
 #include <fstream> 
 #include <cstdlib>
 #include <limits>
+#include <string>
 
 #include <TNL/Algorithms/parallelFor.h>
 #include <TNL/Algorithms/AtomicOperations.h>
@@ -63,7 +64,7 @@ struct CellCountStruct { float res; size_t nx; size_t ny; size_t nz; size_t n; f
 #include "applyStreaming.h"
 #include "applyCollision.h"
 
-#include "STL/STLFunctions.h"
+#include "STLFunctions.h"
 
 #include "applyInitialization.h"
 

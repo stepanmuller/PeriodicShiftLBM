@@ -1,5 +1,5 @@
 // input physics
-constexpr float res = 0.25f; 											// mm
+constexpr float res = 0.5f; 											// mm
 constexpr float uzInlet = 0.05f; 										// also works as nominal LBM Mach number
 
 constexpr float nuPhys = 1e-6;											// m2/s water
@@ -14,10 +14,12 @@ constexpr float soundspeedPhys = invSqrt3 * (res/1000) / dtPhys; 	// m/s
 constexpr float nu = (dtPhys * nuPhys) / ((res/1000) * (res/1000));	// LBM nu
 constexpr float tau = 3.f * nu + 0.5f;								// LBM tau
 
-constexpr int iterationCount = 200000;
+constexpr int iterationCount = 100000;
 
-#include "includesTypes.h"
+#include "../includesTypes.h"
 #include "exportSectionCutPlot.h"
+
+std::string STLPath = "M35IntakeSTL.STL";
 
 void applyMarkers( MarkerStruct& Marker, CellCountStruct &cellCount )
 {
@@ -57,7 +59,7 @@ int main(int argc, char **argv)
 {
 	STLArbeiterStructCPU STLArbeiterCPU;
 	
-	readSTL( STLArbeiterCPU );
+	readSTL( STLArbeiterCPU, STLPath );
 	
 	std::cout << "Sizing domain around the STL" << std::endl;
 	CellCountStruct cellCount;

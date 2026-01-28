@@ -1,7 +1,7 @@
-void readSTL( STLArbeiterStructCPU& STLArbeiterCPU )
+void readSTL( STLArbeiterStructCPU& STLArbeiterCPU, const std::string& filename )
 {
-	std::cout << "Reading STL" << std::endl;
-	std::ifstream file("STL/M35IntakeSTL2.STL", std::ios::binary);
+	std::cout << "Reading STL: " << filename << std::endl;
+	std::ifstream file(filename, std::ios::binary);
 	if (!file.is_open()) throw std::runtime_error("Failed to open STL file");
 	
 	 // Skip header
@@ -331,7 +331,7 @@ void applyMarkersFromSTL( MarkerStruct &Marker, STLArbeiterStruct &STLArbeiter, 
 	auto fetch = [ = ] __cuda_callable__( const size_t singleIndex )
 	{
 		const size_t i = singleIndex % cellCount.nx;
-		const size_t j = singleIndex / cellCount.ny;
+		const size_t j = singleIndex / cellCount.nx;
 		return intersectionCounterArrayView(i, j);
 	};
 	auto reduction = [] __cuda_callable__( const int& a, const int& b )
@@ -340,7 +340,7 @@ void applyMarkersFromSTL( MarkerStruct &Marker, STLArbeiterStruct &STLArbeiter, 
 	};
 	size_t start = 0;
 	size_t end = cellCount.nx * cellCount.ny;
-	int intersectionCountMax = TNL::Algorithms::reduce<TNL::Devices::Cuda>( start, end, fetch, reduction, 0.0 );
+	int intersectionCountMax = TNL::Algorithms::reduce<TNL::Devices::Cuda>( start, end, fetch, reduction, 0 );
 	std::cout << "	intersectionCountMax: " << intersectionCountMax << std::endl; 
 	
 	// check for odd intersections
