@@ -154,30 +154,37 @@ __host__ __device__ void getOmegaLES(const float (&fneq)[27], const float &rho, 
 	omegaLES = 1 / tauLES;
 }
 
-__host__ __device__ void getOuterNormal(const size_t& cell, short& outerNormalX, short& outerNormalY, short& outerNormalZ, CellCountStruct &cellCount)
+__cuda_callable__ void getOuterNormal(const size_t& iCell, const size_t& jCell, const size_t& kCell, int& outerNormalX, int& outerNormalY, int& outerNormalZ, InfoStruct &Info)
 {
-    const size_t xy = cellCount.nx * cellCount.ny;
-    const size_t k = cell / xy;
-    size_t remainder = cell % xy;
-    const size_t j = remainder / cellCount.nx;
-    const size_t i = remainder % cellCount.nx;
     outerNormalX = 0;
     outerNormalY = 0;
     outerNormalZ = 0;
-    if 			( i == 0 ) 				outerNormalX = -1;
-    else if 	( i == cellCount.nx - 1 ) outerNormalX = 1;
-    if 			( j == 0 ) 				outerNormalY = -1;
-    else if 	( j == cellCount.ny - 1) 	outerNormalY = 1;
-    if 			( k == 0 ) 				outerNormalZ = -1;
-    else if 	( k == cellCount.nz - 1 ) 	outerNormalZ = 1;
+    if 			( iCell == 0 ) 						outerNormalX = -1;
+    else if 	( iCell == Info.cellCountX - 1 ) 	outerNormalX = 1;
+    if 			( jCell == 0 ) 						outerNormalY = -1;
+    else if 	( jCell == Info.cellCountY - 1) 	outerNormalY = 1;
+    if 			( kCell == 0 ) 						outerNormalZ = -1;
+    else if 	( kCell == Info.cellCountZ - 1 ) 	outerNormalZ = 1;
 }
 
+__host__ __device__ void getCellIJK(const size_t& cell, size_t& iCell, size_t& jCell, size_t& kCell, InfoStruct &Info)
+{
+    const size_t xy = Info.cellCountX * Info.cellCountY;
+    kCell = cell / xy;
+    size_t remainder = cell % xy;
+    jCell = remainder / Info.cellCountX;
+    iCell = remainder % Info.cellCountX;
+}
+
+/*
 __host__ __device__ size_t convertIndex(size_t i, size_t j, size_t k, CellCountStruct &cellCount)
 {
 	size_t cell = k * (cellCount.nx * cellCount.ny) + j * cellCount.nx + i;
 	return cell;
 }
+*/
 
+/*
 __host__ __device__ void convertToPhysicalUnits(const float &rho, float &p, float &ux, float &uy, float &uz)
 {
 	ux = ux * (res/1000.f) / dtPhys;
@@ -185,3 +192,4 @@ __host__ __device__ void convertToPhysicalUnits(const float &rho, float &p, floa
 	uz = uz * (res/1000.f) / dtPhys;
 	p = (rho - 1.f) * rhoNominalPhys * soundspeedPhys * soundspeedPhys;
 }
+*/

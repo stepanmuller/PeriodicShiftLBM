@@ -10,7 +10,7 @@ DirectionType directionCx{ 0, 1,-1, 0, 0, 0, 0, 1,-1, 1,-1,-1, 1, 0, 0,-1, 1, 0,
 DirectionType directionCy{ 0, 0, 0, 0, 0,-1, 1, 0, 0, 0, 0,-1, 1, 1,-1, 1,-1, 1,-1, 1,-1,-1, 1,-1, 1,-1, 1 };
 DirectionType directionCz{ 0, 0, 0,-1, 1, 0, 0,-1, 1, 1,-1, 0, 0,-1, 1, 0, 0, 1,-1,-1, 1, 1,-1,-1, 1,-1, 1 };
 
-void applyStreaming( DistributionStruct& F, CellCountStruct &cellCount )
+void applyStreaming( FStruct& F, InfoStruct &Info )
 {
 	auto shifterView = F.shifter.getView();
 	auto directionCxView = directionCx.getConstView();
@@ -21,10 +21,10 @@ void applyStreaming( DistributionStruct& F, CellCountStruct &cellCount )
 	{
 		long shift = static_cast<long>(shifterView[direction]);
 		shift -= directionCxView[direction];
-		shift -= static_cast<long>(cellCount.nx) * directionCyView[direction];
-		shift -= static_cast<long>(cellCount.ny * cellCount.nx) * (directionCzView[direction]);
-		if (shift < 0){ shift += cellCount.n; }
-		else if (shift >= static_cast<long>(cellCount.n)) { shift -= cellCount.n; }
+		shift -= static_cast<long>(Info.cellCountX) * directionCyView[direction];
+		shift -= static_cast<long>(Info.cellCountY * Info.cellCountX) * (directionCzView[direction]);
+		if (shift < 0){ shift += Info.cellCountX * Info.cellCountY * Info.cellCountZ; }
+		else if (shift >= static_cast<long>(Info.cellCountX * Info.cellCountY * Info.cellCountZ)) { shift -= Info.cellCountX * Info.cellCountY * Info.cellCountZ; }
 		shifterView[direction] = static_cast<size_t>(shift);
 	};
 	TNL::Algorithms::parallelFor<TNL::Devices::Cuda>(0, 27, streamLambda );
