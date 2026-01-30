@@ -15,28 +15,6 @@
 
 // w:  { 8/27, 2/27, 2/27, 2/27 , 2/27, 2/27, 2/27, 1/54, 1/54, 1/54, 1/54, 1/54, 1/54, 1/54, 1/54, 1/54, 1/54, 1/54, 1/54, 1/216, 1/216, 1/216, 1/216, 1/216, 1/216, 1/216, 1/216 };
 
-__device__ __constant__ int cxArray[27] = { 0, 1,-1, 0, 0, 0, 0, 1,-1, 1,-1,-1, 1, 0, 0,-1, 1, 0, 0,-1, 1,-1, 1, 1,-1,-1, 1 };
-__device__ __constant__ int cyArray[27] = { 0, 0, 0, 0, 0,-1, 1, 0, 0, 0, 0,-1, 1, 1,-1, 1,-1, 1,-1, 1,-1,-1, 1,-1, 1,-1, 1 };
-__device__ __constant__ int czArray[27] = { 0, 0, 0,-1, 1, 0, 0,-1, 1, 1,-1, 0, 0,-1, 1, 0, 0, 1,-1,-1, 1, 1,-1,-1, 1,-1, 1 };
-
-__cuda_callable__ void getShiftedIndex( 	const int &iCell, const int &jCell, const int &kCell, 
-											size_t (&shiftedIndex)[27], InfoStruct &Info )
-// Performs periodic shift streaming by shifting the pointer index
-{
-	const size_t cell = kCell * Info.cellCountX * Info.cellCountY + jCell * Info.cellCountX + iCell;	
-	const int modX = Info.iterationsFinished % Info.cellCountX;
-	const int modY = Info.iterationsFinished % Info.cellCountY;
-	const int modZ = Info.iterationsFinished % Info.cellCountZ;
-	for ( int direction = 0; direction < 27; direction++ )
-	{	
-		const int shiftX = modX * ( - cxArray[direction] ) + Info.cellCountX;
-		const int shiftY = modY * ( - cyArray[direction] ) + Info.cellCountY;
-		const int shiftZ = modZ * ( - czArray[direction] ) + Info.cellCountZ;
-		const size_t shift = shiftZ * Info.cellCountX * Info.cellCountY + shiftY * Info.cellCountX + shiftX;
-		shiftedIndex[direction] = (cell + shift) % (Info.cellCountX * Info.cellCountY * Info.cellCountZ);
-	}
-}
-
 __cuda_callable__ void getFeq(
 	const float &rho, const float &ux, const float &uy, const float &uz, 
 	float (&feq)[27]

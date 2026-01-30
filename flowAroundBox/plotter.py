@@ -12,6 +12,8 @@ with open(file_path, "rb") as f:
 # 2. Extract and calculate uMag
 uMag = np.sqrt(data[:, :, 2]**2 + data[:, :, 3]**2)
 
+print(uMag)
+
 # 3. Minimalist Plot
 fig, ax = plt.subplots()
 ax.imshow(uMag, origin="lower", cmap="viridis")
