@@ -15,7 +15,6 @@ constexpr int boxEndZ = (int)(cellCountY * 0.5f);
 constexpr int iterationCount = 10000;
 
 #include "../types.h"
-
 #include "../cellFunctions.h"
 #include "../applyStreaming.h"
 #include "../applyCollision.h"
@@ -31,22 +30,24 @@ void applyLocalCellUpdate( FStruct &F, InfoStruct &Info )
 	auto fArrayView  = F.fArray.getView();
 	auto shifterView  = F.shifter.getConstView();
 
-	auto cellLambda = [=] __cuda_callable__ (size_t cell) mutable
+	auto cellLambda = [=] __cuda_callable__ ( const int cell ) mutable
 	{
-		size_t cellCount = Info.cellCountX * Info.cellCountY * Info.cellCountZ;
-		size_t shiftedIndex[27];
-		for (size_t i = 0; i < 27; i++) 
+		int iCell, jCell, kCell;
+		getIJKCell( cell, iCell, jCell, kCell, Info );
+			
+		const int cellCount = Info.cellCountX * Info.cellCountY * Info.cellCountZ;	
+		int shiftedIndex[27];
+		for (int direction = 0; direction < 27; direction++) 
 		{
-			const size_t shift = shifterView[i];
-			shiftedIndex[i] = cell + shift;
-			if (shiftedIndex[i] >= cellCount) shiftedIndex[i] -= cellCount;
-		}
+			const int shift = shifterView[direction];
+			shiftedIndex[direction] = cell + shift;
+			if (shiftedIndex[direction] >= cellCount) shiftedIndex[direction] -= cellCount;
+		}			
+		
 		bool fluidMarker = 0;
 		bool bouncebackMarker = 0;
 		bool givenRhoMarker = 0;
 		bool givenUxUyUzMarker = 0;
-		size_t iCell, jCell, kCell;
-		getCellIJK( cell, iCell, jCell, kCell, Info );
 		
 		if ( jCell >= boxStartY && jCell < boxEndY && kCell >= boxStartZ && kCell < boxEndZ ) bouncebackMarker = 1;
 		else if ( iCell == 0 || iCell == Info.cellCountX-1 || jCell == 0 || jCell == Info.cellCountY-1 ) bouncebackMarker = 1;
@@ -92,10 +93,10 @@ void applyLocalCellUpdate( FStruct &F, InfoStruct &Info )
 			}
 			applyCollision( rho, ux, uy, uz, f );
 		}
-		for ( size_t i = 0; i < 27; i++ ) fArrayView( i, shiftedIndex[i] ) = f[i];
+		for ( int direction = 0; direction < 27; direction++ ) fArrayView( direction, shiftedIndex[direction] ) = f[direction];
 	};
-	size_t start = 0;
-	size_t end = Info.cellCountX * Info.cellCountY * Info.cellCountZ;
+	int start = 0;
+	int end = Info.cellCountX * Info.cellCountY * Info.cellCountZ;
 	TNL::Algorithms::parallelFor<TNL::Devices::Cuda>(start, end, cellLambda );
 }
 
@@ -116,19 +117,19 @@ void exportSectionCutPlot( FStruct &F, InfoStruct &Info, const size_t &iCell, co
 	auto uyArrayView = SectionCut.uyArray.getView();
 	auto uzArrayView = SectionCut.uzArray.getView();
 
-	auto cellLambda = [=] __cuda_callable__ (const LongIntPairType &doubleIndex) mutable
+	auto cellLambda = [=] __cuda_callable__ (const IntPairType &doubleIndex) mutable
 	{
 		const size_t jCell = doubleIndex[0];
 		const size_t kCell = doubleIndex[1];
 		const size_t cell = kCell * (Info.cellCountX * Info.cellCountY) + jCell * Info.cellCountX + iCell;
 		const size_t cellCount = Info.cellCountX * Info.cellCountY * Info.cellCountZ;
-		size_t shiftedIndex[27];
-		for (size_t i = 0; i < 27; i++) 
+		int shiftedIndex[27];
+		for (int direction = 0; direction < 27; direction++) 
 		{
-			const size_t shift = shifterView[i];
-			shiftedIndex[i] = cell + shift;
-			if ( shiftedIndex[i] >= cellCount ) shiftedIndex[i] -= cellCount;
-		}		
+			const int shift = shifterView[direction];
+			shiftedIndex[direction] = cell + shift;
+			if (shiftedIndex[direction] >= cellCount) shiftedIndex[direction] -= cellCount;
+		}	
 		float f[27];
 		for (size_t i = 0; i < 27; i++)	f[i] = fArrayView( i, shiftedIndex[i] );
 				
@@ -139,8 +140,8 @@ void exportSectionCutPlot( FStruct &F, InfoStruct &Info, const size_t &iCell, co
 		uyArrayView( jCell, kCell ) = uy;
 		uzArrayView( jCell, kCell ) = uz;
 	};
-	LongIntPairType start{ 0, 0 };
-	LongIntPairType end{ Info.cellCountY, Info.cellCountZ };
+	IntPairType start{ 0, 0 };
+	IntPairType end{ Info.cellCountY, Info.cellCountZ };
 	TNL::Algorithms::parallelFor<TNL::Devices::Cuda>(start, end, cellLambda );
 	
 	SectionCutStructCPU SectionCutCPU;
@@ -152,7 +153,7 @@ void exportSectionCutPlot( FStruct &F, InfoStruct &Info, const size_t &iCell, co
 	// Use /dev/shm/ for a pure RAM-based "file" on Linux
 	FILE* fp = fopen("/dev/shm/sim_data.bin", "wb");
 	// Write metadata first so Python knows the dimensions
-	int header[4] = {plotNumber, Info.cellCountY, Info.cellCountZ, 4};
+	int header[4] = {plotNumber, (int)Info.cellCountY, (int)Info.cellCountZ, 4};
 	fwrite(header, sizeof(int), 4, fp);
 	
 	for (int j = 0; j < Info.cellCountY; j++)
@@ -177,12 +178,13 @@ int main(int argc, char **argv)
 	Info.cellCountX = cellCountX;
 	Info.cellCountY = cellCountY;
 	Info.cellCountZ = cellCountZ;
+	Info.cellCount = Info.cellCountX * Info.cellCountY * Info.cellCountZ;
 	Info.iterationsFinished = 0;
 	
 	FStruct F;
 	FloatArray2DType fArray;
 	F.fArray.setSizes( 27, Info.cellCountX * Info.cellCountY * Info.cellCountZ );	
-	F.shifter = LongIntArrayType( 27, 0 );
+	F.shifter = IntArrayType( 27, 0 );
 	
 	fillDefaultEquilibrium( F, Info);
 	
@@ -208,8 +210,8 @@ int main(int argc, char **argv)
 			auto lapTime = lapTimer.getRealTime();
 			std::cout << "Finished iteration " << iteration << std::endl;
 			
-			size_t cellCount = Info.cellCountX * Info.cellCountY * Info.cellCountZ;
-			float glups = (cellCount * (size_t)iterationChunk) / lapTime / 1000000000;
+			const int cellCount = Info.cellCountX * Info.cellCountY * Info.cellCountZ;
+			float glups = ((float)cellCount * (float)iterationChunk) / lapTime / 1000000000.f;
 			std::cout << "GLUPS: " << glups << std::endl;
 			
 			exportSectionCutPlot( F, Info, iCut, plotNumber );

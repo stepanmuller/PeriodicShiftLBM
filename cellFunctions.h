@@ -15,7 +15,7 @@
 
 // w:  { 8/27, 2/27, 2/27, 2/27 , 2/27, 2/27, 2/27, 1/54, 1/54, 1/54, 1/54, 1/54, 1/54, 1/54, 1/54, 1/54, 1/54, 1/54, 1/54, 1/216, 1/216, 1/216, 1/216, 1/216, 1/216, 1/216, 1/216 };
 
-__host__ __device__ void getFeq(
+__cuda_callable__ void getFeq(
 	const float &rho, const float &ux, const float &uy, const float &uz, 
 	float (&feq)[27]
 	)
@@ -85,12 +85,12 @@ __host__ __device__ void getFeq(
 	feq[26] = rho*w3 *(1.f + 3.f*cu26 + 4.5f*cu26*cu26 - 1.5f*u2);	
 }
 
-__host__ __device__ void getFneq(const float (&f)[27], const float (&feq)[27], float (&fneq)[27])
+__cuda_callable__ void getFneq(const float (&f)[27], const float (&feq)[27], float (&fneq)[27])
 {
 	for (size_t i = 0; i < 27; i++)	fneq[i] = f[i] - feq[i];
 }
 
-__host__ __device__ void getRhoUxUyUz(
+__cuda_callable__ void getRhoUxUyUz(
 	float &rho, float &ux, float &uy, float &uz, 
 	const float (&f)[27]
 	)
@@ -112,7 +112,7 @@ __host__ __device__ void getRhoUxUyUz(
 			+f[21] - f[22] - f[23] + f[24] - f[25] + f[26]) / rho;
 }
 
-__host__ __device__ void getOmegaLES(const float (&fneq)[27], const float &rho, float &omegaLES)
+__cuda_callable__ void getOmegaLES(const float (&fneq)[27], const float &rho, float &omegaLES)
 {
 	if (SmagorinskyConstant == 0)
 	{
@@ -154,7 +154,8 @@ __host__ __device__ void getOmegaLES(const float (&fneq)[27], const float &rho, 
 	omegaLES = 1 / tauLES;
 }
 
-__cuda_callable__ void getOuterNormal(const size_t& iCell, const size_t& jCell, const size_t& kCell, int& outerNormalX, int& outerNormalY, int& outerNormalZ, InfoStruct &Info)
+__cuda_callable__ void getOuterNormal( 	const int& iCell, const int& jCell, const int& kCell, 
+										int& outerNormalX, int& outerNormalY, int& outerNormalZ, InfoStruct &Info )
 {
     outerNormalX = 0;
     outerNormalY = 0;
@@ -167,25 +168,17 @@ __cuda_callable__ void getOuterNormal(const size_t& iCell, const size_t& jCell, 
     else if 	( kCell == Info.cellCountZ - 1 ) 	outerNormalZ = 1;
 }
 
-__host__ __device__ void getCellIJK(const size_t& cell, size_t& iCell, size_t& jCell, size_t& kCell, InfoStruct &Info)
+__cuda_callable__ void getIJKCell( const int& cell, int& iCell, int& jCell, int& kCell, InfoStruct &Info)
 {
-    const size_t xy = Info.cellCountX * Info.cellCountY;
+    const int xy = Info.cellCountX * Info.cellCountY;
     kCell = cell / xy;
-    size_t remainder = cell % xy;
+    const int remainder = cell % xy;
     jCell = remainder / Info.cellCountX;
     iCell = remainder % Info.cellCountX;
 }
 
 /*
-__host__ __device__ size_t convertIndex(size_t i, size_t j, size_t k, CellCountStruct &cellCount)
-{
-	size_t cell = k * (cellCount.nx * cellCount.ny) + j * cellCount.nx + i;
-	return cell;
-}
-*/
-
-/*
-__host__ __device__ void convertToPhysicalUnits(const float &rho, float &p, float &ux, float &uy, float &uz)
+__cuda_callable__ void convertToPhysicalUnits(const float &rho, float &p, float &ux, float &uy, float &uz)
 {
 	ux = ux * (res/1000.f) / dtPhys;
 	uy = uy * (res/1000.f) / dtPhys;

@@ -19,6 +19,7 @@ using BoolArray3DType = TNL::Containers::NDArray< bool,
 												TNL::Devices::Cuda >;
 												
 using IntArrayType = TNL::Containers::Array< int, TNL::Devices::Cuda, size_t >;
+using IntArrayTypeCPU = TNL::Containers::Array< int, TNL::Devices::Host, size_t >;
 
 using IntArray2DType = TNL::Containers::NDArray< int, 
 												TNL::Containers::SizesHolder< size_t, 0, 0 >,
@@ -36,15 +37,12 @@ using FloatArray2DTypeCPU = TNL::Containers::NDArray< float,
 												TNL::Containers::SizesHolder< size_t, 0, 0 >,
 												std::index_sequence< 0, 1 >,
 												TNL::Devices::Host >;
-												
-using LongIntArrayType = TNL::Containers::Array< long int, TNL::Devices::Cuda, size_t >;
-using LongIntArrayTypeCPU = TNL::Containers::Array< long int, TNL::Devices::Host, size_t >;
 
-using LongIntPairType = TNL::Containers::StaticArray< 2, long int >;											
-using LongIntTripleType = TNL::Containers::StaticArray< 3, long int >;
+using IntPairType = TNL::Containers::StaticArray< 2, int >;											
+using IntTripleType = TNL::Containers::StaticArray< 3, int >;
 
-struct FStruct { LongIntArrayType shifter; FloatArray2DType fArray; };
-struct FStructCPU { LongIntArrayTypeCPU shifter; FloatArray2DTypeCPU fArray; };
+struct FStruct { IntArrayType shifter; FloatArray2DType fArray; };
+struct FStructCPU { IntArrayTypeCPU shifter; FloatArray2DTypeCPU fArray; };
 
 struct SectionCutStruct { FloatArray2DType rhoArray; FloatArray2DType uxArray; FloatArray2DType uyArray; FloatArray2DType uzArray; FloatArray2DType maskArray; };
 struct SectionCutStructCPU { FloatArray2DTypeCPU rhoArray; FloatArray2DTypeCPU uxArray; FloatArray2DTypeCPU uyArray; FloatArray2DTypeCPU uzArray; FloatArray2DTypeCPU maskArray; };
@@ -63,5 +61,5 @@ struct STLStructCPU { 	FloatArrayTypeCPU axArray; FloatArrayTypeCPU ayArray; Flo
 						float xmin; float ymin; float zmin; float xmax; float ymax; float zmax; 
 						float ox; float oy; float oz; int triangleCount; }; // ox, oy, oz is the position of STL origin in global coordinates
 								
-struct InfoStruct { float res; int cellCountX; int cellCountY; int cellCountZ; int iterationsFinished; 
+struct InfoStruct { float res; int cellCountX; int cellCountY; int cellCountZ; int cellCount; int iterationsFinished; 
 					float rhoNominalPhys; float soundspeedPhys; float dtPhys; }; 
