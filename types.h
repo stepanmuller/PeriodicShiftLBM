@@ -36,15 +36,6 @@ using FloatArray2DTypeCPU = TNL::Containers::NDArray< float,
 												TNL::Containers::SizesHolder< std::size_t, 0, 0 >,
 												std::index_sequence< 0, 1 >,
 												TNL::Devices::Host >;
-												
-using FloatArray4DType = TNL::Containers::NDArray< float, 
-												TNL::Containers::SizesHolder< std::size_t, 0, 0, 0, 0 >,
-												std::index_sequence< 0, 1, 2, 3 >,
-												TNL::Devices::Cuda >;
-using FloatArray4DTypeCPU = TNL::Containers::NDArray< float, 
-												TNL::Containers::SizesHolder< std::size_t, 0, 0, 0, 0 >,
-												std::index_sequence< 0, 1, 2, 3 >,
-												TNL::Devices::Host >;
 
 using DoubleIndexType = TNL::Containers::StaticArray< 2, int >;											
 using TripleIndexType = TNL::Containers::StaticArray< 3, int >;
@@ -68,19 +59,3 @@ struct STLArbeiterStructCPU { 	FloatArrayTypeCPU axArray; FloatArrayTypeCPU ayAr
 								
 struct InfoStruct { float res; int cellCountX; int cellCountY; int cellCountZ; int iterationsFinished; 
 					float rhoNominalPhys; float soundspeedPhys; float dtPhys; }; 
-
-#include "cellFunctions.h"
-#include "getStreamedIndex.h"
-#include "applyCollision.h"
-
-//#include "STLFunctions.h"
-
-#include "fillDefaultEquilibrium.h"
-
-#include "boundaryConditions/applyBounceback.h"
-#include "boundaryConditions/restoreRho.h"
-#include "boundaryConditions/restoreUxUyUz.h"
-#include "boundaryConditions/restoreRhoUxUyUz.h"
-#include "boundaryConditions/applyMBBC.h"
-
-#include "applyLocalCellUpdate.h"
