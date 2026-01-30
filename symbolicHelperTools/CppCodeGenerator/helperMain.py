@@ -8,6 +8,7 @@ from applyMBBC import *
 from restoreRhoUxUyUz import *
 from restoreUxUyUz import *
 from restoreRho import *
+from applyMirror import *
 from getLatex import *
 
 f    =  [ f"f_{{{i}}}" for i in range(27) ]
@@ -254,7 +255,7 @@ allNormals = [	[1,0,0], [0,1,0], [0,0,1], [-1,0,0], [0,-1,0], [0,0,-1],
 				[0,1,-1], [1,0,-1], [1,-1,0], [0,-1,1], [-1,0,1], [-1,1,0],
 				[1,1,1], [-1,-1,-1], 
 				[-1,1,1], [1,-1,1], [1,1,-1], [1,-1,-1], [-1,1,-1], [-1,-1,1] ]
-
+"""
 #### applyMBBC
 allLines = []
 for index, normal in enumerate(allNormals):
@@ -349,9 +350,24 @@ allLines.append("}")
 with open("results/restoreRho.h", "w") as file:
 	file.write("\n".join(allLines))
 
-"""
 #### Latex Tables
 normal = [1, -1, 1]
 fk, fu, mfk, mfu, C, S, Sq, Su, Srho = getBCdata(normal)
 latexCode = getLatex(f, normal, fk, fu, mfk, mfu, C, S, Sq, Q, Su, Qu, Srho, Qrho)
 """
+
+#### applyMirror
+allLines = []
+for index, normal in enumerate(allNormals):
+	fk, fu, mfk, mfu, C, S, Sq, Su, Srho = getBCdata(normal)
+	fuIndexList = []
+	for i, fi in enumerate(fu):
+		match = re.search(r"\d+", fi)
+		number = int(match.group())
+		fu[i] = "f[" + str(number) + "]"
+		fuIndexList.append(number)
+	
+	allLines += applyMirror(index, normal, fu, fuIndexList, cx, cy, cz)
+allLines.append("}")
+with open("results/applyMirror.h", "w") as file:
+	file.write("\n".join(allLines))

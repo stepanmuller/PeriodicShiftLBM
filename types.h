@@ -62,5 +62,5 @@ struct STLStructCPU { 	FloatArrayTypeCPU axArray; FloatArrayTypeCPU ayArray; Flo
 						float xmin; float ymin; float zmin; float xmax; float ymax; float zmax; 
 						float ox; float oy; float oz; int triangleCount; }; // ox, oy, oz is the position of STL origin in global coordinates
 								
-struct InfoStruct { float res; int cellCountX; int cellCountY; int cellCountZ; int cellCount; int iterationsFinished; 
+struct InfoStruct { float res; int cellCountX; int cellCountY; int cellCountZ; int cellCount;
 					float rhoNominalPhys; float soundspeedPhys; float dtPhys; }; 

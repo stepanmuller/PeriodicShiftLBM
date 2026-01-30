@@ -54,7 +54,6 @@ int main(int argc, char **argv)
 	Info.cellCountY = cellCountY;
 	Info.cellCountZ = cellCountZ;
 	Info.cellCount = Info.cellCountX * Info.cellCountY * Info.cellCountZ;
-	Info.iterationsFinished = 0;
 	
 	FStruct F;
 	FloatArray2DType fArray;
@@ -77,7 +76,6 @@ int main(int argc, char **argv)
 	{
 		applyStreaming( F, Info );
 		applyLocalCellUpdate( F, Info );
-		Info.iterationsFinished++;
 		
 		if (iteration%iterationChunk == 0 && iteration!=0)
 		{
