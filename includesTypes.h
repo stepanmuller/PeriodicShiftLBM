@@ -13,69 +13,60 @@
 #include <TNL/Containers/StaticArray.h>
 #include <TNL/Timer.h>
 
-using BoolArray3DType = TNL::Containers::NDArray< bool, 
-												TNL::Containers::SizesHolder< std::size_t, 0, 0, 0 >,
-												std::index_sequence< 0, 1, 2 >,
-												TNL::Devices::Cuda >;
-												
-using IntArrayType = TNL::Containers::Array< int, TNL::Devices::Cuda, size_t >;
+using IndexArrayType = TNL::Containers::Array< size_t, TNL::Devices::Cuda, size_t >;
+using IndexArrayTypeCPU = TNL::Containers::Array< size_t, TNL::Devices::Host, size_t >;
 
-using IntArray2DType = TNL::Containers::NDArray< int, 
-												TNL::Containers::SizesHolder< std::size_t, 0, 0 >,
-												std::index_sequence< 0, 1 >,
+using IndexArray3DType = TNL::Containers::NDArray< size_t, 
+												TNL::Containers::SizesHolder< std::size_t, 0, 0, 0>,
+												std::index_sequence< 0, 1, 2 >,
 												TNL::Devices::Cuda >;
 
 using FloatArrayType = TNL::Containers::Array< float, TNL::Devices::Cuda, size_t >;
 using FloatArrayTypeCPU = TNL::Containers::Array< float, TNL::Devices::Host, size_t >;
 
 using FloatArray2DType = TNL::Containers::NDArray< float, 
-												TNL::Containers::SizesHolder< std::size_t, 0, 0 >,
+												TNL::Containers::SizesHolder< std::size_t, 0, 0>,
 												std::index_sequence< 0, 1 >,
 												TNL::Devices::Cuda >;
 using FloatArray2DTypeCPU = TNL::Containers::NDArray< float, 
-												TNL::Containers::SizesHolder< std::size_t, 0, 0 >,
+												TNL::Containers::SizesHolder< std::size_t, 0, 0>,
 												std::index_sequence< 0, 1 >,
 												TNL::Devices::Host >;
-												
-using FloatArray4DType = TNL::Containers::NDArray< float, 
-												TNL::Containers::SizesHolder< std::size_t, 0, 0, 0, 0 >,
-												std::index_sequence< 0, 1, 2, 3 >,
-												TNL::Devices::Cuda >;
-using FloatArray4DTypeCPU = TNL::Containers::NDArray< float, 
-												TNL::Containers::SizesHolder< std::size_t, 0, 0, 0, 0 >,
-												std::index_sequence< 0, 1, 2, 3 >,
-												TNL::Devices::Host >;
 
-using DoubleIndexType = TNL::Containers::StaticArray< 2, int >;											
-using TripleIndexType = TNL::Containers::StaticArray< 3, int >;
+using MarkerArrayType = TNL::Containers::Array< bool, TNL::Devices::Cuda, size_t >;
+
+using CounterArray2DType = TNL::Containers::NDArray< int, 
+												TNL::Containers::SizesHolder< std::size_t, 0, 0>,
+												std::index_sequence< 0, 1 >,
+												TNL::Devices::Cuda >;
+
+struct DistributionStruct { IndexArrayType shifter; FloatArray2DType fArray; };
+struct DistributionStructCPU { IndexArrayTypeCPU shifter; FloatArray2DTypeCPU fArray; };
 
 struct SectionCutStruct { FloatArray2DType rhoArray; FloatArray2DType uxArray; FloatArray2DType uyArray; FloatArray2DType uzArray; FloatArray2DType maskArray; };
 struct SectionCutStructCPU { FloatArray2DTypeCPU rhoArray; FloatArray2DTypeCPU uxArray; FloatArray2DTypeCPU uyArray; FloatArray2DTypeCPU uzArray; FloatArray2DTypeCPU maskArray; };
 
-struct MarkerStruct { BoolArray3DType fluidArray; BoolArray3DType bouncebackArray; BoolArray3DType givenUxUyUzArray; BoolArray3DType givenRhoArray;  };
+struct MarkerStruct { MarkerArrayType fluidArray; MarkerArrayType bouncebackArray; MarkerArrayType givenUxUyUzArray; MarkerArrayType givenRhoArray;  };
 
 struct STLArbeiterStruct { 	FloatArrayType axArray; FloatArrayType ayArray; FloatArrayType azArray; 
 							FloatArrayType bxArray; FloatArrayType byArray; FloatArrayType bzArray; 
 							FloatArrayType cxArray; FloatArrayType cyArray; FloatArrayType czArray; 
-							float xmin; float ymin; float zmin; float xmax; float ymax; float zmax; 
-							float ox; float oy; float oz; int triangleCount; }; // ox, oy, oz is the position of STL origin in global coordinates
+							float xmin; float ymin; float zmin; float xmax; float ymax; float zmax; size_t triangleCount; };
 
 struct STLArbeiterStructCPU { 	FloatArrayTypeCPU axArray; FloatArrayTypeCPU ayArray; FloatArrayTypeCPU azArray; 
 								FloatArrayTypeCPU bxArray; FloatArrayTypeCPU byArray; FloatArrayTypeCPU bzArray; 
 								FloatArrayTypeCPU cxArray; FloatArrayTypeCPU cyArray; FloatArrayTypeCPU czArray; 
-								float xmin; float ymin; float zmin; float xmax; float ymax; float zmax; 
-								float ox; float oy; float oz; int triangleCount; }; // ox, oy, oz is the position of STL origin in global coordinates
+								float xmin; float ymin; float zmin; float xmax; float ymax; float zmax; size_t triangleCount; };
 								
-struct InfoStruct { float res; int cellCountX; int cellCountY; int cellCountZ; int iterationsFinished; 
-					float rhoNominalPhys; float soundspeedPhys; float dtPhys; }; 
+struct CellCountStruct { float res; size_t nx; size_t ny; size_t nz; size_t n; float ox; float oy; float oz; }; // ox, oy, oz is the position of cell i,j,k = 0 in global coordinates
 
 #include "cellFunctions.h"
-#include "getStreamedIndex.h"
+#include "applyStreaming.h"
 #include "applyCollision.h"
 
-//#include "STLFunctions.h"
+#include "STLFunctions.h"
 
-#include "fillDefaultEquilibrium.h"
+#include "applyInitialization.h"
 
 #include "boundaryConditions/applyBounceback.h"
 #include "boundaryConditions/restoreRho.h"

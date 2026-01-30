@@ -1,66 +1,66 @@
-void applyLocalCellUpdate( MarkerStruct& Marker, FloatArray4DType fArray, InfoStruct &Info )
+void applyLocalCellUpdate( 	MarkerStruct& Marker, DistributionStruct& F, CellCountStruct &cellCount )
 {
 	auto fluidMarkerArrayView = Marker.fluidArray.getConstView();
 	auto bouncebackMarkerArrayView = Marker.bouncebackArray.getConstView();
 	auto givenRhoMarkerArrayView = Marker.givenRhoArray.getConstView();
 	auto givenUxUyUzMarkerArrayView = Marker.givenUxUyUzArray.getConstView();
 	
-	auto fArrayView  = fArray.getView();
+	auto shifterView = F.shifter.getConstView();
+	auto fArrayView  = F.fArray.getView();
 
-	auto cellLambda = [=] __cuda_callable__ ( const TripleIndexType& tripleIndex ) mutable
+	auto cellLambda = [=] __cuda_callable__ (size_t cell) mutable
 	{
-		const int iCell = tripleIndex.x();
-		const int jCell = tripleIndex.y();
-		const int kCell = tripleIndex.z();
-		int iStreamed[27], jStreamed[27], kStreamed[27];
-		getStreamedIndexes( iCell, jCell, kCell, iStreamed, jStreamed, kStreamed, Info );
-		
-		bool fluidMarker = fluidMarkerArrayView( iCell, jCell, kCell );
-		bool bouncebackMarker = bouncebackMarkerArrayView( iCell, jCell, kCell );
-		bool givenRhoMarker = givenRhoMarkerArrayView( iCell, jCell, kCell );
-		bool givenUxUyUzMarker = givenUxUyUzMarkerArrayView( iCell, jCell, kCell );
+		size_t shiftedIndex[27];
+		for (size_t i = 0; i < 27; i++) 
+		{
+			const size_t shift = shifterView[i];
+			shiftedIndex[i] = cell + shift;
+			if (shiftedIndex[i] >= cellCount.n) { shiftedIndex[i] -= cellCount.n; }
+		}
+		bool fluidMarker = fluidMarkerArrayView[cell];
+		bool bouncebackMarker = bouncebackMarkerArrayView[cell];
+		bool givenRhoMarker = givenRhoMarkerArrayView[cell];
+		bool givenUxUyUzMarker = givenUxUyUzMarkerArrayView[cell];
 		
 		float f[27];
 		float rho, ux, uy, uz;
-		for ( int direction = 0; direction < 27; direction++ ) f[direction] = fArrayView( direction, iStreamed[direction], jStreamed[direction], kStreamed[direction] );
+		for (size_t i = 0; i < 27; i++)	f[i] = fArrayView(i, shiftedIndex[i]);
 		
-		if ( bouncebackMarker )
+		if ( bouncebackMarker == 1 )
 		{
 			applyBounceback(f);
 		}
 		else 
 		{
-			if ( fluidMarker )
+			if ( fluidMarker == 1 )
 			{
-				getRhoUxUyUz( rho, ux, uy, uz, f );
+				getRhoUxUyUz(rho, ux, uy, uz, f);
 			}
 			else
 			{
-				int outerNormalX, outerNormalY, outerNormalZ;
-				getOuterNormal( iCell, jCell, kCell, outerNormalX, outerNormalY, outerNormalZ, Info );
+				short outerNormalX, outerNormalY, outerNormalZ;
+				getOuterNormal(cell, outerNormalX, outerNormalY, outerNormalZ, cellCount);
 				rho = 1.f;
 				ux = 0.f;
 				uy = 0.f;
 				uz = uzInlet;
-				if ( givenRhoMarker && !givenUxUyUzMarker )
+				if ( givenRhoMarker == 1 && givenUxUyUzMarker == 0 )
 				{
-					restoreUxUyUz( outerNormalX, outerNormalY, outerNormalZ, rho, ux, uy, uz, f );
+					restoreUxUyUz(outerNormalX, outerNormalY, outerNormalZ, rho, ux, uy, uz, f);
 				}
-				else if ( !givenRhoMarker && givenUxUyUzMarker )
+				else if ( givenRhoMarker == 0 && givenUxUyUzMarker == 1 )
 				{
-					restoreRho( outerNormalX, outerNormalY, outerNormalZ, rho, ux, uy, uz, f );
+					restoreRho(outerNormalX, outerNormalY, outerNormalZ, rho, ux, uy, uz, f);
 				}
-				else if ( !givenRhoMarker && !givenUxUyUzMarker )
+				else if ( givenRhoMarker == 0 && givenUxUyUzMarker == 0 )
 				{
-					restoreRhoUxUyUz( outerNormalX, outerNormalY, outerNormalZ, rho, ux, uy, uz, f );
+					restoreRhoUxUyUz(outerNormalX, outerNormalY, outerNormalZ, rho, ux, uy, uz, f);
 				}
-				applyMBBC( outerNormalX, outerNormalY, outerNormalZ, rho, ux, uy, uz, f );
+				applyMBBC(outerNormalX, outerNormalY, outerNormalZ, rho, ux, uy, uz, f);
 			}
-			applyCollision( rho, ux, uy, uz, f );
+			applyCollision(rho, ux, uy, uz, f);
 		}
-		for ( int direction = 0; direction < 27; direction++ ) fArrayView( direction, iStreamed[direction], jStreamed[direction], kStreamed[direction] ) = f[direction];
+		for (size_t i = 0; i < 27; i++)	fArrayView(i, shiftedIndex[i]) = f[i];
 	};
-	TripleIndexType start{ 0, 0, 0 };
-	TripleIndexType end{ Info.cellCountX, Info.cellCountY, Info.cellCountZ };
-	TNL::Algorithms::parallelFor<TNL::Devices::Cuda>( start, end, cellLambda );
+	TNL::Algorithms::parallelFor<TNL::Devices::Cuda>(0, cellCount.n, cellLambda );
 }

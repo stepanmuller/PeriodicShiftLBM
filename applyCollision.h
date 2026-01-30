@@ -13,9 +13,9 @@ __host__ __device__ void applyCollision(
 	//---------------------------- APPLY FORCING - FIRST HALF ----------------------------
 	//------------------------------------------------------------------------------------
 
-	const float gx  = 0;
-	const float gy  = 0;
-	const float gz  = 0;
+	const float gx  = 0; //gxArrayView[cell];
+	const float gy  = 0; //gyArrayView[cell];
+	const float gz  = 0; //gzArrayView[cell];
 	ux = ((ux * rho) + gx/2.f) / rho;
 	uy = ((uy * rho) + gy/2.f) / rho;
 	uz = ((uz * rho) + gz/2.f) / rho;
