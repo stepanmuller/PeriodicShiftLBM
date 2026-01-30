@@ -10,8 +10,7 @@ Features
 	- just slightly modified: high order moments all get relaxed to zero so their calculation is removed
 - LES taken from: https://github.com/stloufra/LB/tree/thesis
 - fully local moment-based boundary conditions
-	- so far (2025/12/09) only face velocity inlet and face pressure outlet
 
 Read attached PDF for more about periodic shift and BC implementation.
 
-Performance: 1.36 GLUPS on 4070 Ti 12GB (64M cells)
+Performance: 2.0 GLUPS on 4070 Ti 12GB (100M cells)
