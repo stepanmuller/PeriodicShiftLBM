@@ -15,6 +15,44 @@
 
 // w:  { 8/27, 2/27, 2/27, 2/27 , 2/27, 2/27, 2/27, 1/54, 1/54, 1/54, 1/54, 1/54, 1/54, 1/54, 1/54, 1/54, 1/54, 1/54, 1/54, 1/216, 1/216, 1/216, 1/216, 1/216, 1/216, 1/216, 1/216 };
 
+__cuda_callable__ void getCellIndex( int& cell, const int& iCell, const int& jCell, const int& kCell, InfoStruct &Info)
+{
+    cell = kCell * (Info.cellCountX * Info.cellCountY) + jCell * Info.cellCountX + iCell;
+}
+
+__cuda_callable__ void getIJKCellIndex( const int& cell, int& iCell, int& jCell, int& kCell, InfoStruct &Info)
+{
+    const int xy = Info.cellCountX * Info.cellCountY;
+    kCell = cell / xy;
+    const int remainder = cell % xy;
+    jCell = remainder / Info.cellCountX;
+    iCell = remainder % Info.cellCountX;
+}
+
+__cuda_callable__ void getShiftedIndex( const int& cell, int (&shiftedIndex)[27], IntArrayConstViewType shifterView, InfoStruct &Info )
+{
+    for ( int direction = 0; direction < 27; direction++ ) 
+		{
+			const int shift = shifterView[direction];
+			shiftedIndex[direction] = cell + shift;
+			if (shiftedIndex[direction] >= Info.cellCount) shiftedIndex[direction] -= Info.cellCount;
+		}	
+}
+
+__cuda_callable__ void getOuterNormal( 	const int& iCell, const int& jCell, const int& kCell, 
+										int& outerNormalX, int& outerNormalY, int& outerNormalZ, InfoStruct &Info )
+{
+    outerNormalX = 0;
+    outerNormalY = 0;
+    outerNormalZ = 0;
+    if 			( iCell == 0 ) 						outerNormalX = -1;
+    else if 	( iCell == Info.cellCountX - 1 ) 	outerNormalX = 1;
+    if 			( jCell == 0 ) 						outerNormalY = -1;
+    else if 	( jCell == Info.cellCountY - 1) 	outerNormalY = 1;
+    if 			( kCell == 0 ) 						outerNormalZ = -1;
+    else if 	( kCell == Info.cellCountZ - 1 ) 	outerNormalZ = 1;
+}
+
 __cuda_callable__ void getFeq(
 	const float &rho, const float &ux, const float &uy, const float &uz, 
 	float (&feq)[27]
@@ -152,29 +190,6 @@ __cuda_callable__ void getOmegaLES(const float (&fneq)[27], const float &rho, fl
 	const float tauLES = 0.5 * tau + 0.5 * sqrt(tau * tau + CLES_term * P);
 
 	omegaLES = 1 / tauLES;
-}
-
-__cuda_callable__ void getOuterNormal( 	const int& iCell, const int& jCell, const int& kCell, 
-										int& outerNormalX, int& outerNormalY, int& outerNormalZ, InfoStruct &Info )
-{
-    outerNormalX = 0;
-    outerNormalY = 0;
-    outerNormalZ = 0;
-    if 			( iCell == 0 ) 						outerNormalX = -1;
-    else if 	( iCell == Info.cellCountX - 1 ) 	outerNormalX = 1;
-    if 			( jCell == 0 ) 						outerNormalY = -1;
-    else if 	( jCell == Info.cellCountY - 1) 	outerNormalY = 1;
-    if 			( kCell == 0 ) 						outerNormalZ = -1;
-    else if 	( kCell == Info.cellCountZ - 1 ) 	outerNormalZ = 1;
-}
-
-__cuda_callable__ void getIJKCell( const int& cell, int& iCell, int& jCell, int& kCell, InfoStruct &Info)
-{
-    const int xy = Info.cellCountX * Info.cellCountY;
-    kCell = cell / xy;
-    const int remainder = cell % xy;
-    jCell = remainder / Info.cellCountX;
-    iCell = remainder % Info.cellCountX;
 }
 
 /*

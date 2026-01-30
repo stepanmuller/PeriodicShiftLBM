@@ -19,6 +19,7 @@ using BoolArray3DType = TNL::Containers::NDArray< bool,
 												TNL::Devices::Cuda >;
 												
 using IntArrayType = TNL::Containers::Array< int, TNL::Devices::Cuda, size_t >;
+using IntArrayConstViewType = TNL::Containers::ArrayView< const int, TNL::Devices::Cuda, size_t >;
 using IntArrayTypeCPU = TNL::Containers::Array< int, TNL::Devices::Host, size_t >;
 
 using IntArray2DType = TNL::Containers::NDArray< int, 
