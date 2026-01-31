@@ -12,7 +12,7 @@ constexpr int boxStartZ = (int)(cellCountY * 0.3f);
 constexpr int boxEndY = (int)(cellCountY * 0.6f);
 constexpr int boxEndZ = (int)(cellCountY * 0.5f);
 
-constexpr int iterationCount = 10000;
+constexpr int iterationCount = 50000;
 
 #include "../types.h"
 
@@ -22,6 +22,7 @@ constexpr int iterationCount = 10000;
 #include "../fillDefaultEquilibrium.h"
 
 #include "../boundaryConditions/applyBounceback.h"
+#include "../boundaryConditions/applyMirror.h"
 #include "../boundaryConditions/restoreRho.h"
 #include "../boundaryConditions/restoreUxUyUz.h"
 #include "../boundaryConditions/restoreRhoUxUyUz.h"
@@ -30,18 +31,19 @@ constexpr int iterationCount = 10000;
 #include "../exportSectionCutPlot.h"
 
 __cuda_callable__ void getMarkers( 	const int& iCell, const int& jCell, const int& kCell, 
-									bool& fluidMarker, bool& bouncebackMarker, bool& givenRhoMarker, bool& givenUxUyUzMarker,
+									bool& fluidMarker, bool& bouncebackMarker, bool& mirrorMarker, bool& givenRhoMarker, bool& givenUxUyUzMarker,
 									InfoStruct& Info )
 {
     fluidMarker = 0;
 	bouncebackMarker = 0;
+	mirrorMarker = 0;
 	givenRhoMarker = 0;
 	givenUxUyUzMarker = 0;
 	
 	if ( jCell >= boxStartY && jCell < boxEndY && kCell >= boxStartZ && kCell < boxEndZ ) bouncebackMarker = 1;
-	else if ( iCell == 0 || iCell == Info.cellCountX-1 || jCell == 0 || jCell == Info.cellCountY-1 ) bouncebackMarker = 1;
 	else if ( kCell == 0 ) givenUxUyUzMarker = 1;
 	else if ( kCell == Info.cellCountZ-1 ) givenRhoMarker = 1;
+	else if ( iCell == 0 || iCell == Info.cellCountX-1 || jCell == 0 || jCell == Info.cellCountY-1 ) mirrorMarker = 1;
 	else fluidMarker = 1;
 }
 
@@ -67,7 +69,7 @@ int main(int argc, char **argv)
 	const int iCut = Info.cellCountX / 2;
 	int plotNumber = 0;
 	
-	const int iterationChunk = 100;
+	const int iterationChunk = 1000;
 	
 	TNL::Timer lapTimer;
 	lapTimer.reset();

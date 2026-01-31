@@ -11,8 +11,8 @@ void applyLocalCellUpdate( FStruct &F, InfoStruct &Info )
 		int shiftedIndex[27];
 		getShiftedIndex( cell, shiftedIndex, shifterView, Info );
 		
-		bool fluidMarker, bouncebackMarker, givenRhoMarker, givenUxUyUzMarker;
-		getMarkers( iCell, jCell, kCell, fluidMarker, bouncebackMarker, givenRhoMarker, givenUxUyUzMarker, Info );
+		bool fluidMarker, bouncebackMarker, mirrorMarker, givenRhoMarker, givenUxUyUzMarker;
+		getMarkers( iCell, jCell, kCell, fluidMarker, bouncebackMarker, mirrorMarker, givenRhoMarker, givenUxUyUzMarker, Info );
 		
 		float f[27];
 		float rho, ux, uy, uz;
@@ -36,7 +36,11 @@ void applyLocalCellUpdate( FStruct &F, InfoStruct &Info )
 				ux = 0.f;
 				uy = 0.f;
 				uz = uzInlet;
-				if ( givenRhoMarker && !givenUxUyUzMarker )
+				if ( mirrorMarker )
+				{
+					applyMirror( outerNormalX, outerNormalY, outerNormalZ, f );
+				}
+				else if ( givenRhoMarker && !givenUxUyUzMarker )
 				{
 					restoreUxUyUz( outerNormalX, outerNormalY, outerNormalZ, rho, ux, uy, uz, f );
 				}
