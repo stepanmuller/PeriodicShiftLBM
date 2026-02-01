@@ -16,7 +16,7 @@ __host__ __device__ void applyMirror(
 	f[24] = f[26];
 	f[25] = f[23];
 	}
-	if ( normalCode == 565 )
+	else if ( normalCode == 565 )
 	{
 	f[5] = f[6];
 	f[11] = f[15];
@@ -28,7 +28,7 @@ __host__ __device__ void applyMirror(
 	f[23] = f[22];
 	f[25] = f[19];
 	}
-	if ( normalCode == 556 )
+	else if ( normalCode == 556 )
 	{
 	f[3] = f[4];
 	f[7] = f[9];
@@ -40,7 +40,7 @@ __host__ __device__ void applyMirror(
 	f[23] = f[20];
 	f[25] = f[21];
 	}
-	if ( normalCode == 455 )
+	else if ( normalCode == 455 )
 	{
 	f[1] = f[2];
 	f[7] = f[10];
@@ -52,7 +52,7 @@ __host__ __device__ void applyMirror(
 	f[23] = f[25];
 	f[26] = f[24];
 	}
-	if ( normalCode == 545 )
+	else if ( normalCode == 545 )
 	{
 	f[6] = f[5];
 	f[12] = f[16];
@@ -64,7 +64,7 @@ __host__ __device__ void applyMirror(
 	f[24] = f[21];
 	f[26] = f[20];
 	}
-	if ( normalCode == 554 )
+	else if ( normalCode == 554 )
 	{
 	f[4] = f[3];
 	f[8] = f[10];
@@ -76,7 +76,7 @@ __host__ __device__ void applyMirror(
 	f[24] = f[19];
 	f[26] = f[22];
 	}
-	if ( normalCode == 566 )
+	else if ( normalCode == 566 )
 	{
 	f[3] = f[4];
 	f[5] = f[6];
@@ -94,7 +94,7 @@ __host__ __device__ void applyMirror(
 	f[23] = f[26];
 	f[25] = f[24];
 	}
-	if ( normalCode == 656 )
+	else if ( normalCode == 656 )
 	{
 	f[2] = f[1];
 	f[3] = f[4];
@@ -112,7 +112,7 @@ __host__ __device__ void applyMirror(
 	f[24] = f[26];
 	f[25] = f[20];
 	}
-	if ( normalCode == 665 )
+	else if ( normalCode == 665 )
 	{
 	f[2] = f[1];
 	f[5] = f[6];
@@ -130,7 +130,7 @@ __host__ __device__ void applyMirror(
 	f[24] = f[26];
 	f[25] = f[22];
 	}
-	if ( normalCode == 544 )
+	else if ( normalCode == 544 )
 	{
 	f[4] = f[3];
 	f[6] = f[5];
@@ -148,7 +148,7 @@ __host__ __device__ void applyMirror(
 	f[24] = f[25];
 	f[26] = f[23];
 	}
-	if ( normalCode == 454 )
+	else if ( normalCode == 454 )
 	{
 	f[1] = f[2];
 	f[4] = f[3];
@@ -166,7 +166,7 @@ __host__ __device__ void applyMirror(
 	f[24] = f[19];
 	f[26] = f[19];
 	}
-	if ( normalCode == 445 )
+	else if ( normalCode == 445 )
 	{
 	f[1] = f[2];
 	f[6] = f[5];
@@ -184,7 +184,7 @@ __host__ __device__ void applyMirror(
 	f[24] = f[21];
 	f[26] = f[21];
 	}
-	if ( normalCode == 564 )
+	else if ( normalCode == 564 )
 	{
 	f[4] = f[3];
 	f[5] = f[6];
@@ -202,7 +202,7 @@ __host__ __device__ void applyMirror(
 	f[25] = f[19];
 	f[26] = f[22];
 	}
-	if ( normalCode == 654 )
+	else if ( normalCode == 654 )
 	{
 	f[2] = f[1];
 	f[4] = f[3];
@@ -220,7 +220,7 @@ __host__ __device__ void applyMirror(
 	f[25] = f[23];
 	f[26] = f[22];
 	}
-	if ( normalCode == 645 )
+	else if ( normalCode == 645 )
 	{
 	f[2] = f[1];
 	f[6] = f[5];
@@ -238,7 +238,7 @@ __host__ __device__ void applyMirror(
 	f[25] = f[23];
 	f[26] = f[20];
 	}
-	if ( normalCode == 546 )
+	else if ( normalCode == 546 )
 	{
 	f[3] = f[4];
 	f[6] = f[5];
@@ -256,7 +256,7 @@ __host__ __device__ void applyMirror(
 	f[25] = f[21];
 	f[26] = f[20];
 	}
-	if ( normalCode == 456 )
+	else if ( normalCode == 456 )
 	{
 	f[1] = f[2];
 	f[3] = f[4];
@@ -274,7 +274,7 @@ __host__ __device__ void applyMirror(
 	f[25] = f[21];
 	f[26] = f[24];
 	}
-	if ( normalCode == 465 )
+	else if ( normalCode == 465 )
 	{
 	f[1] = f[2];
 	f[5] = f[6];
@@ -292,7 +292,7 @@ __host__ __device__ void applyMirror(
 	f[25] = f[19];
 	f[26] = f[24];
 	}
-	if ( normalCode == 666 )
+	else if ( normalCode == 666 )
 	{
 	f[2] = f[1];
 	f[3] = f[4];
@@ -314,7 +314,7 @@ __host__ __device__ void applyMirror(
 	f[24] = f[26];
 	f[25] = f[26];
 	}
-	if ( normalCode == 444 )
+	else if ( normalCode == 444 )
 	{
 	f[1] = f[2];
 	f[4] = f[3];
@@ -336,7 +336,7 @@ __host__ __device__ void applyMirror(
 	f[24] = f[25];
 	f[26] = f[25];
 	}
-	if ( normalCode == 466 )
+	else if ( normalCode == 466 )
 	{
 	f[1] = f[2];
 	f[3] = f[4];
@@ -358,7 +358,7 @@ __host__ __device__ void applyMirror(
 	f[25] = f[24];
 	f[26] = f[24];
 	}
-	if ( normalCode == 646 )
+	else if ( normalCode == 646 )
 	{
 	f[2] = f[1];
 	f[3] = f[4];
@@ -380,7 +380,7 @@ __host__ __device__ void applyMirror(
 	f[25] = f[20];
 	f[26] = f[20];
 	}
-	if ( normalCode == 664 )
+	else if ( normalCode == 664 )
 	{
 	f[2] = f[1];
 	f[4] = f[3];
@@ -402,7 +402,7 @@ __host__ __device__ void applyMirror(
 	f[25] = f[22];
 	f[26] = f[22];
 	}
-	if ( normalCode == 644 )
+	else if ( normalCode == 644 )
 	{
 	f[2] = f[1];
 	f[4] = f[3];
@@ -424,7 +424,7 @@ __host__ __device__ void applyMirror(
 	f[25] = f[23];
 	f[26] = f[23];
 	}
-	if ( normalCode == 464 )
+	else if ( normalCode == 464 )
 	{
 	f[1] = f[2];
 	f[4] = f[3];
@@ -446,7 +446,7 @@ __host__ __device__ void applyMirror(
 	f[25] = f[19];
 	f[26] = f[19];
 	}
-	if ( normalCode == 446 )
+	else if ( normalCode == 446 )
 	{
 	f[1] = f[2];
 	f[3] = f[4];
