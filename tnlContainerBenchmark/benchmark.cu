@@ -541,10 +541,10 @@ int main(int argc, char **argv)
 		fNDArray2D.setSizes( 27, size );
 		fNDArray2D.setValue( 1.0f ); 
 		IndexArrayType shifter = IndexArrayType( 27, 0 );
-		shifter.setElement( 1, 100 );
-		shifter.setElement( 5, 5000 );
-		shifter.setElement( 11, 1000 );
-		shifter.setElement( 12, 10000 );
+		for ( int direction = 0; direction < 27; direction++ )
+		{
+			shifter.setElement( direction, 100*direction );
+		}
 		#ifdef __CUDACC__
 		std::cout << "starting NDArray2D (27 x size) with shifter benchmark" << std::endl;
 		TNL::Timer timer;

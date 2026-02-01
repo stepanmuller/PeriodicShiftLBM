@@ -3,9 +3,9 @@ constexpr float SmagorinskyConstant = 0.0f; 							// set to zero to turn off LE
 constexpr float nu = 1e-6;												// LBM nu
 constexpr float tau = 3.f * nu + 0.5f;									// LBM tau
 
-constexpr int cellCountX = 50;
-constexpr int cellCountY = 1000;
-constexpr int cellCountZ = 2000;
+constexpr int cellCountX = 20;
+constexpr int cellCountY = 400;
+constexpr int cellCountZ = 800;
 
 constexpr int boxStartY = (int)(cellCountY * 0.4f);
 constexpr int boxStartZ = (int)(cellCountY * 0.3f);
@@ -69,7 +69,7 @@ int main(int argc, char **argv)
 	const int iCut = Info.cellCountX / 2;
 	int plotNumber = 0;
 	
-	const int iterationChunk = 1000;
+	const int iterationChunk = 100;
 	
 	TNL::Timer lapTimer;
 	lapTimer.reset();

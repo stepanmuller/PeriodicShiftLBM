@@ -1,22 +1,27 @@
 void applyLocalCellUpdate( FStruct &F, InfoStruct &Info )
 {
 	auto fArrayView  = F.fArray.getView();
-	auto shifterView  = F.shifter.getConstView();
-
+	//auto shifterView  = F.shifter.getConstView();
+	
+	int shifter[27];
+	for ( int direction = 0; direction < 27; direction++ ) shifter[direction] = F.shifter.getElement( direction );
+	
 	auto cellLambda = [=] __cuda_callable__ ( const int cell ) mutable
 	{
 		int iCell, jCell, kCell;
 		getIJKCellIndex( cell, iCell, jCell, kCell, Info );
 			
 		int shiftedIndex[27];
-		getShiftedIndex( cell, shiftedIndex, shifterView, Info );
+		getShiftedIndex( cell, shiftedIndex, shifter, Info );
 		
 		bool fluidMarker, bouncebackMarker, mirrorMarker, givenRhoMarker, givenUxUyUzMarker;
 		getMarkers( iCell, jCell, kCell, fluidMarker, bouncebackMarker, mirrorMarker, givenRhoMarker, givenUxUyUzMarker, Info );
 		
 		float f[27];
 		float rho, ux, uy, uz;
-		for (size_t i = 0; i < 27; i++)	f[i] = fArrayView(i, shiftedIndex[i]);
+		
+		for ( int direction = 0; direction < 27; direction++ )	f[direction] = fArrayView(direction, shiftedIndex[direction]);
+		//for ( int direction = 0; direction < 27; direction++ )	f[direction] = fArrayView(direction, cell);
 		
 		if ( bouncebackMarker )
 		{
@@ -57,6 +62,7 @@ void applyLocalCellUpdate( FStruct &F, InfoStruct &Info )
 			applyCollision( rho, ux, uy, uz, f );
 		}
 		for ( int direction = 0; direction < 27; direction++ ) fArrayView( direction, shiftedIndex[direction] ) = f[direction];
+		//for ( int direction = 0; direction < 27; direction++ ) fArrayView( direction, cell ) = f[direction];
 	};
 	TNL::Algorithms::parallelFor<TNL::Devices::Cuda>(0, Info.cellCount, cellLambda );
 }
