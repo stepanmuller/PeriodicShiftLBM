@@ -3,15 +3,17 @@ import numpy as np
 
 def applyMirror(index, normal, fu, fuIndexList, cx, cy, cz):
 	lines = []
+	normalCode = (normal[0] + 5) * 100 + (normal[1] + 5) * 10 + (normal[2] + 5)
 	if index == 0:
 		lines.append("__host__ __device__ void applyMirror(")
 		lines.append("	const int &outerNormalX, const int &outerNormalY, const int &outerNormalZ,")
 		lines.append("	float (&f)[27]")
 		lines.append(")")
 		lines.append("{")
-		lines.append("	if ( outerNormalX == " + str(normal[0]) + " && outerNormalY == " + str(normal[1]) + " && outerNormalZ == " + str(normal[2]) + " )")
+		lines.append("	const int normalCode = (outerNormalX + 5) * 100 + (outerNormalY + 5) * 10 + (outerNormalZ + 5);")
+		lines.append("	if ( normalCode == " + str(normalCode) + " )")
 	else:
-		lines.append("	else if ( outerNormalX == " + str(normal[0]) + " && outerNormalY == " + str(normal[1]) + " && outerNormalZ == " + str(normal[2]) + " )")
+		lines.append("	if ( normalCode == " + str(normalCode) + " )")
 	lines.append("	{")
 	for i, fuIndex in enumerate(fuIndexList):
 		myCx = cx[fuIndex]

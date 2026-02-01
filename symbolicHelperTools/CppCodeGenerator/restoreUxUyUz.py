@@ -3,6 +3,7 @@ import numpy as np
 
 def restoreUxUyUz(index, normal, fk, inv, SCMfk, SCQ):
 	lines = []
+	normalCode = (normal[0] + 5) * 100 + (normal[1] + 5) * 10 + (normal[2] + 5)
 	if index == 0:
 		lines.append("__host__ __device__ void restoreUxUyUz(")
 		lines.append("	const int &outerNormalX, const int &outerNormalY, const int &outerNormalZ,")
@@ -10,9 +11,10 @@ def restoreUxUyUz(index, normal, fk, inv, SCMfk, SCQ):
 		lines.append("	const float (&f)[27]")
 		lines.append(")")
 		lines.append("{")
-		lines.append("	if ( outerNormalX == " + str(normal[0]) + " && outerNormalY == " + str(normal[1]) + " && outerNormalZ == " + str(normal[2]) + " )")
+		lines.append("	const int normalCode = (outerNormalX + 5) * 100 + (outerNormalY + 5) * 10 + (outerNormalZ + 5);")
+		lines.append("	if ( normalCode == " + str(normalCode) + " )")
 	else:
-		lines.append("	else if ( outerNormalX == " + str(normal[0]) + " && outerNormalY == " + str(normal[1]) + " && outerNormalZ == " + str(normal[2]) + " )")
+		lines.append("	if ( normalCode == " + str(normalCode) + " )")
 	lines.append("	{")
 	lines.append("		// Multiply SCMfk fk")
 	for i, row in enumerate(SCMfk):

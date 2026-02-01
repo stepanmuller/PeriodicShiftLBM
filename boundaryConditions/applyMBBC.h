@@ -4,7 +4,8 @@ __host__ __device__ void applyMBBC(
 	float (&f)[27]
 )
 {
-	if ( outerNormalX == 1 && outerNormalY == 0 && outerNormalZ == 0 )
+	const int normalCode = (outerNormalX + 5) * 100 + (outerNormalY + 5) * 10 + (outerNormalZ + 5);
+	if ( normalCode == 655 )
 	{
 		// Multiply S Mfk fk
 		const float smf0 = + f[0] + f[1] + f[3] + f[4] + f[5] + f[6] + f[7] + f[9] + f[12] + f[13] + f[14] + f[16] + f[17] + f[18] + f[20] + f[22] + f[23] + f[26];
@@ -47,7 +48,7 @@ __host__ __device__ void applyMBBC(
 		f[24] = + (1.f/4.f) * s5 + (1.f/4.f) * s6 + (1.f/4.f) * s7 + (1.f/4.f) * s8;
 		f[25] = + (1.f/4.f) * s5 + (-1.f/4.f) * s6 + (-1.f/4.f) * s7 + (1.f/4.f) * s8;
 	}
-	else if ( outerNormalX == 0 && outerNormalY == 1 && outerNormalZ == 0 )
+	if ( normalCode == 565 )
 	{
 		// Multiply S Mfk fk
 		const float smf0 = + f[0] + f[1] + f[2] + f[3] + f[4] + f[6] + f[7] + f[8] + f[9] + f[10] + f[12] + f[13] + f[15] + f[17] + f[19] + f[22] + f[24] + f[26];
@@ -90,7 +91,7 @@ __host__ __device__ void applyMBBC(
 		f[23] = + (-1.f/4.f) * s5 + (-1.f/4.f) * s6 + (1.f/4.f) * s7 + (1.f/4.f) * s8;
 		f[25] = + (1.f/4.f) * s5 + (-1.f/4.f) * s6 + (-1.f/4.f) * s7 + (1.f/4.f) * s8;
 	}
-	else if ( outerNormalX == 0 && outerNormalY == 0 && outerNormalZ == 1 )
+	if ( normalCode == 556 )
 	{
 		// Multiply S Mfk fk
 		const float smf0 = + f[0] + f[1] + f[2] + f[4] + f[5] + f[6] + f[8] + f[9] + f[11] + f[12] + f[14] + f[15] + f[16] + f[17] + f[20] + f[21] + f[24] + f[26];
@@ -133,7 +134,7 @@ __host__ __device__ void applyMBBC(
 		f[23] = + (-1.f/4.f) * s5 + (-1.f/4.f) * s6 + (1.f/4.f) * s7 + (1.f/4.f) * s8;
 		f[25] = + (1.f/4.f) * s5 + (-1.f/4.f) * s6 + (-1.f/4.f) * s7 + (1.f/4.f) * s8;
 	}
-	else if ( outerNormalX == -1 && outerNormalY == 0 && outerNormalZ == 0 )
+	if ( normalCode == 455 )
 	{
 		// Multiply S Mfk fk
 		const float smf0 = + f[0] + f[2] + f[3] + f[4] + f[5] + f[6] + f[8] + f[10] + f[11] + f[13] + f[14] + f[15] + f[17] + f[18] + f[19] + f[21] + f[24] + f[25];
@@ -176,7 +177,7 @@ __host__ __device__ void applyMBBC(
 		f[23] = + (1.f/4.f) * s5 + (-1.f/4.f) * s6 + (-1.f/4.f) * s7 + (1.f/4.f) * s8;
 		f[26] = + (1.f/4.f) * s5 + (1.f/4.f) * s6 + (1.f/4.f) * s7 + (1.f/4.f) * s8;
 	}
-	else if ( outerNormalX == 0 && outerNormalY == -1 && outerNormalZ == 0 )
+	if ( normalCode == 545 )
 	{
 		// Multiply S Mfk fk
 		const float smf0 = + f[0] + f[1] + f[2] + f[3] + f[4] + f[5] + f[7] + f[8] + f[9] + f[10] + f[11] + f[14] + f[16] + f[18] + f[20] + f[21] + f[23] + f[25];
@@ -219,7 +220,7 @@ __host__ __device__ void applyMBBC(
 		f[24] = + (-1.f/4.f) * s5 + (1.f/4.f) * s6 + (-1.f/4.f) * s7 + (1.f/4.f) * s8;
 		f[26] = + (1.f/4.f) * s5 + (1.f/4.f) * s6 + (1.f/4.f) * s7 + (1.f/4.f) * s8;
 	}
-	else if ( outerNormalX == 0 && outerNormalY == 0 && outerNormalZ == -1 )
+	if ( normalCode == 554 )
 	{
 		// Multiply S Mfk fk
 		const float smf0 = + f[0] + f[1] + f[2] + f[3] + f[5] + f[6] + f[7] + f[10] + f[11] + f[12] + f[13] + f[15] + f[16] + f[18] + f[19] + f[22] + f[23] + f[25];
@@ -262,7 +263,7 @@ __host__ __device__ void applyMBBC(
 		f[24] = + (-1.f/4.f) * s5 + (1.f/4.f) * s6 + (-1.f/4.f) * s7 + (1.f/4.f) * s8;
 		f[26] = + (1.f/4.f) * s5 + (1.f/4.f) * s6 + (1.f/4.f) * s7 + (1.f/4.f) * s8;
 	}
-	else if ( outerNormalX == 0 && outerNormalY == 1 && outerNormalZ == 1 )
+	if ( normalCode == 566 )
 	{
 		// Multiply S Mfk fk
 		const float smf0 = + f[0] + f[1] + f[2] + f[4] + f[6] + f[8] + f[9] + f[12] + f[15] + f[17] + f[24] + f[26];
@@ -329,7 +330,7 @@ __host__ __device__ void applyMBBC(
 		f[23] = + (-1.f/2.f) * s1 + (-1.f/2.f) * s4 + (-1.f/4.f) * s7 + (-1.f/4.f) * s8 + (-1.f/4.f) * s9 + (-1.f/4.f) * s10 + (1.f/4.f) * s11 + (1.f/4.f) * s12 + (1.f/4.f) * s13 + (1.f/4.f) * s14;
 		f[25] = + (1.f/2.f) * s1 + (-1.f/2.f) * s4 + (1.f/4.f) * s7 + (1.f/4.f) * s8 + (-1.f/4.f) * s9 + (-1.f/4.f) * s10 + (-1.f/4.f) * s11 + (-1.f/4.f) * s12 + (1.f/4.f) * s13 + (1.f/4.f) * s14;
 	}
-	else if ( outerNormalX == 1 && outerNormalY == 0 && outerNormalZ == 1 )
+	if ( normalCode == 656 )
 	{
 		// Multiply S Mfk fk
 		const float smf0 = + f[0] + f[1] + f[4] + f[5] + f[6] + f[9] + f[12] + f[14] + f[16] + f[17] + f[20] + f[26];
@@ -396,7 +397,7 @@ __host__ __device__ void applyMBBC(
 		f[24] = + (1.f/4.f) * s7 + (1.f/4.f) * s11 + (1.f/4.f) * s12 + (1.f/4.f) * s13;
 		f[25] = + (1.f/2.f) * s2 + (-1.f/2.f) * s5 + (1.f/4.f) * s7 + (1.f/4.f) * s8 + (-1.f/4.f) * s9 + (-1.f/4.f) * s10 + (-1.f/4.f) * s11 + (-1.f/4.f) * s12 + (1.f/4.f) * s13 + (1.f/4.f) * s14;
 	}
-	else if ( outerNormalX == 1 && outerNormalY == 1 && outerNormalZ == 0 )
+	if ( normalCode == 665 )
 	{
 		// Multiply S Mfk fk
 		const float smf0 = + f[0] + f[1] + f[3] + f[4] + f[6] + f[7] + f[9] + f[12] + f[13] + f[17] + f[22] + f[26];
@@ -463,7 +464,7 @@ __host__ __device__ void applyMBBC(
 		f[24] = + (1.f/4.f) * s7 + (1.f/4.f) * s10 + (1.f/4.f) * s12 + (1.f/4.f) * s13;
 		f[25] = + (1.f/2.f) * s3 + (-1.f/2.f) * s6 + (1.f/4.f) * s7 + (1.f/4.f) * s8 + (-1.f/4.f) * s9 + (-1.f/4.f) * s10 + (-1.f/4.f) * s11 + (-1.f/4.f) * s12 + (1.f/4.f) * s13 + (1.f/4.f) * s14;
 	}
-	else if ( outerNormalX == 0 && outerNormalY == -1 && outerNormalZ == -1 )
+	if ( normalCode == 544 )
 	{
 		// Multiply S Mfk fk
 		const float smf0 = + f[0] + f[1] + f[2] + f[3] + f[5] + f[7] + f[10] + f[11] + f[16] + f[18] + f[23] + f[25];
@@ -530,7 +531,7 @@ __host__ __device__ void applyMBBC(
 		f[24] = + (1.f/2.f) * s1 + (-1.f/2.f) * s4 + (-1.f/4.f) * s7 + (-1.f/4.f) * s8 + (1.f/4.f) * s9 + (1.f/4.f) * s10 + (-1.f/4.f) * s11 + (-1.f/4.f) * s12 + (1.f/4.f) * s13 + (1.f/4.f) * s14;
 		f[26] = + (-1.f/2.f) * s1 + (-1.f/2.f) * s4 + (1.f/4.f) * s7 + (1.f/4.f) * s8 + (1.f/4.f) * s9 + (1.f/4.f) * s10 + (1.f/4.f) * s11 + (1.f/4.f) * s12 + (1.f/4.f) * s13 + (1.f/4.f) * s14;
 	}
-	else if ( outerNormalX == -1 && outerNormalY == 0 && outerNormalZ == -1 )
+	if ( normalCode == 454 )
 	{
 		// Multiply S Mfk fk
 		const float smf0 = + f[0] + f[2] + f[3] + f[5] + f[6] + f[10] + f[11] + f[13] + f[15] + f[18] + f[19] + f[25];
@@ -597,7 +598,7 @@ __host__ __device__ void applyMBBC(
 		f[24] = + (-1.f/4.f) * s8 + (1.f/4.f) * s9 + (-1.f/4.f) * s10 + (1.f/4.f) * s14;
 		f[26] = + (-1.f/2.f) * s2 + (-1.f/2.f) * s5 + (1.f/4.f) * s7 + (1.f/4.f) * s8 + (1.f/4.f) * s9 + (1.f/4.f) * s10 + (1.f/4.f) * s11 + (1.f/4.f) * s12 + (1.f/4.f) * s13 + (1.f/4.f) * s14;
 	}
-	else if ( outerNormalX == -1 && outerNormalY == -1 && outerNormalZ == 0 )
+	if ( normalCode == 445 )
 	{
 		// Multiply S Mfk fk
 		const float smf0 = + f[0] + f[2] + f[3] + f[4] + f[5] + f[8] + f[10] + f[11] + f[14] + f[18] + f[21] + f[25];
@@ -664,7 +665,7 @@ __host__ __device__ void applyMBBC(
 		f[24] = + (-1.f/4.f) * s8 + (1.f/4.f) * s9 + (-1.f/4.f) * s11 + (1.f/4.f) * s14;
 		f[26] = + (-1.f/2.f) * s3 + (-1.f/2.f) * s6 + (1.f/4.f) * s7 + (1.f/4.f) * s8 + (1.f/4.f) * s9 + (1.f/4.f) * s10 + (1.f/4.f) * s11 + (1.f/4.f) * s12 + (1.f/4.f) * s13 + (1.f/4.f) * s14;
 	}
-	else if ( outerNormalX == 0 && outerNormalY == 1 && outerNormalZ == -1 )
+	if ( normalCode == 564 )
 	{
 		// Multiply S Mfk fk
 		const float smf0 = + f[0] + f[1] + f[2] + f[3] + f[6] + f[7] + f[10] + f[12] + f[13] + f[15] + f[19] + f[22];
@@ -731,7 +732,7 @@ __host__ __device__ void applyMBBC(
 		f[25] = + (1.f/4.f) * s7 + (-1.f/4.f) * s10 + (-1.f/4.f) * s12 + (1.f/4.f) * s13;
 		f[26] = + (1.f/4.f) * s8 + (1.f/4.f) * s9 + (1.f/4.f) * s11 + (1.f/4.f) * s14;
 	}
-	else if ( outerNormalX == 1 && outerNormalY == 0 && outerNormalZ == -1 )
+	if ( normalCode == 654 )
 	{
 		// Multiply S Mfk fk
 		const float smf0 = + f[0] + f[1] + f[3] + f[5] + f[6] + f[7] + f[12] + f[13] + f[16] + f[18] + f[22] + f[23];
@@ -798,7 +799,7 @@ __host__ __device__ void applyMBBC(
 		f[25] = + (1.f/4.f) * s7 + (-1.f/4.f) * s11 + (-1.f/4.f) * s12 + (1.f/4.f) * s13;
 		f[26] = + (1.f/4.f) * s8 + (1.f/4.f) * s9 + (1.f/4.f) * s10 + (1.f/4.f) * s14;
 	}
-	else if ( outerNormalX == 1 && outerNormalY == -1 && outerNormalZ == 0 )
+	if ( normalCode == 645 )
 	{
 		// Multiply S Mfk fk
 		const float smf0 = + f[0] + f[1] + f[3] + f[4] + f[5] + f[7] + f[9] + f[14] + f[16] + f[18] + f[20] + f[23];
@@ -865,7 +866,7 @@ __host__ __device__ void applyMBBC(
 		f[25] = + (1.f/4.f) * s7 + (-1.f/4.f) * s10 + (-1.f/4.f) * s12 + (1.f/4.f) * s13;
 		f[26] = + (1.f/4.f) * s8 + (1.f/4.f) * s9 + (1.f/4.f) * s11 + (1.f/4.f) * s14;
 	}
-	else if ( outerNormalX == 0 && outerNormalY == -1 && outerNormalZ == 1 )
+	if ( normalCode == 546 )
 	{
 		// Multiply S Mfk fk
 		const float smf0 = + f[0] + f[1] + f[2] + f[4] + f[5] + f[8] + f[9] + f[11] + f[14] + f[16] + f[20] + f[21];
@@ -932,7 +933,7 @@ __host__ __device__ void applyMBBC(
 		f[25] = + (1.f/4.f) * s8 + (-1.f/4.f) * s9 + (-1.f/4.f) * s11 + (1.f/4.f) * s14;
 		f[26] = + (1.f/4.f) * s7 + (1.f/4.f) * s10 + (1.f/4.f) * s12 + (1.f/4.f) * s13;
 	}
-	else if ( outerNormalX == -1 && outerNormalY == 0 && outerNormalZ == 1 )
+	if ( normalCode == 456 )
 	{
 		// Multiply S Mfk fk
 		const float smf0 = + f[0] + f[2] + f[4] + f[5] + f[6] + f[8] + f[11] + f[14] + f[15] + f[17] + f[21] + f[24];
@@ -999,7 +1000,7 @@ __host__ __device__ void applyMBBC(
 		f[25] = + (1.f/4.f) * s8 + (-1.f/4.f) * s9 + (-1.f/4.f) * s10 + (1.f/4.f) * s14;
 		f[26] = + (1.f/4.f) * s7 + (1.f/4.f) * s11 + (1.f/4.f) * s12 + (1.f/4.f) * s13;
 	}
-	else if ( outerNormalX == -1 && outerNormalY == 1 && outerNormalZ == 0 )
+	if ( normalCode == 465 )
 	{
 		// Multiply S Mfk fk
 		const float smf0 = + f[0] + f[2] + f[3] + f[4] + f[6] + f[8] + f[10] + f[13] + f[15] + f[17] + f[19] + f[24];
@@ -1066,7 +1067,7 @@ __host__ __device__ void applyMBBC(
 		f[25] = + (1.f/4.f) * s8 + (-1.f/4.f) * s9 + (-1.f/4.f) * s11 + (1.f/4.f) * s14;
 		f[26] = + (1.f/4.f) * s7 + (1.f/4.f) * s10 + (1.f/4.f) * s12 + (1.f/4.f) * s13;
 	}
-	else if ( outerNormalX == 1 && outerNormalY == 1 && outerNormalZ == 1 )
+	if ( normalCode == 666 )
 	{
 		// Multiply S Mfk fk
 		const float smf0 = + f[0] + f[1] + f[4] + f[6] + f[9] + f[12] + f[17] + f[26];
@@ -1149,7 +1150,7 @@ __host__ __device__ void applyMBBC(
 		f[24] = + (1.f/4.f) * s7 + (1.f/4.f) * s13 + (1.f/4.f) * s15 + (1.f/4.f) * s16;
 		f[25] = + s0 + (1.f/2.f) * s1 + (1.f/2.f) * s2 + (1.f/2.f) * s3 + (-1.f/2.f) * s4 + (-1.f/2.f) * s5 + (-1.f/2.f) * s6 + (1.f/4.f) * s7 + (1.f/4.f) * s8 + (1.f/4.f) * s9 + (-1.f/4.f) * s10 + (-1.f/4.f) * s11 + (-1.f/4.f) * s12 + (-1.f/4.f) * s13 + (-1.f/4.f) * s14 + (-1.f/4.f) * s15 + (1.f/4.f) * s16 + (1.f/4.f) * s17 + (1.f/4.f) * s18;
 	}
-	else if ( outerNormalX == -1 && outerNormalY == -1 && outerNormalZ == -1 )
+	if ( normalCode == 444 )
 	{
 		// Multiply S Mfk fk
 		const float smf0 = + f[0] + f[2] + f[3] + f[5] + f[10] + f[11] + f[18] + f[25];
@@ -1232,7 +1233,7 @@ __host__ __device__ void applyMBBC(
 		f[24] = + (1.f/2.f) * s1 + (-1.f/2.f) * s4 + (-1.f/4.f) * s8 + (-1.f/4.f) * s9 + (1.f/4.f) * s10 + (1.f/4.f) * s11 + (-1.f/4.f) * s12 + (-1.f/4.f) * s14 + (1.f/4.f) * s17 + (1.f/4.f) * s18;
 		f[26] = + s0 + (-1.f/2.f) * s1 + (-1.f/2.f) * s2 + (-1.f/2.f) * s3 + (-1.f/2.f) * s4 + (-1.f/2.f) * s5 + (-1.f/2.f) * s6 + (1.f/4.f) * s7 + (1.f/4.f) * s8 + (1.f/4.f) * s9 + (1.f/4.f) * s10 + (1.f/4.f) * s11 + (1.f/4.f) * s12 + (1.f/4.f) * s13 + (1.f/4.f) * s14 + (1.f/4.f) * s15 + (1.f/4.f) * s16 + (1.f/4.f) * s17 + (1.f/4.f) * s18;
 	}
-	else if ( outerNormalX == -1 && outerNormalY == 1 && outerNormalZ == 1 )
+	if ( normalCode == 466 )
 	{
 		// Multiply S Mfk fk
 		const float smf0 = + f[0] + f[2] + f[4] + f[6] + f[8] + f[15] + f[17] + f[24];
@@ -1315,7 +1316,7 @@ __host__ __device__ void applyMBBC(
 		f[25] = + (1.f/2.f) * s1 + (-1.f/2.f) * s4 + (1.f/4.f) * s8 + (1.f/4.f) * s9 + (-1.f/4.f) * s10 + (-1.f/4.f) * s11 + (-1.f/4.f) * s12 + (-1.f/4.f) * s14 + (1.f/4.f) * s17 + (1.f/4.f) * s18;
 		f[26] = + (1.f/4.f) * s7 + (1.f/4.f) * s13 + (1.f/4.f) * s15 + (1.f/4.f) * s16;
 	}
-	else if ( outerNormalX == 1 && outerNormalY == -1 && outerNormalZ == 1 )
+	if ( normalCode == 646 )
 	{
 		// Multiply S Mfk fk
 		const float smf0 = + f[0] + f[1] + f[4] + f[5] + f[9] + f[14] + f[16] + f[20];
@@ -1398,7 +1399,7 @@ __host__ __device__ void applyMBBC(
 		f[25] = + (1.f/2.f) * s2 + (-1.f/2.f) * s5 + (1.f/4.f) * s7 + (1.f/4.f) * s9 + (-1.f/4.f) * s10 + (-1.f/4.f) * s12 + (-1.f/4.f) * s13 + (-1.f/4.f) * s15 + (1.f/4.f) * s16 + (1.f/4.f) * s18;
 		f[26] = + (1.f/4.f) * s8 + (1.f/4.f) * s11 + (1.f/4.f) * s14 + (1.f/4.f) * s17;
 	}
-	else if ( outerNormalX == 1 && outerNormalY == 1 && outerNormalZ == -1 )
+	if ( normalCode == 664 )
 	{
 		// Multiply S Mfk fk
 		const float smf0 = + f[0] + f[1] + f[3] + f[6] + f[7] + f[12] + f[13] + f[22];
@@ -1481,7 +1482,7 @@ __host__ __device__ void applyMBBC(
 		f[25] = + (1.f/2.f) * s3 + (-1.f/2.f) * s6 + (1.f/4.f) * s7 + (1.f/4.f) * s8 + (-1.f/4.f) * s11 + (-1.f/4.f) * s13 + (-1.f/4.f) * s14 + (-1.f/4.f) * s15 + (1.f/4.f) * s16 + (1.f/4.f) * s17;
 		f[26] = + (1.f/4.f) * s9 + (1.f/4.f) * s10 + (1.f/4.f) * s12 + (1.f/4.f) * s18;
 	}
-	else if ( outerNormalX == 1 && outerNormalY == -1 && outerNormalZ == -1 )
+	if ( normalCode == 644 )
 	{
 		// Multiply S Mfk fk
 		const float smf0 = + f[0] + f[1] + f[3] + f[5] + f[7] + f[16] + f[18] + f[23];
@@ -1564,7 +1565,7 @@ __host__ __device__ void applyMBBC(
 		f[25] = + (1.f/4.f) * s7 + (-1.f/4.f) * s13 + (-1.f/4.f) * s15 + (1.f/4.f) * s16;
 		f[26] = + (-1.f/2.f) * s1 + (-1.f/2.f) * s4 + (1.f/4.f) * s8 + (1.f/4.f) * s9 + (1.f/4.f) * s10 + (1.f/4.f) * s11 + (1.f/4.f) * s12 + (1.f/4.f) * s14 + (1.f/4.f) * s17 + (1.f/4.f) * s18;
 	}
-	else if ( outerNormalX == -1 && outerNormalY == 1 && outerNormalZ == -1 )
+	if ( normalCode == 464 )
 	{
 		// Multiply S Mfk fk
 		const float smf0 = + f[0] + f[2] + f[3] + f[6] + f[10] + f[13] + f[15] + f[19];
@@ -1647,7 +1648,7 @@ __host__ __device__ void applyMBBC(
 		f[25] = + (1.f/4.f) * s8 + (-1.f/4.f) * s11 + (-1.f/4.f) * s14 + (1.f/4.f) * s17;
 		f[26] = + (-1.f/2.f) * s2 + (-1.f/2.f) * s5 + (1.f/4.f) * s7 + (1.f/4.f) * s9 + (1.f/4.f) * s10 + (1.f/4.f) * s12 + (1.f/4.f) * s13 + (1.f/4.f) * s15 + (1.f/4.f) * s16 + (1.f/4.f) * s18;
 	}
-	else if ( outerNormalX == -1 && outerNormalY == -1 && outerNormalZ == 1 )
+	if ( normalCode == 446 )
 	{
 		// Multiply S Mfk fk
 		const float smf0 = + f[0] + f[2] + f[4] + f[5] + f[8] + f[11] + f[14] + f[21];

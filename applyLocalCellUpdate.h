@@ -16,10 +16,8 @@ void applyLocalCellUpdate( FStruct &F, InfoStruct &Info )
 		
 		float f[27];
 		float rho, ux, uy, uz;
-		#pragma unroll
 		for ( int direction = 0; direction < 27; direction++ )	f[direction] = fArrayView(direction, shiftedIndex[direction]);
 		
-		/*
 		if ( bouncebackMarker )
 		{
 			applyBounceback(f);
@@ -58,20 +56,7 @@ void applyLocalCellUpdate( FStruct &F, InfoStruct &Info )
 			}
 			applyCollision( rho, ux, uy, uz, f );
 		}
-		*/
-		applyBounceback(f);
-		getRhoUxUyUz( rho, ux, uy, uz, f );
-		int outerNormalX, outerNormalY, outerNormalZ;
-		getOuterNormal( iCell, jCell, kCell, outerNormalX, outerNormalY, outerNormalZ, Info );
-		applyMirror( outerNormalX, outerNormalY, outerNormalZ, f );
-		/*
-		restoreUxUyUz( outerNormalX, outerNormalY, outerNormalZ, rho, ux, uy, uz, f );
-		restoreRho( outerNormalX, outerNormalY, outerNormalZ, rho, ux, uy, uz, f );
-		restoreRhoUxUyUz( outerNormalX, outerNormalY, outerNormalZ, rho, ux, uy, uz, f );
-		applyMBBC( outerNormalX, outerNormalY, outerNormalZ, rho, ux, uy, uz, f );
-		*/
-		applyCollision( rho, ux, uy, uz, f );
-		#pragma unroll
+
 		for ( int direction = 0; direction < 27; direction++ ) fArrayView( direction, shiftedIndex[direction] ) = f[direction];
 	};
 	TNL::Algorithms::parallelFor<TNL::Devices::Cuda>(0, Info.cellCount, cellLambda );

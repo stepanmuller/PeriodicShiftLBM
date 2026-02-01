@@ -4,7 +4,8 @@ __host__ __device__ void restoreRhoUxUyUz(
 	const float (&f)[27]
 )
 {
-	if ( outerNormalX == 1 && outerNormalY == 0 && outerNormalZ == 0 )
+	const int normalCode = (outerNormalX + 5) * 100 + (outerNormalY + 5) * 10 + (outerNormalZ + 5);
+	if ( normalCode == 655 )
 	{
 		// Multiply (Sq C^T Q)^-1 Sq C^T Mfk fk
 		const float q0 = + (3.f/2.f) * f[0] + (3.f/2.f) * f[3] + (3.f/2.f) * f[4] + (3.f/2.f) * f[5] + (3.f/2.f) * f[6] + (3.f/2.f) * f[13] + (3.f/2.f) * f[14] + (3.f/2.f) * f[17] + (3.f/2.f) * f[18];
@@ -16,7 +17,7 @@ __host__ __device__ void restoreRhoUxUyUz(
 		uy = q2 / rho;
 		uz = q3 / rho;
 	}
-	else if ( outerNormalX == 0 && outerNormalY == 1 && outerNormalZ == 0 )
+	if ( normalCode == 565 )
 	{
 		// Multiply (Sq C^T Q)^-1 Sq C^T Mfk fk
 		const float q0 = + (3.f/2.f) * f[0] + (3.f/2.f) * f[1] + (3.f/2.f) * f[2] + (3.f/2.f) * f[3] + (3.f/2.f) * f[4] + (3.f/2.f) * f[7] + (3.f/2.f) * f[8] + (3.f/2.f) * f[9] + (3.f/2.f) * f[10];
@@ -28,7 +29,7 @@ __host__ __device__ void restoreRhoUxUyUz(
 		uy = q2 / rho;
 		uz = q3 / rho;
 	}
-	else if ( outerNormalX == 0 && outerNormalY == 0 && outerNormalZ == 1 )
+	if ( normalCode == 556 )
 	{
 		// Multiply (Sq C^T Q)^-1 Sq C^T Mfk fk
 		const float q0 = + (3.f/2.f) * f[0] + (3.f/2.f) * f[1] + (3.f/2.f) * f[2] + (3.f/2.f) * f[5] + (3.f/2.f) * f[6] + (3.f/2.f) * f[11] + (3.f/2.f) * f[12] + (3.f/2.f) * f[15] + (3.f/2.f) * f[16];
@@ -40,7 +41,7 @@ __host__ __device__ void restoreRhoUxUyUz(
 		uy = q2 / rho;
 		uz = q3 / rho;
 	}
-	else if ( outerNormalX == -1 && outerNormalY == 0 && outerNormalZ == 0 )
+	if ( normalCode == 455 )
 	{
 		// Multiply (Sq C^T Q)^-1 Sq C^T Mfk fk
 		const float q0 = + (3.f/2.f) * f[0] + (3.f/2.f) * f[3] + (3.f/2.f) * f[4] + (3.f/2.f) * f[5] + (3.f/2.f) * f[6] + (3.f/2.f) * f[13] + (3.f/2.f) * f[14] + (3.f/2.f) * f[17] + (3.f/2.f) * f[18];
@@ -52,7 +53,7 @@ __host__ __device__ void restoreRhoUxUyUz(
 		uy = q2 / rho;
 		uz = q3 / rho;
 	}
-	else if ( outerNormalX == 0 && outerNormalY == -1 && outerNormalZ == 0 )
+	if ( normalCode == 545 )
 	{
 		// Multiply (Sq C^T Q)^-1 Sq C^T Mfk fk
 		const float q0 = + (3.f/2.f) * f[0] + (3.f/2.f) * f[1] + (3.f/2.f) * f[2] + (3.f/2.f) * f[3] + (3.f/2.f) * f[4] + (3.f/2.f) * f[7] + (3.f/2.f) * f[8] + (3.f/2.f) * f[9] + (3.f/2.f) * f[10];
@@ -64,7 +65,7 @@ __host__ __device__ void restoreRhoUxUyUz(
 		uy = q2 / rho;
 		uz = q3 / rho;
 	}
-	else if ( outerNormalX == 0 && outerNormalY == 0 && outerNormalZ == -1 )
+	if ( normalCode == 554 )
 	{
 		// Multiply (Sq C^T Q)^-1 Sq C^T Mfk fk
 		const float q0 = + (3.f/2.f) * f[0] + (3.f/2.f) * f[1] + (3.f/2.f) * f[2] + (3.f/2.f) * f[5] + (3.f/2.f) * f[6] + (3.f/2.f) * f[11] + (3.f/2.f) * f[12] + (3.f/2.f) * f[15] + (3.f/2.f) * f[16];
@@ -76,7 +77,7 @@ __host__ __device__ void restoreRhoUxUyUz(
 		uy = q2 / rho;
 		uz = q3 / rho;
 	}
-	else if ( outerNormalX == 0 && outerNormalY == 1 && outerNormalZ == 1 )
+	if ( normalCode == 566 )
 	{
 		// Multiply (Sq C^T Q)^-1 Sq C^T Mfk fk
 		const float q0 = + (2.f) * f[0] + (2.f) * f[1] + (2.f) * f[2] + f[4] + f[6] + f[8] + f[9] + f[12] + f[15] + (-4.f) * f[17] + (-4.f) * f[24] + (-4.f) * f[26];
@@ -88,7 +89,7 @@ __host__ __device__ void restoreRhoUxUyUz(
 		uy = q2 / rho;
 		uz = q3 / rho;
 	}
-	else if ( outerNormalX == 1 && outerNormalY == 0 && outerNormalZ == 1 )
+	if ( normalCode == 656 )
 	{
 		// Multiply (Sq C^T Q)^-1 Sq C^T Mfk fk
 		const float q0 = + (2.f) * f[0] + f[1] + f[4] + (2.f) * f[5] + (2.f) * f[6] + (-4.f) * f[9] + f[12] + f[14] + f[16] + f[17] + (-4.f) * f[20] + (-4.f) * f[26];
@@ -100,7 +101,7 @@ __host__ __device__ void restoreRhoUxUyUz(
 		uy = q2 / rho;
 		uz = q3 / rho;
 	}
-	else if ( outerNormalX == 1 && outerNormalY == 1 && outerNormalZ == 0 )
+	if ( normalCode == 665 )
 	{
 		// Multiply (Sq C^T Q)^-1 Sq C^T Mfk fk
 		const float q0 = + (2.f) * f[0] + f[1] + (2.f) * f[3] + (2.f) * f[4] + f[6] + f[7] + f[9] + (-4.f) * f[12] + f[13] + f[17] + (-4.f) * f[22] + (-4.f) * f[26];
@@ -112,7 +113,7 @@ __host__ __device__ void restoreRhoUxUyUz(
 		uy = q2 / rho;
 		uz = q3 / rho;
 	}
-	else if ( outerNormalX == 0 && outerNormalY == -1 && outerNormalZ == -1 )
+	if ( normalCode == 544 )
 	{
 		// Multiply (Sq C^T Q)^-1 Sq C^T Mfk fk
 		const float q0 = + (2.f) * f[0] + (2.f) * f[1] + (2.f) * f[2] + f[3] + f[5] + f[7] + f[10] + f[11] + f[16] + (-4.f) * f[18] + (-4.f) * f[23] + (-4.f) * f[25];
@@ -124,7 +125,7 @@ __host__ __device__ void restoreRhoUxUyUz(
 		uy = q2 / rho;
 		uz = q3 / rho;
 	}
-	else if ( outerNormalX == -1 && outerNormalY == 0 && outerNormalZ == -1 )
+	if ( normalCode == 454 )
 	{
 		// Multiply (Sq C^T Q)^-1 Sq C^T Mfk fk
 		const float q0 = + (2.f) * f[0] + f[2] + f[3] + (2.f) * f[5] + (2.f) * f[6] + (-4.f) * f[10] + f[11] + f[13] + f[15] + f[18] + (-4.f) * f[19] + (-4.f) * f[25];
@@ -136,7 +137,7 @@ __host__ __device__ void restoreRhoUxUyUz(
 		uy = q2 / rho;
 		uz = q3 / rho;
 	}
-	else if ( outerNormalX == -1 && outerNormalY == -1 && outerNormalZ == 0 )
+	if ( normalCode == 445 )
 	{
 		// Multiply (Sq C^T Q)^-1 Sq C^T Mfk fk
 		const float q0 = + (2.f) * f[0] + f[2] + (2.f) * f[3] + (2.f) * f[4] + f[5] + f[8] + f[10] + (-4.f) * f[11] + f[14] + f[18] + (-4.f) * f[21] + (-4.f) * f[25];
@@ -148,7 +149,7 @@ __host__ __device__ void restoreRhoUxUyUz(
 		uy = q2 / rho;
 		uz = q3 / rho;
 	}
-	else if ( outerNormalX == 0 && outerNormalY == 1 && outerNormalZ == -1 )
+	if ( normalCode == 564 )
 	{
 		// Multiply (Sq C^T Q)^-1 Sq C^T Mfk fk
 		const float q0 = + (2.f) * f[0] + (2.f) * f[1] + (2.f) * f[2] + f[3] + f[6] + f[7] + f[10] + f[12] + (-4.f) * f[13] + f[15] + (-4.f) * f[19] + (-4.f) * f[22];
@@ -160,7 +161,7 @@ __host__ __device__ void restoreRhoUxUyUz(
 		uy = q2 / rho;
 		uz = q3 / rho;
 	}
-	else if ( outerNormalX == 1 && outerNormalY == 0 && outerNormalZ == -1 )
+	if ( normalCode == 654 )
 	{
 		// Multiply (Sq C^T Q)^-1 Sq C^T Mfk fk
 		const float q0 = + (2.f) * f[0] + f[1] + f[3] + (2.f) * f[5] + (2.f) * f[6] + (-4.f) * f[7] + f[12] + f[13] + f[16] + f[18] + (-4.f) * f[22] + (-4.f) * f[23];
@@ -172,7 +173,7 @@ __host__ __device__ void restoreRhoUxUyUz(
 		uy = q2 / rho;
 		uz = q3 / rho;
 	}
-	else if ( outerNormalX == 1 && outerNormalY == -1 && outerNormalZ == 0 )
+	if ( normalCode == 645 )
 	{
 		// Multiply (Sq C^T Q)^-1 Sq C^T Mfk fk
 		const float q0 = + (2.f) * f[0] + f[1] + (2.f) * f[3] + (2.f) * f[4] + f[5] + f[7] + f[9] + f[14] + (-4.f) * f[16] + f[18] + (-4.f) * f[20] + (-4.f) * f[23];
@@ -184,7 +185,7 @@ __host__ __device__ void restoreRhoUxUyUz(
 		uy = q2 / rho;
 		uz = q3 / rho;
 	}
-	else if ( outerNormalX == 0 && outerNormalY == -1 && outerNormalZ == 1 )
+	if ( normalCode == 546 )
 	{
 		// Multiply (Sq C^T Q)^-1 Sq C^T Mfk fk
 		const float q0 = + (2.f) * f[0] + (2.f) * f[1] + (2.f) * f[2] + f[4] + f[5] + f[8] + f[9] + f[11] + (-4.f) * f[14] + f[16] + (-4.f) * f[20] + (-4.f) * f[21];
@@ -196,7 +197,7 @@ __host__ __device__ void restoreRhoUxUyUz(
 		uy = q2 / rho;
 		uz = q3 / rho;
 	}
-	else if ( outerNormalX == -1 && outerNormalY == 0 && outerNormalZ == 1 )
+	if ( normalCode == 456 )
 	{
 		// Multiply (Sq C^T Q)^-1 Sq C^T Mfk fk
 		const float q0 = + (2.f) * f[0] + f[2] + f[4] + (2.f) * f[5] + (2.f) * f[6] + (-4.f) * f[8] + f[11] + f[14] + f[15] + f[17] + (-4.f) * f[21] + (-4.f) * f[24];
@@ -208,7 +209,7 @@ __host__ __device__ void restoreRhoUxUyUz(
 		uy = q2 / rho;
 		uz = q3 / rho;
 	}
-	else if ( outerNormalX == -1 && outerNormalY == 1 && outerNormalZ == 0 )
+	if ( normalCode == 465 )
 	{
 		// Multiply (Sq C^T Q)^-1 Sq C^T Mfk fk
 		const float q0 = + (2.f) * f[0] + f[2] + (2.f) * f[3] + (2.f) * f[4] + f[6] + f[8] + f[10] + f[13] + (-4.f) * f[15] + f[17] + (-4.f) * f[19] + (-4.f) * f[24];
@@ -220,7 +221,7 @@ __host__ __device__ void restoreRhoUxUyUz(
 		uy = q2 / rho;
 		uz = q3 / rho;
 	}
-	else if ( outerNormalX == 1 && outerNormalY == 1 && outerNormalZ == 1 )
+	if ( normalCode == 666 )
 	{
 		// Multiply (Sq C^T Q)^-1 Sq C^T Mfk fk
 		const float q0 = + (5.f/2.f) * f[0] + (2.f) * f[1] + (2.f) * f[4] + (2.f) * f[6] + (-2.f) * f[9] + (-2.f) * f[12] + (-2.f) * f[17] + (-16.f) * f[26];
@@ -232,7 +233,7 @@ __host__ __device__ void restoreRhoUxUyUz(
 		uy = q2 / rho;
 		uz = q3 / rho;
 	}
-	else if ( outerNormalX == -1 && outerNormalY == -1 && outerNormalZ == -1 )
+	if ( normalCode == 444 )
 	{
 		// Multiply (Sq C^T Q)^-1 Sq C^T Mfk fk
 		const float q0 = + (5.f/2.f) * f[0] + (2.f) * f[2] + (2.f) * f[3] + (2.f) * f[5] + (-2.f) * f[10] + (-2.f) * f[11] + (-2.f) * f[18] + (-16.f) * f[25];
@@ -244,7 +245,7 @@ __host__ __device__ void restoreRhoUxUyUz(
 		uy = q2 / rho;
 		uz = q3 / rho;
 	}
-	else if ( outerNormalX == -1 && outerNormalY == 1 && outerNormalZ == 1 )
+	if ( normalCode == 466 )
 	{
 		// Multiply (Sq C^T Q)^-1 Sq C^T Mfk fk
 		const float q0 = + (5.f/2.f) * f[0] + (2.f) * f[2] + (2.f) * f[4] + (2.f) * f[6] + (-2.f) * f[8] + (-2.f) * f[15] + (-2.f) * f[17] + (-16.f) * f[24];
@@ -256,7 +257,7 @@ __host__ __device__ void restoreRhoUxUyUz(
 		uy = q2 / rho;
 		uz = q3 / rho;
 	}
-	else if ( outerNormalX == 1 && outerNormalY == -1 && outerNormalZ == 1 )
+	if ( normalCode == 646 )
 	{
 		// Multiply (Sq C^T Q)^-1 Sq C^T Mfk fk
 		const float q0 = + (5.f/2.f) * f[0] + (2.f) * f[1] + (2.f) * f[4] + (2.f) * f[5] + (-2.f) * f[9] + (-2.f) * f[14] + (-2.f) * f[16] + (-16.f) * f[20];
@@ -268,7 +269,7 @@ __host__ __device__ void restoreRhoUxUyUz(
 		uy = q2 / rho;
 		uz = q3 / rho;
 	}
-	else if ( outerNormalX == 1 && outerNormalY == 1 && outerNormalZ == -1 )
+	if ( normalCode == 664 )
 	{
 		// Multiply (Sq C^T Q)^-1 Sq C^T Mfk fk
 		const float q0 = + (5.f/2.f) * f[0] + (2.f) * f[1] + (2.f) * f[3] + (2.f) * f[6] + (-2.f) * f[7] + (-2.f) * f[12] + (-2.f) * f[13] + (-16.f) * f[22];
@@ -280,7 +281,7 @@ __host__ __device__ void restoreRhoUxUyUz(
 		uy = q2 / rho;
 		uz = q3 / rho;
 	}
-	else if ( outerNormalX == 1 && outerNormalY == -1 && outerNormalZ == -1 )
+	if ( normalCode == 644 )
 	{
 		// Multiply (Sq C^T Q)^-1 Sq C^T Mfk fk
 		const float q0 = + (5.f/2.f) * f[0] + (2.f) * f[1] + (2.f) * f[3] + (2.f) * f[5] + (-2.f) * f[7] + (-2.f) * f[16] + (-2.f) * f[18] + (-16.f) * f[23];
@@ -292,7 +293,7 @@ __host__ __device__ void restoreRhoUxUyUz(
 		uy = q2 / rho;
 		uz = q3 / rho;
 	}
-	else if ( outerNormalX == -1 && outerNormalY == 1 && outerNormalZ == -1 )
+	if ( normalCode == 464 )
 	{
 		// Multiply (Sq C^T Q)^-1 Sq C^T Mfk fk
 		const float q0 = + (5.f/2.f) * f[0] + (2.f) * f[2] + (2.f) * f[3] + (2.f) * f[6] + (-2.f) * f[10] + (-2.f) * f[13] + (-2.f) * f[15] + (-16.f) * f[19];
@@ -304,7 +305,7 @@ __host__ __device__ void restoreRhoUxUyUz(
 		uy = q2 / rho;
 		uz = q3 / rho;
 	}
-	else if ( outerNormalX == -1 && outerNormalY == -1 && outerNormalZ == 1 )
+	if ( normalCode == 446 )
 	{
 		// Multiply (Sq C^T Q)^-1 Sq C^T Mfk fk
 		const float q0 = + (5.f/2.f) * f[0] + (2.f) * f[2] + (2.f) * f[4] + (2.f) * f[5] + (-2.f) * f[8] + (-2.f) * f[11] + (-2.f) * f[14] + (-16.f) * f[21];

@@ -255,7 +255,7 @@ allNormals = [	[1,0,0], [0,1,0], [0,0,1], [-1,0,0], [0,-1,0], [0,0,-1],
 				[0,1,-1], [1,0,-1], [1,-1,0], [0,-1,1], [-1,0,1], [-1,1,0],
 				[1,1,1], [-1,-1,-1], 
 				[-1,1,1], [1,-1,1], [1,1,-1], [1,-1,-1], [-1,1,-1], [-1,-1,1] ]
-"""
+
 #### applyMBBC
 allLines = []
 for index, normal in enumerate(allNormals):
@@ -350,6 +350,7 @@ allLines.append("}")
 with open("results/restoreRho.h", "w") as file:
 	file.write("\n".join(allLines))
 
+"""
 #### Latex Tables
 normal = [1, -1, 1]
 fk, fu, mfk, mfu, C, S, Sq, Su, Srho = getBCdata(normal)
