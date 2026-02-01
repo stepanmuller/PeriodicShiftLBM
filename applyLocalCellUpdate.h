@@ -1,10 +1,7 @@
 void applyLocalCellUpdate( FStruct &F, InfoStruct &Info )
 {
 	auto fArrayView  = F.fArray.getView();
-	//auto shifterView  = F.shifter.getConstView();
-	
-	int shifter[27];
-	for ( int direction = 0; direction < 27; direction++ ) shifter[direction] = F.shifter.getElement( direction );
+	auto shifterView  = F.shifter.getConstView();
 	
 	auto cellLambda = [=] __cuda_callable__ ( const int cell ) mutable
 	{
@@ -12,17 +9,17 @@ void applyLocalCellUpdate( FStruct &F, InfoStruct &Info )
 		getIJKCellIndex( cell, iCell, jCell, kCell, Info );
 			
 		int shiftedIndex[27];
-		getShiftedIndex( cell, shiftedIndex, shifter, Info );
+		getShiftedIndex( cell, shiftedIndex, shifterView, Info );
 		
 		bool fluidMarker, bouncebackMarker, mirrorMarker, givenRhoMarker, givenUxUyUzMarker;
 		getMarkers( iCell, jCell, kCell, fluidMarker, bouncebackMarker, mirrorMarker, givenRhoMarker, givenUxUyUzMarker, Info );
 		
 		float f[27];
 		float rho, ux, uy, uz;
-		
+		#pragma unroll
 		for ( int direction = 0; direction < 27; direction++ )	f[direction] = fArrayView(direction, shiftedIndex[direction]);
-		//for ( int direction = 0; direction < 27; direction++ )	f[direction] = fArrayView(direction, cell);
 		
+		/*
 		if ( bouncebackMarker )
 		{
 			applyBounceback(f);
@@ -61,8 +58,21 @@ void applyLocalCellUpdate( FStruct &F, InfoStruct &Info )
 			}
 			applyCollision( rho, ux, uy, uz, f );
 		}
+		*/
+		applyBounceback(f);
+		getRhoUxUyUz( rho, ux, uy, uz, f );
+		int outerNormalX, outerNormalY, outerNormalZ;
+		getOuterNormal( iCell, jCell, kCell, outerNormalX, outerNormalY, outerNormalZ, Info );
+		applyMirror( outerNormalX, outerNormalY, outerNormalZ, f );
+		/*
+		restoreUxUyUz( outerNormalX, outerNormalY, outerNormalZ, rho, ux, uy, uz, f );
+		restoreRho( outerNormalX, outerNormalY, outerNormalZ, rho, ux, uy, uz, f );
+		restoreRhoUxUyUz( outerNormalX, outerNormalY, outerNormalZ, rho, ux, uy, uz, f );
+		applyMBBC( outerNormalX, outerNormalY, outerNormalZ, rho, ux, uy, uz, f );
+		*/
+		applyCollision( rho, ux, uy, uz, f );
+		#pragma unroll
 		for ( int direction = 0; direction < 27; direction++ ) fArrayView( direction, shiftedIndex[direction] ) = f[direction];
-		//for ( int direction = 0; direction < 27; direction++ ) fArrayView( direction, cell ) = f[direction];
 	};
 	TNL::Algorithms::parallelFor<TNL::Devices::Cuda>(0, Info.cellCount, cellLambda );
 }
