@@ -27,7 +27,7 @@ void applyLocalCellUpdate( FStruct &F, InfoStruct &Info )
 		{
 			if ( fluidMarker )
 			{
-				// do nothing just skip the else block below
+				// do nothing, just skip the else block below
 			}
 			else
 			{
@@ -61,10 +61,11 @@ void applyLocalCellUpdate( FStruct &F, InfoStruct &Info )
 }
 
 // Version with bouncebackMarker loaded from memory
-void applyLocalCellUpdate( FStruct &F, InfoStruct &Info )
+void applyLocalCellUpdate( FStruct &F, BoolArray3DType bouncebackArray, InfoStruct &Info )
 {
 	auto fArrayView  = F.fArray.getView();
 	auto shifterView  = F.shifter.getConstView();
+	auto bouncebackArrayView = bouncebackArray.getConstView();
 	
 	auto cellLambda = [=] __cuda_callable__ ( const int cell ) mutable
 	{
@@ -75,6 +76,7 @@ void applyLocalCellUpdate( FStruct &F, InfoStruct &Info )
 		getShiftedIndex( cell, shiftedIndex, shifterView, Info );
 		
 		bool fluidMarker, bouncebackMarker, mirrorMarker, periodicMarker, givenRhoMarker, givenUxUyUzMarker;
+		bouncebackMarker = bouncebackArrayView( iCell, jCell, kCell );
 		getMarkers( iCell, jCell, kCell, fluidMarker, bouncebackMarker, mirrorMarker, periodicMarker, givenRhoMarker, givenUxUyUzMarker, Info );
 		
 		float f[27];
@@ -89,7 +91,7 @@ void applyLocalCellUpdate( FStruct &F, InfoStruct &Info )
 		{
 			if ( fluidMarker )
 			{
-				// do nothing just skip the else block below
+				// do nothing, just skip the else block below
 			}
 			else
 			{

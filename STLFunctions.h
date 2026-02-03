@@ -1,112 +1,112 @@
-void readSTL( STLArbeiterStructCPU& STLArbeiterCPU, const std::string& filename )
+void readSTL( STLStructCPU& STLCPU, const std::string& filename )
 {
 	std::cout << "Reading STL: " << filename << std::endl;
 	std::ifstream file(filename, std::ios::binary);
-	if (!file.is_open()) throw std::runtime_error("Failed to open STL file");
+	if ( !file.is_open() ) throw std::runtime_error("Failed to open STL file");
 	
 	 // Skip header
     char header[80];
-    file.read(header, 80);
+    file.read( header, 80 );
 
     uint32_t triangleCount32;
-	file.read(reinterpret_cast<char*>(&triangleCount32), sizeof(uint32_t));
-	size_t triangleCount = static_cast<size_t>(triangleCount32);
-	STLArbeiterCPU.triangleCount = triangleCount;
+	file.read( reinterpret_cast<char*>(&triangleCount32), sizeof(uint32_t) );
+	int triangleCount = static_cast<int>( triangleCount32 );
+	STLCPU.triangleCount = triangleCount;
     
     std::cout<<"	triangleCount: "<< triangleCount << std::endl;
 
-    STLArbeiterCPU.axArray = FloatArrayTypeCPU(triangleCount);
-    STLArbeiterCPU.ayArray = FloatArrayTypeCPU(triangleCount);
-    STLArbeiterCPU.azArray = FloatArrayTypeCPU(triangleCount);
+    STLCPU.axArray = FloatArrayTypeCPU( triangleCount );
+    STLCPU.ayArray = FloatArrayTypeCPU( triangleCount );
+    STLCPU.azArray = FloatArrayTypeCPU( triangleCount );
 
-    STLArbeiterCPU.bxArray = FloatArrayTypeCPU(triangleCount);
-    STLArbeiterCPU.byArray = FloatArrayTypeCPU(triangleCount);
-    STLArbeiterCPU.bzArray = FloatArrayTypeCPU(triangleCount);
+    STLCPU.bxArray = FloatArrayTypeCPU( triangleCount );
+    STLCPU.byArray = FloatArrayTypeCPU( triangleCount );
+    STLCPU.bzArray = FloatArrayTypeCPU( triangleCount );
 
-    STLArbeiterCPU.cxArray = FloatArrayTypeCPU(triangleCount);
-    STLArbeiterCPU.cyArray = FloatArrayTypeCPU(triangleCount);
-    STLArbeiterCPU.czArray = FloatArrayTypeCPU(triangleCount);
+    STLCPU.cxArray = FloatArrayTypeCPU( triangleCount );
+    STLCPU.cyArray = FloatArrayTypeCPU( triangleCount );
+    STLCPU.czArray = FloatArrayTypeCPU( triangleCount );
     
     // Initialize minmax
-    STLArbeiterCPU.xmin = std::numeric_limits<float>::max();
-	STLArbeiterCPU.ymin = std::numeric_limits<float>::max();
-	STLArbeiterCPU.zmin = std::numeric_limits<float>::max();
+    STLCPU.xmin = std::numeric_limits<float>::max();
+	STLCPU.ymin = std::numeric_limits<float>::max();
+	STLCPU.zmin = std::numeric_limits<float>::max();
 
-	STLArbeiterCPU.xmax = std::numeric_limits<float>::lowest();
-	STLArbeiterCPU.ymax = std::numeric_limits<float>::lowest();
-	STLArbeiterCPU.zmax = std::numeric_limits<float>::lowest();
+	STLCPU.xmax = std::numeric_limits<float>::lowest();
+	STLCPU.ymax = std::numeric_limits<float>::lowest();
+	STLCPU.zmax = std::numeric_limits<float>::lowest();
 
-    for (size_t triangle = 0; triangle < triangleCount; triangle++)
+    for ( int triangle = 0; triangle < triangleCount; triangle++ )
     {
-        float nx, ny, nz;
         float ax, ay, az;
         float bx, by, bz;
         float cx, cy, cz;
         uint16_t attr;
 
-        file.read(reinterpret_cast<char*>(&nx), 4);
-        file.read(reinterpret_cast<char*>(&ny), 4);
-        file.read(reinterpret_cast<char*>(&nz), 4);
+		// Skip normal (nx, ny, nz) = 3 floats = 12 bytes
+		file.seekg(12, std::ios::cur);
 
-        file.read(reinterpret_cast<char*>(&ax), 4);
-        file.read(reinterpret_cast<char*>(&ay), 4);
-        file.read(reinterpret_cast<char*>(&az), 4);
+        file.read( reinterpret_cast<char*>(&ax), 4 );
+        file.read( reinterpret_cast<char*>(&ay), 4 );
+        file.read( reinterpret_cast<char*>(&az), 4 );
 
-        file.read(reinterpret_cast<char*>(&bx), 4);
-        file.read(reinterpret_cast<char*>(&by), 4);
-        file.read(reinterpret_cast<char*>(&bz), 4);
+        file.read( reinterpret_cast<char*>(&bx), 4 );
+        file.read( reinterpret_cast<char*>(&by), 4 );
+        file.read( reinterpret_cast<char*>(&bz), 4 );
 
-        file.read(reinterpret_cast<char*>(&cx), 4);
-        file.read(reinterpret_cast<char*>(&cy), 4);
-        file.read(reinterpret_cast<char*>(&cz), 4);
+        file.read( reinterpret_cast<char*>(&cx), 4 );
+        file.read( reinterpret_cast<char*>(&cy), 4 );
+        file.read( reinterpret_cast<char*>(&cz), 4 );
 
-        file.read(reinterpret_cast<char*>(&attr), 2);
+        file.read( reinterpret_cast<char*>(&attr), 2 );
 
-        STLArbeiterCPU.axArray[triangle] = ax;
-        STLArbeiterCPU.ayArray[triangle] = ay;
-        STLArbeiterCPU.azArray[triangle] = az;
+        STLCPU.axArray[triangle] = ax;
+        STLCPU.ayArray[triangle] = ay;
+        STLCPU.azArray[triangle] = az;
 
-        STLArbeiterCPU.bxArray[triangle] = bx;
-        STLArbeiterCPU.byArray[triangle] = by;
-        STLArbeiterCPU.bzArray[triangle] = bz;
+        STLCPU.bxArray[triangle] = bx;
+        STLCPU.byArray[triangle] = by;
+        STLCPU.bzArray[triangle] = bz;
 
-        STLArbeiterCPU.cxArray[triangle] = cx;
-        STLArbeiterCPU.cyArray[triangle] = cy;
-        STLArbeiterCPU.czArray[triangle] = cz;
+        STLCPU.cxArray[triangle] = cx;
+        STLCPU.cyArray[triangle] = cy;
+        STLCPU.czArray[triangle] = cz;
         
          // Update bounding box (vertices only)
-        STLArbeiterCPU.xmin = std::min(STLArbeiterCPU.xmin, std::min({ax, bx, cx}));
-        STLArbeiterCPU.ymin = std::min(STLArbeiterCPU.ymin, std::min({ay, by, cy}));
-        STLArbeiterCPU.zmin = std::min(STLArbeiterCPU.zmin, std::min({az, bz, cz}));
+        STLCPU.xmin = std::min(STLCPU.xmin, std::min({ax, bx, cx}));
+        STLCPU.ymin = std::min(STLCPU.ymin, std::min({ay, by, cy}));
+        STLCPU.zmin = std::min(STLCPU.zmin, std::min({az, bz, cz}));
 
-        STLArbeiterCPU.xmax = std::max(STLArbeiterCPU.xmax, std::max({ax, bx, cx}));
-        STLArbeiterCPU.ymax = std::max(STLArbeiterCPU.ymax, std::max({ay, by, cy}));
-        STLArbeiterCPU.zmax = std::max(STLArbeiterCPU.zmax, std::max({az, bz, cz}));
+        STLCPU.xmax = std::max(STLCPU.xmax, std::max({ax, bx, cx}));
+        STLCPU.ymax = std::max(STLCPU.ymax, std::max({ay, by, cy}));
+        STLCPU.zmax = std::max(STLCPU.zmax, std::max({az, bz, cz}));
     }
-    std::cout << "	xmin xmax: " << STLArbeiterCPU.xmin << " " << STLArbeiterCPU.xmax << "\n";
-    std::cout << "	ymin ymax: " << STLArbeiterCPU.ymin << " " << STLArbeiterCPU.ymax << "\n";
-    std::cout << "	zmin zmax: " << STLArbeiterCPU.zmin << " " << STLArbeiterCPU.zmax << "\n";
+    std::cout << "	xmin xmax: " << STLCPU.xmin << " " << STLCPU.xmax << "\n";
+    std::cout << "	ymin ymax: " << STLCPU.ymin << " " << STLCPU.ymax << "\n";
+    std::cout << "	zmin zmax: " << STLCPU.zmin << " " << STLCPU.zmax << "\n";
 }
 
-void checkSTLEdges( STLArbeiterStruct &STLArbeiter )
+
+void checkSTLEdges( STLStruct &STL )
+// For every edge, counts number of triangles that share it. Must be always 2 for a closed STL.
 {
 	std::cout << "Starting STL check for shared edges" << std::endl;
-	auto axArrayView = STLArbeiter.axArray.getConstView();
-	auto ayArrayView = STLArbeiter.ayArray.getConstView();
-	auto azArrayView = STLArbeiter.azArray.getConstView();
-	auto bxArrayView = STLArbeiter.bxArray.getConstView();
-	auto byArrayView = STLArbeiter.byArray.getConstView();
-	auto bzArrayView = STLArbeiter.bzArray.getConstView();
-	auto cxArrayView = STLArbeiter.cxArray.getConstView();
-	auto cyArrayView = STLArbeiter.cyArray.getConstView();
-	auto czArrayView = STLArbeiter.czArray.getConstView();
+	auto axArrayView = STL.axArray.getConstView();
+	auto ayArrayView = STL.ayArray.getConstView();
+	auto azArrayView = STL.azArray.getConstView();
+	auto bxArrayView = STL.bxArray.getConstView();
+	auto byArrayView = STL.byArray.getConstView();
+	auto bzArrayView = STL.bzArray.getConstView();
+	auto cxArrayView = STL.cxArray.getConstView();
+	auto cyArrayView = STL.cyArray.getConstView();
+	auto czArrayView = STL.czArray.getConstView();
 	
-	CounterArray2DType edgeCounterArray;
-	edgeCounterArray.setSizes(STLArbeiter.triangleCount, 3);
+	IntArray2DType edgeCounterArray;
+	edgeCounterArray.setSizes( STL.triangleCount, 3 );
 	edgeCounterArray.setValue(0);
 	auto edgeCounterArrayView = edgeCounterArray.getView();
 
-    auto counterLambda = [ = ] __cuda_callable__( size_t triangle1Index ) mutable
+    auto counterLambda = [ = ] __cuda_callable__( const int triangle1Index ) mutable
     {		
 		float triangle1[9];
 		triangle1[0] = axArrayView[ triangle1Index ];
@@ -119,7 +119,7 @@ void checkSTLEdges( STLArbeiterStruct &STLArbeiter )
 		triangle1[7] = cyArrayView[ triangle1Index ];
 		triangle1[8] = czArrayView[ triangle1Index ];
 		
-		for (size_t triangle2Index = 0; triangle2Index < STLArbeiter.triangleCount; triangle2Index++) 
+		for ( int triangle2Index = 0; triangle2Index < STL.triangleCount; triangle2Index++ ) 
 		{
 			float triangle2[9];
 			triangle2[0] = axArrayView[ triangle2Index ];
@@ -132,9 +132,9 @@ void checkSTLEdges( STLArbeiterStruct &STLArbeiter )
 			triangle2[7] = cyArrayView[ triangle2Index ];
 			triangle2[8] = czArrayView[ triangle2Index ];
 			
-			for (int edge1 = 0; edge1 < 3; edge1++)
+			for ( int edge1 = 0; edge1 < 3; edge1++ )
 			{
-				for (int edge2 = 0; edge2 < 3; edge2++)
+				for ( int edge2 = 0; edge2 < 3; edge2++ )
 				{
 					float ax1 = triangle1[3*edge1];
 					float ay1 = triangle1[3*edge1+1];
@@ -163,13 +163,13 @@ void checkSTLEdges( STLArbeiterStruct &STLArbeiter )
 			}
 		}
 	};
-	TNL::Algorithms::parallelFor<TNL::Devices::Cuda>( 0, STLArbeiter.triangleCount, counterLambda );
+	TNL::Algorithms::parallelFor<TNL::Devices::Cuda>( 0, STL.triangleCount, counterLambda );
 	int errorCounter = 0;
-	for (size_t triangleIndex = 0; triangleIndex < STLArbeiter.triangleCount; triangleIndex++ )
+	for ( int triangleIndex = 0; triangleIndex < STL.triangleCount; triangleIndex++ )
     {
-		int ABcount = edgeCounterArray.getElement(triangleIndex, 0);
-		int BCcount = edgeCounterArray.getElement(triangleIndex, 1);
-		int CAcount = edgeCounterArray.getElement(triangleIndex, 2);
+		int ABcount = edgeCounterArray.getElement( triangleIndex, 0 );
+		int BCcount = edgeCounterArray.getElement( triangleIndex, 1 );
+		int CAcount = edgeCounterArray.getElement( triangleIndex, 2 );
 		if (ABcount != 2 || BCcount != 2 || CAcount != 2)
 		{
 			errorCounter++;
@@ -179,6 +179,7 @@ void checkSTLEdges( STLArbeiterStruct &STLArbeiter )
 	std::cout<< "	Total shared edge problems: " << errorCounter << std::endl; 
 }
 
+/*
 __host__ __device__ void rayHitDetector(const long long &ak, const long long &al, 
 										const long long &bk, const long long &bl,
 										const long long &ck, const long long &cl,
@@ -479,3 +480,4 @@ void applyMarkersFromSTL( MarkerStruct &Marker, STLArbeiterStruct &STLArbeiter, 
 	TNL::Algorithms::parallelFor<TNL::Devices::Cuda>(startList, endList, rayLambda );	
 	std::cout << "	Bounceback markers applied from STL" << std::endl;
 }
+*/

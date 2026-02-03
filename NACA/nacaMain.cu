@@ -1,60 +1,141 @@
-// input physics
 constexpr float res = 1.2f; 											// mm
-constexpr float uzInlet = 0.05f; 										// also works as nominal LBM Mach number
+constexpr float uxInlet = 0.05f; 										// also works as nominal LBM Mach number
 
 constexpr float nuPhys = 1.5e-5;										// m2/s air
 constexpr float rhoNominalPhys = 1.225f;								// kg/m3 water
 constexpr float SmagorinskyConstant = 0.0f; 							// set to zero to turn off LES
 
-// calculated from input
-constexpr float uzInletPhys = 90.f; 								// m/s
-constexpr float dtPhys = (uzInlet / uzInletPhys) * (res/1000); 		// s
+constexpr float uxInletPhys = 90.f; 									// m/s
+constexpr float dtPhys = (uxInlet / uxInletPhys) * (res/1000); 			// s
 constexpr float invSqrt3 = 0.577350269f; 
-constexpr float soundspeedPhys = invSqrt3 * (res/1000) / dtPhys; 	// m/s
-constexpr float nu = (dtPhys * nuPhys) / ((res/1000) * (res/1000));	// LBM nu
-constexpr float tau = 3.f * nu + 0.5f;								// LBM tau
+constexpr float soundspeedPhys = invSqrt3 * (res/1000) / dtPhys; 		// m/s
+constexpr float nu = (dtPhys * nuPhys) / ((res/1000) * (res/1000));		// LBM nu
+constexpr float tau = 3.f * nu + 0.5f;									// LBM tau
 
-constexpr int iterationCount = 300000;
+constexpr float domainSizeX = 3000.f;									// mm
+constexpr float domainSizeY = 3000.f;									// mm
+constexpr float domainSizeZ = 10.f;										// mm
 
-#include "../includesTypes.h"
-#include "exportSectionCutPlot.h"
+const int cellCountX = static_cast<int>(std::ceil(domainSizeX / res));
+const int cellCountY = static_cast<int>(std::ceil(domainSizeY / res));
+const int cellCountZ = static_cast<int>(std::ceil(domainSizeZ / res));
 
-std::string STLPath = "NACA0012_10deg_STL.STL";
+constexpr int iterationCount = 50000;
 
-void applyMarkers( MarkerStruct& Marker, CellCountStruct &cellCount )
+#include "../types.h"
+
+#include "../cellFunctions.h"
+#include "../applyStreaming.h"
+#include "../applyCollision.h"
+#include "../fillDefaultEquilibrium.h"
+
+#include "../boundaryConditions/applyBounceback.h"
+#include "../boundaryConditions/applyMirror.h"
+#include "../boundaryConditions/restoreRho.h"
+#include "../boundaryConditions/restoreUxUyUz.h"
+#include "../boundaryConditions/restoreRhoUxUyUz.h"
+#include "../boundaryConditions/applyMBBC.h"
+
+#include "../exportSectionCutPlot.h"
+
+#include "../STLFunctions.h"
+
+std::string STLPath = "NACA0012Repaired.STL";
+
+__cuda_callable__ void getMarkers( 	const int& iCell, const int& jCell, const int& kCell, 
+									bool& fluidMarker, bool& bouncebackMarker, bool& mirrorMarker, bool& periodicMarker, bool& givenRhoMarker, bool& givenUxUyUzMarker,
+									InfoStruct& Info )
 {
-	auto fluidArrayView = Marker.fluidArray.getView();
-	auto bouncebackArrayView = Marker.bouncebackArray.getView();
-	auto givenRhoArrayView = Marker.givenRhoArray.getView();
-	auto givenUxUyUzArrayView = Marker.givenUxUyUzArray.getView();
-
-	auto cellLambda = [=] __cuda_callable__ (const TNL::Containers::StaticArray< 3, int >& tripleIndex) mutable
-	{
-		const size_t i = tripleIndex.x();
-		const size_t j = tripleIndex.y();
-		const size_t k = tripleIndex.z();
-		size_t cell = convertIndex(i, j, k, cellCount);
-		if (bouncebackArrayView[cell] == 0)
-		{
-			if (k==0)  
-			{
-				givenUxUyUzArrayView[cell] = 1;
-			}
-			else if ( k==cellCount.nz-1 || i==0 || i==cellCount.nx-1 || j==0 || j==cellCount.ny-1 )
-			{
-				givenRhoArrayView[cell] = 1;
-			}
-			else
-			{
-				fluidArrayView[cell] = 1;
-			}
-		}
-	};
-	TNL::Containers::StaticArray< 3, size_t > start{ 0, 0, 0 };
-	TNL::Containers::StaticArray< 3, size_t > end{ cellCount.nx, cellCount.ny, cellCount.nz };
-	TNL::Algorithms::parallelFor<TNL::Devices::Cuda>(start, end, cellLambda );
+    fluidMarker = 0;
+	mirrorMarker = 0;
+	givenRhoMarker = 0;
+	givenUxUyUzMarker = 0;
+	
+	if ( iCell == 0 || jCell == 0 || jCell == Info.cellCountY-1 ) givenUxUyUzMarker = 1;
+	else if ( iCell == Info.cellCountX-1 ) givenRhoMarker = 1;
+	else if ( !bouncebackMarker ) fluidMarker = 1;
+	
+	periodicMarker = 1;
 }
 
+__cuda_callable__ void getGivenRhoUxUyUz( 	const int& iCell, const int& jCell, const int& kCell, 
+											float& rho, float& ux, float& uy, float& uz,
+											InfoStruct& Info )
+{
+    rho = 1.f;
+	ux = uxInlet;
+	uy = 0.f;
+	uz = 0.f;
+}
+
+#include "../applyLocalCellUpdate.h"
+
+int main(int argc, char **argv)
+{
+	InfoStruct Info;
+	Info.res = res;
+	Info.cellCountX = cellCountX;
+	Info.cellCountY = cellCountY;
+	Info.cellCountZ = cellCountZ;
+	Info.cellCount = Info.cellCountX * Info.cellCountY * Info.cellCountZ;
+	
+	STLStructCPU STLCPU;
+	readSTL( STLCPU, STLPath );
+	STLCPU.ox = ((Info.cellCountX - 1) * Info.res) * 0.5f;
+	STLCPU.oy = ((Info.cellCountY - 1) * Info.res) * 0.5f;
+	STLCPU.oz = ((Info.cellCountZ - 1) * Info.res) * 0.5f;
+	
+	STLStruct STL( STLCPU );
+	
+	checkSTLEdges( STL );
+	
+	/*
+	FStruct F;
+	FloatArray2DType fArray;
+	F.fArray.setSizes( 27, Info.cellCountX * Info.cellCountY * Info.cellCountZ );	
+	F.shifter = IntArrayType( 27, 0 );
+	
+	fillDefaultEquilibrium( F, Info);
+	
+	std::cout << "Starting simulation" << std::endl;
+	
+	const int kCut = Info.cellCountZ / 2;
+	int plotNumber = 0;
+	
+	const int iterationChunk = 1000;
+	
+	TNL::Timer lapTimer;
+	lapTimer.reset();
+	lapTimer.start();
+	for (int iteration=0; iteration<iterationCount; iteration++)
+	{
+		applyStreaming( F, Info );
+		applyLocalCellUpdate( F, Info );
+		
+		if (iteration%iterationChunk == 0 && iteration!=0)
+		{
+			lapTimer.stop();
+			auto lapTime = lapTimer.getRealTime();
+			std::cout << "Finished iteration " << iteration << std::endl;
+			
+			const int cellCount = Info.cellCountX * Info.cellCountY * Info.cellCountZ;
+			float glups = ((float)cellCount * (float)iterationChunk) / lapTime / 1000000000.f;
+			std::cout << "GLUPS: " << glups << std::endl;
+			
+			exportSectionCutPlotXY( F, Info, kCut, plotNumber );
+			plotNumber++;
+			
+			lapTimer.reset();
+			lapTimer.start();
+		}
+	}
+	std::cout << "Finshed successfuly" << std::endl;	
+	return EXIT_SUCCESS;
+	*/
+}
+
+
+/*
 int main(int argc, char **argv)
 {
 	STLArbeiterStructCPU STLArbeiterCPU;
@@ -150,3 +231,4 @@ int main(int argc, char **argv)
 	std::cout << "Finshed successfuly" << std::endl;	
 	return EXIT_SUCCESS;
 }
+*/
