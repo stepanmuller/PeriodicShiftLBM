@@ -1,3 +1,4 @@
+// Version with call for bouncebackMarker as an explicit function of i, j, k
 void applyLocalCellUpdate( FStruct &F, InfoStruct &Info )
 {
 	auto fArrayView  = F.fArray.getView();
@@ -11,8 +12,8 @@ void applyLocalCellUpdate( FStruct &F, InfoStruct &Info )
 		int shiftedIndex[27];
 		getShiftedIndex( cell, shiftedIndex, shifterView, Info );
 		
-		bool fluidMarker, bouncebackMarker, mirrorMarker, givenRhoMarker, givenUxUyUzMarker;
-		getMarkers( iCell, jCell, kCell, fluidMarker, bouncebackMarker, mirrorMarker, givenRhoMarker, givenUxUyUzMarker, Info );
+		bool fluidMarker, bouncebackMarker, mirrorMarker, periodicMarker, givenRhoMarker, givenUxUyUzMarker;
+		getMarkers( iCell, jCell, kCell, fluidMarker, bouncebackMarker, mirrorMarker, periodicMarker, givenRhoMarker, givenUxUyUzMarker, Info );
 		
 		float f[27];
 		float rho, ux, uy, uz;
@@ -26,16 +27,13 @@ void applyLocalCellUpdate( FStruct &F, InfoStruct &Info )
 		{
 			if ( fluidMarker )
 			{
-				getRhoUxUyUz( rho, ux, uy, uz, f );
+				// do nothing just skip the else block below
 			}
 			else
 			{
 				int outerNormalX, outerNormalY, outerNormalZ;
-				getOuterNormal( iCell, jCell, kCell, outerNormalX, outerNormalY, outerNormalZ, Info );
-				rho = 1.f;
-				ux = 0.f;
-				uy = 0.f;
-				uz = uzInlet;
+				getOuterNormal( iCell, jCell, kCell, periodicMarker, outerNormalX, outerNormalY, outerNormalZ, Info );
+				getGivenRhoUxUyUz( iCell, jCell, kCell, rho, ux, uy, uz, Info );
 				if ( mirrorMarker )
 				{
 					applyMirror( outerNormalX, outerNormalY, outerNormalZ, f );
@@ -54,7 +52,7 @@ void applyLocalCellUpdate( FStruct &F, InfoStruct &Info )
 				}
 				applyMBBC( outerNormalX, outerNormalY, outerNormalZ, rho, ux, uy, uz, f );
 			}
-			applyCollision( rho, ux, uy, uz, f );
+			applyCollision( f );
 		}
 
 		for ( int direction = 0; direction < 27; direction++ ) fArrayView( direction, shiftedIndex[direction] ) = f[direction];
@@ -62,71 +60,64 @@ void applyLocalCellUpdate( FStruct &F, InfoStruct &Info )
 	TNL::Algorithms::parallelFor<TNL::Devices::Cuda>(0, Info.cellCount, cellLambda );
 }
 
-/*
-void applyLocalCellUpdate( 	MarkerStruct& Marker, FStruct& F, InfoStruct& Info )
+// Version with bouncebackMarker loaded from memory
+void applyLocalCellUpdate( FStruct &F, InfoStruct &Info )
 {
-	auto fluidMarkerArrayView = Marker.fluidArray.getConstView();
-	auto bouncebackMarkerArrayView = Marker.bouncebackArray.getConstView();
-	auto givenRhoMarkerArrayView = Marker.givenRhoArray.getConstView();
-	auto givenUxUyUzMarkerArrayView = Marker.givenUxUyUzArray.getConstView();
-	
-	auto shifterView = F.shifter.getConstView();
 	auto fArrayView  = F.fArray.getView();
-
-	auto cellLambda = [=] __cuda_callable__ (size_t cell) mutable
+	auto shifterView  = F.shifter.getConstView();
+	
+	auto cellLambda = [=] __cuda_callable__ ( const int cell ) mutable
 	{
-		size_t shiftedIndex[27];
-		for (size_t i = 0; i < 27; i++) 
-		{
-			const size_t shift = shifterView[i];
-			shiftedIndex[i] = cell + shift;
-			if (shiftedIndex[i] >= cellCount.n) { shiftedIndex[i] -= cellCount.n; }
-		}
-		bool fluidMarker = fluidMarkerArrayView[cell];
-		bool bouncebackMarker = bouncebackMarkerArrayView[cell];
-		bool givenRhoMarker = givenRhoMarkerArrayView[cell];
-		bool givenUxUyUzMarker = givenUxUyUzMarkerArrayView[cell];
+		int iCell, jCell, kCell;
+		getIJKCellIndex( cell, iCell, jCell, kCell, Info );
+			
+		int shiftedIndex[27];
+		getShiftedIndex( cell, shiftedIndex, shifterView, Info );
+		
+		bool fluidMarker, bouncebackMarker, mirrorMarker, periodicMarker, givenRhoMarker, givenUxUyUzMarker;
+		getMarkers( iCell, jCell, kCell, fluidMarker, bouncebackMarker, mirrorMarker, periodicMarker, givenRhoMarker, givenUxUyUzMarker, Info );
 		
 		float f[27];
 		float rho, ux, uy, uz;
-		for (size_t i = 0; i < 27; i++)	f[i] = fArrayView(i, shiftedIndex[i]);
+		for ( int direction = 0; direction < 27; direction++ )	f[direction] = fArrayView(direction, shiftedIndex[direction]);
 		
-		if ( bouncebackMarker == 1 )
+		if ( bouncebackMarker )
 		{
 			applyBounceback(f);
 		}
 		else 
 		{
-			if ( fluidMarker == 1 )
+			if ( fluidMarker )
 			{
-				getRhoUxUyUz(rho, ux, uy, uz, f);
+				// do nothing just skip the else block below
 			}
 			else
 			{
-				short outerNormalX, outerNormalY, outerNormalZ;
-				getOuterNormal(cell, outerNormalX, outerNormalY, outerNormalZ, cellCount);
-				rho = 1.f;
-				ux = 0.f;
-				uy = 0.f;
-				uz = uzInlet;
-				if ( givenRhoMarker == 1 && givenUxUyUzMarker == 0 )
+				int outerNormalX, outerNormalY, outerNormalZ;
+				getOuterNormal( iCell, jCell, kCell, periodicMarker, outerNormalX, outerNormalY, outerNormalZ, Info );
+				getGivenRhoUxUyUz( iCell, jCell, kCell, rho, ux, uy, uz, Info );
+				if ( mirrorMarker )
 				{
-					restoreUxUyUz(outerNormalX, outerNormalY, outerNormalZ, rho, ux, uy, uz, f);
+					applyMirror( outerNormalX, outerNormalY, outerNormalZ, f );
 				}
-				else if ( givenRhoMarker == 0 && givenUxUyUzMarker == 1 )
+				else if ( givenRhoMarker && !givenUxUyUzMarker )
 				{
-					restoreRho(outerNormalX, outerNormalY, outerNormalZ, rho, ux, uy, uz, f);
+					restoreUxUyUz( outerNormalX, outerNormalY, outerNormalZ, rho, ux, uy, uz, f );
 				}
-				else if ( givenRhoMarker == 0 && givenUxUyUzMarker == 0 )
+				else if ( !givenRhoMarker && givenUxUyUzMarker )
 				{
-					restoreRhoUxUyUz(outerNormalX, outerNormalY, outerNormalZ, rho, ux, uy, uz, f);
+					restoreRho( outerNormalX, outerNormalY, outerNormalZ, rho, ux, uy, uz, f );
 				}
-				applyMBBC(outerNormalX, outerNormalY, outerNormalZ, rho, ux, uy, uz, f);
+				else if ( !givenRhoMarker && !givenUxUyUzMarker )
+				{
+					restoreRhoUxUyUz( outerNormalX, outerNormalY, outerNormalZ, rho, ux, uy, uz, f );
+				}
+				applyMBBC( outerNormalX, outerNormalY, outerNormalZ, rho, ux, uy, uz, f );
 			}
-			applyCollision(rho, ux, uy, uz, f);
+			applyCollision( f );
 		}
-		for (size_t i = 0; i < 27; i++)	fArrayView(i, shiftedIndex[i]) = f[i];
+
+		for ( int direction = 0; direction < 27; direction++ ) fArrayView( direction, shiftedIndex[direction] ) = f[direction];
 	};
-	TNL::Algorithms::parallelFor<TNL::Devices::Cuda>(0, cellCount.n, cellLambda );
+	TNL::Algorithms::parallelFor<TNL::Devices::Cuda>(0, Info.cellCount, cellLambda );
 }
-*/

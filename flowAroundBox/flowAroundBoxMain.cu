@@ -1,16 +1,17 @@
-constexpr float uzInlet = 0.05f; 										// also works as nominal LBM Mach number
+constexpr float uxInlet = 0.1f; 										// also works as nominal LBM Mach number
 constexpr float SmagorinskyConstant = 0.0f; 							// set to zero to turn off LES
-constexpr float nu = 1e-6;												// LBM nu
+constexpr float nu = 1e-5;												// LBM nu
 constexpr float tau = 3.f * nu + 0.5f;									// LBM tau
 
-constexpr int cellCountX = 20;
-constexpr int cellCountY = 400;
-constexpr int cellCountZ = 800;
+constexpr int cellCountX = 2000;
+constexpr int cellCountY = 1000;
+constexpr int cellCountZ = 50;
 
-constexpr int boxStartY = (int)(cellCountY * 0.4f);
-constexpr int boxStartZ = (int)(cellCountY * 0.3f);
-constexpr int boxEndY = (int)(cellCountY * 0.6f);
-constexpr int boxEndZ = (int)(cellCountY * 0.5f);
+constexpr int boxStartX = (int)(cellCountY * 0.35f);
+constexpr int boxEndX = (int)(cellCountY * 0.45f);
+constexpr int boxStartY = (int)(cellCountY * 0.45f);
+constexpr int boxEndY = (int)(cellCountY * 0.55f);
+
 
 constexpr int iterationCount = 50000;
 
@@ -31,7 +32,7 @@ constexpr int iterationCount = 50000;
 #include "../exportSectionCutPlot.h"
 
 __cuda_callable__ void getMarkers( 	const int& iCell, const int& jCell, const int& kCell, 
-									bool& fluidMarker, bool& bouncebackMarker, bool& mirrorMarker, bool& givenRhoMarker, bool& givenUxUyUzMarker,
+									bool& fluidMarker, bool& bouncebackMarker, bool& mirrorMarker, bool& periodicMarker, bool& givenRhoMarker, bool& givenUxUyUzMarker,
 									InfoStruct& Info )
 {
     fluidMarker = 0;
@@ -40,11 +41,24 @@ __cuda_callable__ void getMarkers( 	const int& iCell, const int& jCell, const in
 	givenRhoMarker = 0;
 	givenUxUyUzMarker = 0;
 	
-	if ( jCell >= boxStartY && jCell < boxEndY && kCell >= boxStartZ && kCell < boxEndZ ) bouncebackMarker = 1;
-	else if ( kCell == 0 ) givenUxUyUzMarker = 1;
-	else if ( kCell == Info.cellCountZ-1 ) givenRhoMarker = 1;
-	else if ( iCell == 0 || iCell == Info.cellCountX-1 || jCell == 0 || jCell == Info.cellCountY-1 ) mirrorMarker = 1;
+	if ( iCell >= boxStartX && iCell < boxEndX && jCell >= boxStartY && jCell < boxEndY ) bouncebackMarker = 1;
+	else if ( jCell == 0 || jCell == Info.cellCountY-1 ) bouncebackMarker = 1;
+	else if ( kCell == 0 || kCell == Info.cellCountZ-1 ) bouncebackMarker = 1;
+	else if ( iCell == 0 ) givenUxUyUzMarker = 1;
+	else if ( iCell == Info.cellCountX-1 ) givenRhoMarker = 1;
 	else fluidMarker = 1;
+	
+	periodicMarker = 0;
+}
+
+__cuda_callable__ void getGivenRhoUxUyUz( 	const int& iCell, const int& jCell, const int& kCell, 
+											float& rho, float& ux, float& uy, float& uz,
+											InfoStruct& Info )
+{
+    rho = 1.f;
+	ux = uxInlet;
+	uy = 0.f;
+	uz = 0.f;
 }
 
 #include "../applyLocalCellUpdate.h"
@@ -66,10 +80,10 @@ int main(int argc, char **argv)
 	
 	std::cout << "Starting simulation" << std::endl;
 	
-	const int iCut = Info.cellCountX / 2;
+	const int kCut = Info.cellCountZ / 2;
 	int plotNumber = 0;
 	
-	const int iterationChunk = 100;
+	const int iterationChunk = 1000;
 	
 	TNL::Timer lapTimer;
 	lapTimer.reset();
@@ -89,7 +103,7 @@ int main(int argc, char **argv)
 			float glups = ((float)cellCount * (float)iterationChunk) / lapTime / 1000000000.f;
 			std::cout << "GLUPS: " << glups << std::endl;
 			
-			exportSectionCutPlotZY( F, Info, iCut, plotNumber );
+			exportSectionCutPlotXY( F, Info, kCut, plotNumber );
 			plotNumber++;
 			
 			lapTimer.reset();

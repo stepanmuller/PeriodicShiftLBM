@@ -9,8 +9,13 @@ with open(file_path, "rb") as f:
     ny, nz, _ = np.fromfile(f, dtype=np.int32, count=3)
     data = np.fromfile(f, dtype=np.float32).reshape((ny, nz, -1))
 
-# 2. Extract and calculate uMag
-uMag = np.sqrt(data[:, :, 2]**2 + data[:, :, 3]**2)
+rho = data[:, :, 0]
+u1 = data[:, :, 1]
+u2 = data[:, :, 2]
+u3 = data[:, :, 3]
+
+# 2. Calculate uMag
+uMag = np.sqrt(u1**2 + u2**2)
 
 # 3. Minimalist Plot
 fig, ax = plt.subplots()
