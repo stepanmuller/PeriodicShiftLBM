@@ -40,7 +40,7 @@ constexpr int iterationCount = 50000;
 
 #include "../STLFunctions.h"
 
-std::string STLPath = "NACA0012Repaired.STL";
+std::string STLPath = "NACA0012.STL";
 
 __cuda_callable__ void getMarkers( 	const int& iCell, const int& jCell, const int& kCell, 
 									bool& fluidMarker, bool& bouncebackMarker, bool& mirrorMarker, bool& periodicMarker, bool& givenRhoMarker, bool& givenUxUyUzMarker,
