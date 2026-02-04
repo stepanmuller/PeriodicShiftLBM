@@ -2,10 +2,10 @@ import pyvista as pv
 import numpy as np
 
 
-triangleList = [922]
+triangleList = [1673, 1907, 3873, 4737, 4742, 5402, 5411, 5414, 5436, 5447]
 
 
-filename = "NACA0012Repaired.STL"
+filename = "NACA0012.STL"
 
 def show_stl(file_path, triangle_indices):
     # 1) Read the STL file

@@ -194,12 +194,10 @@ __cuda_callable__ void getOmegaLES(const float (&fneq)[27], const float &rho, fl
 	omegaLES = 1 / tauLES;
 }
 
-/*
-__cuda_callable__ void convertToPhysicalUnits(const float &rho, float &p, float &ux, float &uy, float &uz)
+__cuda_callable__ void convertToPhysicalUnits( const float &rho, float &p, float &ux, float &uy, float &uz, InfoStruct &Info )
 {
-	ux = ux * (res/1000.f) / dtPhys;
-	uy = uy * (res/1000.f) / dtPhys;
-	uz = uz * (res/1000.f) / dtPhys;
-	p = (rho - 1.f) * rhoNominalPhys * soundspeedPhys * soundspeedPhys;
+	ux = ux * (Info.res/1000.f) / Info.dtPhys;
+	uy = uy * (Info.res/1000.f) / Info.dtPhys;
+	uz = uz * (Info.res/1000.f) / Info.dtPhys;
+	p = (rho - 1.f) * Info.rhoNominalPhys * Info.soundspeedPhys * Info.soundspeedPhys;
 }
-*/

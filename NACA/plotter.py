@@ -18,8 +18,8 @@ file_path = "/dev/shm/sim_data.bin"
 with open(file_path, "rb") as f:
 	plotNumber = np.fromfile(f, dtype=np.int32, count=1)[0]
 	dims = np.fromfile(f, dtype=np.int32, count=3)
-	ny, nz, n_vars = dims
-	data = np.fromfile(f, dtype=np.float32).reshape((ny, nz, n_vars))
+	ny, nx, n_vars = dims
+	data = np.fromfile(f, dtype=np.float32).reshape((ny, nx, n_vars))
 
 # 2. Extract variables
 # Data is saved as {p, ux, uy, uz, mask}
@@ -29,7 +29,7 @@ uy   = data[:, :, 2]
 uz   = data[:, :, 3]
 mask = data[:, :, 4]  # 1.0 = solid, 0.0 = fluid
 
-uMag = np.sqrt(uy**2 + uz**2)
+uMag = np.sqrt(ux**2 + uy**2)
 
 # 3. Setup Figure (2 plots side-by-side)
 fig = plt.figure(figsize=(10, 4))
@@ -54,15 +54,15 @@ imgv.set_clim(0.0, 120)
 
 # --- streamlines ---
 s_vals = np.arange(ny) # Vertical axis (y)
-z_vals = np.arange(nz) # Horizontal axis (z)
-uz_masked_stream = np.where(mask > 0.5, np.nan, uz)
+x_vals = np.arange(nx) # Horizontal axis (x)
+ux_masked_stream = np.where(mask > 0.5, np.nan, ux)
 uy_masked_stream = np.where(mask > 0.5, np.nan, uy)
 
 streamlines = ax1.streamplot(
-    z_vals, s_vals, uz_masked_stream, uy_masked_stream,
+    x_vals, s_vals, ux_masked_stream, uy_masked_stream,
     density=1.5, color="white", linewidth=0.5, arrowsize=0.8
 )
-ax1.set_xlim(z_vals[0], z_vals[-1])
+ax1.set_xlim(x_vals[0], x_vals[-1])
 ax1.set_ylim(s_vals[0], s_vals[-1])
 ax1.set_aspect("equal")
 
