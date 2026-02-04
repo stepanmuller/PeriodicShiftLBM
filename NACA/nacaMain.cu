@@ -1,4 +1,4 @@
-constexpr float res = 2.f; 												// mm
+constexpr float res = 1.f; 												// mm
 constexpr float uxInlet = 0.05f; 										// also works as nominal LBM Mach number
 constexpr float angleOfAttack = -10.f;									// deg
 
@@ -21,7 +21,7 @@ const int cellCountX = static_cast<int>(std::ceil(domainSizeX / res));
 const int cellCountY = static_cast<int>(std::ceil(domainSizeY / res));
 const int cellCountZ = static_cast<int>(std::ceil(domainSizeZ / res));
 
-constexpr int iterationCount = 100001;
+constexpr int iterationCount = 10000001;
 
 #include "../types.h"
 
@@ -135,7 +135,7 @@ int main(int argc, char **argv)
 			float glups = ((float)cellCount * (float)iterationChunk) / lapTime / 1000000000.f;
 			std::cout << "GLUPS: " << glups << std::endl;
 			
-			//exportSectionCutPlotXY( F, bouncebackArray, Info, kCut, plotNumber );
+			exportSectionCutPlotXY( F, bouncebackArray, Info, kCut, plotNumber+100000 );
 			exportSectionCutPlotXY( F, Info, kCut, plotNumber );
 			plotNumber++;
 			

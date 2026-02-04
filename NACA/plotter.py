@@ -60,7 +60,7 @@ uy_masked_stream = np.where(mask > 0.5, np.nan, uy)
 
 streamlines = ax1.streamplot(
     x_vals, s_vals, ux_masked_stream, uy_masked_stream,
-    density=1.5, color="white", linewidth=0.5, arrowsize=0.8
+    density=1.5, color="white", linewidth=0.3, arrowsize=0.4
 )
 ax1.set_xlim(x_vals[0], x_vals[-1])
 ax1.set_ylim(s_vals[0], s_vals[-1])
@@ -74,11 +74,11 @@ divider2 = make_axes_locatable(ax2)
 caxp = divider2.append_axes("bottom", size="5%", pad=0.4)  # moved below
 cbarp = fig.colorbar(imgp, cax=caxp, orientation="horizontal")
 cbarp.set_label("Static pressure [Pa]", labelpad=5)
-imgp.set_clim(-2000, 2000)
+imgp.set_clim(np.min(p), np.max(p))
 
 # 4. Save results
 os.makedirs("results", exist_ok=True)
 save_path = os.path.join("results", f"{plotNumber}.png")
-plt.savefig(save_path, dpi=500, bbox_inches="tight")
+plt.savefig(save_path, dpi=1000, bbox_inches="tight")
 print(f"Saved plot to {save_path}")
 plt.close(fig)
