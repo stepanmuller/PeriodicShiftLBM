@@ -41,7 +41,7 @@ constexpr int iterationCount = 10000001;
 
 #include "../STLFunctions.h"
 
-std::string STLPath = "NACA0012Repair.STL";
+std::string STLPath = "NACA0012.STL";
 
 __cuda_callable__ void getMarkers( 	const int& iCell, const int& jCell, const int& kCell, 
 									bool& fluidMarker, bool& bouncebackMarker, bool& mirrorMarker, bool& periodicMarker, bool& givenRhoMarker, bool& givenUxUyUzMarker,
@@ -97,8 +97,7 @@ int main(int argc, char **argv)
 	float radians = angleOfAttack * (M_PI / 180.0f);
 	rotateSTLAlongZ( STL, radians );
 	
-	BoolArray3DType bouncebackArray;
-	bouncebackArray.setSizes( Info.cellCountX, Info.cellCountY, Info.cellCountZ );
+	BoolArrayType bouncebackArray = BoolArrayType( Info.cellCount, 0 );
 	
 	const bool outsideMarkerValue = 0;
 	applyMarkersInsideSTL( bouncebackArray, STL, outsideMarkerValue, Info );

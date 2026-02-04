@@ -61,7 +61,7 @@ void applyLocalCellUpdate( FStruct &F, InfoStruct &Info )
 }
 
 // Version with bouncebackMarker loaded from memory
-void applyLocalCellUpdate( FStruct &F, BoolArray3DType bouncebackArray, InfoStruct &Info )
+void applyLocalCellUpdate( FStruct &F, BoolArrayType &bouncebackArray, InfoStruct &Info )
 {
 	auto fArrayView  = F.fArray.getView();
 	auto shifterView  = F.shifter.getConstView();
@@ -76,7 +76,7 @@ void applyLocalCellUpdate( FStruct &F, BoolArray3DType bouncebackArray, InfoStru
 		getShiftedIndex( cell, shiftedIndex, shifterView, Info );
 		
 		bool fluidMarker, bouncebackMarker, mirrorMarker, periodicMarker, givenRhoMarker, givenUxUyUzMarker;
-		bouncebackMarker = bouncebackArrayView( iCell, jCell, kCell );
+		bouncebackMarker = bouncebackArrayView( cell );
 		getMarkers( iCell, jCell, kCell, fluidMarker, bouncebackMarker, mirrorMarker, periodicMarker, givenRhoMarker, givenUxUyUzMarker, Info );
 		
 		float f[27];

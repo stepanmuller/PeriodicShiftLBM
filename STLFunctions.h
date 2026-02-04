@@ -249,7 +249,7 @@ __host__ __device__ float getRayHitZCoordinate(	const float &ax, const float &ay
     return rayZ;
 }
 
-void applyMarkersInsideSTL( BoolArray3DType &markerArray, STLStruct &STL, const bool &outsideMarkerValue, InfoStruct &Info )
+void applyMarkersInsideSTL( BoolArrayType &markerArray, STLStruct &STL, const bool &outsideMarkerValue, InfoStruct &Info )
 {
 	std::cout << "Applying markers inside STL" << std::endl;
 	auto markerArrayView = markerArray.getView();
@@ -479,7 +479,10 @@ void applyMarkersInsideSTL( BoolArray3DType &markerArray, STLStruct &STL, const 
 			}
 			for ( int runner = start; runner < end; runner++ )
 			{
-				markerArrayView( i, j, runner ) = markerValue;
+				int cell;
+				getCellIndex( cell, i, j, runner, Info );
+				markerArrayView( cell ) = markerValue;
+				//markerArrayView( i, j, runner ) = markerValue;
 			}
 			markerValue = !markerValue;
 		}		

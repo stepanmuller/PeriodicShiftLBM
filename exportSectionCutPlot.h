@@ -129,7 +129,7 @@ void exportSectionCutPlotZY( FStruct& F, InfoStruct& Info, const int &iCell, con
 
 
 // Version with marker array
-void exportSectionCutPlotXY( FStruct &F, BoolArray3DType &inputMarkerArray, InfoStruct &Info, const int &kCell, const int &plotNumber )
+void exportSectionCutPlotXY( FStruct &F, BoolArrayType &inputMarkerArray, InfoStruct &Info, const int &kCell, const int &plotNumber )
 {
 	std::cout << "Exporting XY section cut plot " << plotNumber << std::endl;
 	auto fArrayView  = F.fArray.getConstView();
@@ -162,7 +162,7 @@ void exportSectionCutPlotXY( FStruct &F, BoolArray3DType &inputMarkerArray, Info
 		for (int direction = 0; direction < 27; direction++) f[direction] = fArrayView( direction, shiftedIndex[direction] );	
 		float rho, ux, uy, uz;
 		getRhoUxUyUz(rho, ux, uy, uz, f);
-		const float marker = inputMarkerArrayView( iCell, jCell, kCell );
+		const float marker = inputMarkerArrayView( cell );
 		rhoArrayView( jCell, iCell ) = rho;
 		uxArrayView( jCell, iCell ) = ux;
 		uyArrayView( jCell, iCell ) = uy;

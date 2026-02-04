@@ -13,6 +13,8 @@
 #include <TNL/Containers/StaticArray.h>
 #include <TNL/Timer.h>
 
+using BoolArrayType = TNL::Containers::Array< bool, TNL::Devices::Cuda, size_t >;
+
 using BoolArray3DType = TNL::Containers::NDArray< bool, 
 												TNL::Containers::SizesHolder< size_t, 0, 0, 0 >,
 												std::index_sequence< 0, 1, 2 >,
