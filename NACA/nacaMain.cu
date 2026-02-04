@@ -1,5 +1,6 @@
-constexpr float res = 5.f; 											// mm
+constexpr float res = 2.f; 												// mm
 constexpr float uxInlet = 0.05f; 										// also works as nominal LBM Mach number
+constexpr float angleOfAttack = -10.f;									// deg
 
 constexpr float nuPhys = 1.5e-5;										// m2/s air
 constexpr float rhoNominalPhys = 1.225f;								// kg/m3 water
@@ -14,13 +15,13 @@ constexpr float tau = 3.f * nu + 0.5f;									// LBM tau
 
 constexpr float domainSizeX = 3000.f;									// mm
 constexpr float domainSizeY = 3000.f;									// mm
-constexpr float domainSizeZ = 20.f;										// mm
+constexpr float domainSizeZ = 10.f;										// mm
 
 const int cellCountX = static_cast<int>(std::ceil(domainSizeX / res));
 const int cellCountY = static_cast<int>(std::ceil(domainSizeY / res));
 const int cellCountZ = static_cast<int>(std::ceil(domainSizeZ / res));
 
-constexpr int iterationCount = 50000;
+constexpr int iterationCount = 100001;
 
 #include "../types.h"
 
@@ -40,7 +41,7 @@ constexpr int iterationCount = 50000;
 
 #include "../STLFunctions.h"
 
-std::string STLPath = "NACA0012.STL";
+std::string STLPath = "NACA0012Repair.STL";
 
 __cuda_callable__ void getMarkers( 	const int& iCell, const int& jCell, const int& kCell, 
 									bool& fluidMarker, bool& bouncebackMarker, bool& mirrorMarker, bool& periodicMarker, bool& givenRhoMarker, bool& givenUxUyUzMarker,
@@ -78,6 +79,7 @@ int main(int argc, char **argv)
 	Info.cellCountY = cellCountY;
 	Info.cellCountZ = cellCountZ;
 	Info.cellCount = Info.cellCountX * Info.cellCountY * Info.cellCountZ;
+	std::cout << "Cell count: " << Info.cellCount << std::endl;
 	Info.rhoNominalPhys = rhoNominalPhys;
 	Info.soundspeedPhys = soundspeedPhys;
 	Info.dtPhys = dtPhys;
@@ -91,6 +93,9 @@ int main(int argc, char **argv)
 	STLStruct STL( STLCPU );
 	
 	checkSTLEdges( STL );
+	
+	float radians = angleOfAttack * (M_PI / 180.0f);
+	rotateSTLAlongZ( STL, radians );
 	
 	BoolArray3DType bouncebackArray;
 	bouncebackArray.setSizes( Info.cellCountX, Info.cellCountY, Info.cellCountZ );
