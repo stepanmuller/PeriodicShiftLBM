@@ -15,15 +15,16 @@ uy = data[:, :, 2]
 uz = data[:, :, 3]
 
 # 2. Calculate uMag
-uMag = np.sqrt(ux**2 + uy**2)
+uMag = np.sqrt(uy**2 + uz**2)
 
 # 3. Minimalist Plot
 fig, ax = plt.subplots()
-ax.imshow(uMag, origin="lower", cmap="viridis")
+imgv = ax.imshow(uMag, origin="lower", cmap="viridis")
 ax.axis("off") # Removes axes, ticks, and labels
+imgv.set_clim(0.0, 30)
 
 # 4. Save results (matching your original path logic)
 os.makedirs("results", exist_ok=True)
 save_path = os.path.join("results", f"{plotNumber}.png")
-plt.savefig(save_path, dpi=500, bbox_inches="tight", pad_inches=0)
+plt.savefig(save_path, dpi=1000, bbox_inches="tight", pad_inches=0)
 plt.close(fig)

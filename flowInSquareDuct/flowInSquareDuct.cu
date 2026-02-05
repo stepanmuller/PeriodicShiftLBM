@@ -1,6 +1,6 @@
 constexpr float rhoInlet = 1.01f; 										
-constexpr float SmagorinskyConstant = 0.0f; 							// set to zero to turn off LES
-constexpr float nu = 1e-4;												// LBM nu
+constexpr float SmagorinskyConstantGlobal = 0.0f; 						// set to zero to turn off LES
+constexpr float nu = 1e-3;												// LBM nu
 constexpr float tau = 3.f * nu + 0.5f;									// LBM tau
 
 constexpr int cellCountX = 256;
@@ -50,6 +50,11 @@ __cuda_callable__ void getGivenRhoUxUyUz( 	const int& iCell, const int& jCell, c
 {
 	if ( iCell == 0 ) rho = rhoInlet;
 	else if ( iCell == Info.cellCountX-1 ) rho = 1.f;
+}
+
+__cuda_callable__ float getSmagorinskyConstant( const int& iCell, const int& jCell, const int& kCell )
+{
+	return SmagorinskyConstantGlobal;
 }
 
 #include "../applyLocalCellUpdate.h"

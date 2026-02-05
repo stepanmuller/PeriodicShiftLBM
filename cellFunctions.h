@@ -152,7 +152,7 @@ __cuda_callable__ void getRhoUxUyUz(
 			+f[21] - f[22] - f[23] + f[24] - f[25] + f[26]) / rho;
 }
 
-__cuda_callable__ void getOmegaLES(const float (&fneq)[27], const float &rho, float &omegaLES)
+__cuda_callable__ void getOmegaLES(const float (&fneq)[27], const float &rho, const float &SmagorinskyConstant, float &omegaLES)
 {
 	if (SmagorinskyConstant == 0)
 	{

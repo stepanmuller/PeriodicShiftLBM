@@ -1,5 +1,5 @@
 constexpr float uxInlet = 0.1f; 										// also works as nominal LBM Mach number
-constexpr float SmagorinskyConstant = 0.0f; 							// set to zero to turn off LES
+constexpr float SmagorinskyConstantGlobal = 0.0f; 						// set to zero to turn off LES
 constexpr float nu = 1e-5;												// LBM nu
 constexpr float tau = 3.f * nu + 0.5f;									// LBM tau
 
@@ -59,6 +59,11 @@ __cuda_callable__ void getGivenRhoUxUyUz( 	const int& iCell, const int& jCell, c
 	ux = uxInlet;
 	uy = 0.f;
 	uz = 0.f;
+}
+
+__cuda_callable__ float getSmagorinskyConstant( const int& iCell, const int& jCell, const int& kCell )
+{
+	return SmagorinskyConstantGlobal;
 }
 
 #include "../applyLocalCellUpdate.h"

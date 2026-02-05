@@ -4,7 +4,7 @@ constexpr float angleOfAttack = -10.f;									// deg
 
 constexpr float nuPhys = 1.5e-5;										// m2/s air
 constexpr float rhoNominalPhys = 1.225f;								// kg/m3 water
-constexpr float SmagorinskyConstant = 0.0f; 							// set to zero to turn off LES
+constexpr float SmagorinskyConstantGlobal = 0.0f; 						// set to zero to turn off LES
 
 constexpr float uxInletPhys = 90.f; 									// m/s
 constexpr float dtPhys = (uxInlet / uxInletPhys) * (res/1000); 			// s
@@ -69,6 +69,11 @@ __cuda_callable__ void getGivenRhoUxUyUz( 	const int& iCell, const int& jCell, c
 	uz = 0.f;
 }
 
+__cuda_callable__ float getSmagorinskyConstant( const int& iCell, const int& jCell, const int& kCell )
+{
+	return SmagorinskyConstantGlobal;
+}
+
 #include "../applyLocalCellUpdate.h"
 
 int main(int argc, char **argv)
@@ -99,8 +104,8 @@ int main(int argc, char **argv)
 	
 	BoolArrayType bouncebackArray = BoolArrayType( Info.cellCount, 0 );
 	
-	const bool outsideMarkerValue = 0;
-	applyMarkersInsideSTL( bouncebackArray, STL, outsideMarkerValue, Info );
+	const bool insideMarkerValue = 1;
+	applyMarkersInsideSTL( bouncebackArray, STL, insideMarkerValue, Info );
 	
 	FStruct F;
 	FloatArray2DType fArray;

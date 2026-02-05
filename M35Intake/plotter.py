@@ -37,7 +37,6 @@ gs = fig.add_gridspec(1, 2, width_ratios=[1, 1], wspace=0.1, left=0.05, right=0.
 ax1 = fig.add_subplot(gs[0])
 ax2 = fig.add_subplot(gs[1])
 
-
 # Create masks for plotting (Mask where mask == 1)
 # We use a boolean array where True means "hide this"
 is_solid = mask > 0.5 
@@ -61,7 +60,7 @@ uy_masked_stream = np.where(mask > 0.5, np.nan, uy)
 
 streamlines = ax1.streamplot(
     z_vals, s_vals, uz_masked_stream, uy_masked_stream,
-    density=1.5, color="white", linewidth=0.5, arrowsize=0.8
+    density=1.5, color="white", linewidth=0.3, arrowsize=0.4
 )
 ax1.set_xlim(z_vals[0], z_vals[-1])
 ax1.set_ylim(s_vals[0], s_vals[-1])
@@ -75,11 +74,11 @@ divider2 = make_axes_locatable(ax2)
 caxp = divider2.append_axes("bottom", size="5%", pad=0.4)  # moved below
 cbarp = fig.colorbar(imgp, cax=caxp, orientation="horizontal")
 cbarp.set_label("Static pressure [Pa]", labelpad=5)
-imgp.set_clim(-20000, 120000)
+imgp.set_clim( -100000, 100000 )
 
 # 4. Save results
 os.makedirs("results", exist_ok=True)
 save_path = os.path.join("results", f"{plotNumber}.png")
-plt.savefig(save_path, dpi=300, bbox_inches="tight")
+plt.savefig(save_path, dpi=500, bbox_inches="tight")
 print(f"Saved plot to {save_path}")
 plt.close(fig)

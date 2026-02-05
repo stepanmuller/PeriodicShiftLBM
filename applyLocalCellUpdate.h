@@ -52,7 +52,8 @@ void applyLocalCellUpdate( FStruct &F, InfoStruct &Info )
 				}
 				applyMBBC( outerNormalX, outerNormalY, outerNormalZ, rho, ux, uy, uz, f );
 			}
-			applyCollision( f );
+			const float SmagorinskyConstant = getSmagorinskyConstant( iCell, jCell, kCell );
+			applyCollision( f, SmagorinskyConstant );
 		}
 
 		for ( int direction = 0; direction < 27; direction++ ) fArrayView( direction, shiftedIndex[direction] ) = f[direction];
@@ -116,7 +117,8 @@ void applyLocalCellUpdate( FStruct &F, BoolArrayType &bouncebackArray, InfoStruc
 				}
 				applyMBBC( outerNormalX, outerNormalY, outerNormalZ, rho, ux, uy, uz, f );
 			}
-			applyCollision( f );
+			const float SmagorinskyConstant = getSmagorinskyConstant( iCell, jCell, kCell );
+			applyCollision( f, SmagorinskyConstant );
 		}
 
 		for ( int direction = 0; direction < 27; direction++ ) fArrayView( direction, shiftedIndex[direction] ) = f[direction];

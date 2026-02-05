@@ -1,151 +1,156 @@
 // input physics
-constexpr float res = 0.5f; 											// mm
-constexpr float uzInlet = 0.05f; 										// also works as nominal LBM Mach number
+constexpr float res = 0.25f; 											// mm
+constexpr float uzInlet = 0.1f; 										// also works as nominal LBM Mach number
 
 constexpr float nuPhys = 1e-6;											// m2/s water
 constexpr float rhoNominalPhys = 1000.0f;								// kg/m3 water
-constexpr float SmagorinskyConstant = 0.0f; 							// set to zero to turn off LES
+constexpr float SmagorinskyConstantGlobal = 0.1f; 						// set to zero to turn off LES
 
 // calculated from input
-constexpr float uzInletPhys = 15.f; 								// m/s
+constexpr float uzInletPhys = 17.f; 								// m/s
 constexpr float dtPhys = (uzInlet / uzInletPhys) * (res/1000); 		// s
 constexpr float invSqrt3 = 0.577350269f; 
 constexpr float soundspeedPhys = invSqrt3 * (res/1000) / dtPhys; 	// m/s
 constexpr float nu = (dtPhys * nuPhys) / ((res/1000) * (res/1000));	// LBM nu
 constexpr float tau = 3.f * nu + 0.5f;								// LBM tau
 
-constexpr int iterationCount = 100000;
+constexpr int iterationCount = 500001;
 
-#include "../includesTypes.h"
-#include "exportSectionCutPlot.h"
+#include "../types.h"
+
+#include "../cellFunctions.h"
+#include "../applyStreaming.h"
+#include "../applyCollision.h"
+#include "../fillDefaultEquilibrium.h"
+
+#include "../boundaryConditions/applyBounceback.h"
+#include "../boundaryConditions/applyMirror.h"
+#include "../boundaryConditions/restoreRho.h"
+#include "../boundaryConditions/restoreUxUyUz.h"
+#include "../boundaryConditions/restoreRhoUxUyUz.h"
+#include "../boundaryConditions/applyMBBC.h"
+
+#include "../exportSectionCutPlot.h"
+
+#include "../STLFunctions.h"
 
 std::string STLPath = "M35IntakeSTL.STL";
 
-void applyMarkers( MarkerStruct& Marker, CellCountStruct &cellCount )
+__cuda_callable__ void getMarkers( 	const int& iCell, const int& jCell, const int& kCell, 
+									bool& fluidMarker, bool& bouncebackMarker, bool& mirrorMarker, bool& periodicMarker, bool& givenRhoMarker, bool& givenUxUyUzMarker,
+									InfoStruct& Info )
 {
-	auto fluidArrayView = Marker.fluidArray.getView();
-	auto bouncebackArrayView = Marker.bouncebackArray.getView();
-	auto givenRhoArrayView = Marker.givenRhoArray.getView();
-	auto givenUxUyUzArrayView = Marker.givenUxUyUzArray.getView();
-
-	auto cellLambda = [=] __cuda_callable__ (const TNL::Containers::StaticArray< 3, int >& tripleIndex) mutable
-	{
-		const size_t i = tripleIndex.x();
-		const size_t j = tripleIndex.y();
-		const size_t k = tripleIndex.z();
-		size_t cell = convertIndex(i, j, k, cellCount);
-		if (bouncebackArrayView[cell] == 0)
-		{
-			if (k==0  || j == 0)  
-			{
-				givenUxUyUzArrayView[cell] = 1;
-			}
-			else if ( k==cellCount.nz-1 || i==0 || i==cellCount.nx-1 )
-			{
-				givenRhoArrayView[cell] = 1;
-			}
-			else
-			{
-				fluidArrayView[cell] = 1;
-			}
-		}
-	};
-	TNL::Containers::StaticArray< 3, size_t > start{ 0, 0, 0 };
-	TNL::Containers::StaticArray< 3, size_t > end{ cellCount.nx, cellCount.ny, cellCount.nz };
-	TNL::Algorithms::parallelFor<TNL::Devices::Cuda>(start, end, cellLambda );
+    fluidMarker = 0;
+	mirrorMarker = 0;
+	givenRhoMarker = 0;
+	givenUxUyUzMarker = 0;
+	
+	if ( bouncebackMarker )	{ } // do nothing but skip all else
+	else if ( kCell == 0 || jCell == 0 ) givenUxUyUzMarker = 1;
+	else if ( iCell == 0 || iCell == Info.cellCountX-1 ) givenUxUyUzMarker = 1;
+	else if ( kCell == Info.cellCountZ-1 ) givenRhoMarker = 1;
+	else fluidMarker = 1;
+	
+	periodicMarker = 0;
 }
+
+__cuda_callable__ void getGivenRhoUxUyUz( 	const int& iCell, const int& jCell, const int& kCell, 
+											float& rho, float& ux, float& uy, float& uz,
+											InfoStruct& Info )
+{
+    rho = 1.f;
+	ux = 0.f;
+	uy = 0.f;
+	uz = uzInlet;
+}
+
+__cuda_callable__ float getSmagorinskyConstant( const int& iCell, const int& jCell, const int& kCell )
+{
+	return SmagorinskyConstantGlobal;
+}
+
+#include "../applyLocalCellUpdate.h"
 
 int main(int argc, char **argv)
 {
-	STLArbeiterStructCPU STLArbeiterCPU;
+	STLStructCPU STLCPU;
+	readSTL( STLCPU, STLPath );
 	
-	readSTL( STLArbeiterCPU, STLPath );
+	InfoStruct Info;
+	Info.res = res;
+	Info.rhoNominalPhys = rhoNominalPhys;
+	Info.soundspeedPhys = soundspeedPhys;
+	Info.dtPhys = dtPhys;
+	
+	std::cout << "dtPhys: " << dtPhys << " s" << std::endl;
 	
 	std::cout << "Sizing domain around the STL" << std::endl;
-	CellCountStruct cellCount;
-	cellCount.res = res;
-	cellCount.nx = static_cast<size_t>(std::ceil((STLArbeiterCPU.xmax - STLArbeiterCPU.xmin) / cellCount.res));
-	cellCount.ny = static_cast<size_t>(std::ceil((STLArbeiterCPU.ymax - STLArbeiterCPU.ymin) / cellCount.res));
-	cellCount.nz = static_cast<size_t>(std::ceil((STLArbeiterCPU.zmax - STLArbeiterCPU.zmin) / cellCount.res));
 	
-	cellCount.ox = STLArbeiterCPU.xmin + ( 0.5f * ( (STLArbeiterCPU.xmax - STLArbeiterCPU.xmin) - cellCount.res * (cellCount.nx-1) ) );
-	cellCount.oy = STLArbeiterCPU.ymin + ( 0.5f * ( (STLArbeiterCPU.ymax - STLArbeiterCPU.ymin) - cellCount.res * (cellCount.ny-1) ) );
-	cellCount.oz = STLArbeiterCPU.zmin + ( 0.5f * ( (STLArbeiterCPU.zmax - STLArbeiterCPU.zmin) - cellCount.res * (cellCount.nz-1) ) );
+	Info.cellCountX = static_cast<int>( std::ceil(( STLCPU.xmax - STLCPU.xmin - 1e-9 ) / Info.res ));
+	Info.cellCountY = static_cast<int>( std::ceil(( STLCPU.ymax - STLCPU.ymin - 1e-9 ) / Info.res ));
+	Info.cellCountZ = static_cast<int>( std::ceil(( STLCPU.zmax - STLCPU.zmin - 1e-9 ) / Info.res ));
 	
-	cellCount.ny = cellCount.ny + 1; // adding one more "wall" layer on top
+	STLCPU.ox = - STLCPU.xmin - ( 0.5f * ( ( STLCPU.xmax - STLCPU.xmin ) - Info.res * ( Info.cellCountX-1 ) ) );
+	STLCPU.oy = - STLCPU.ymin - ( 0.5f * ( ( STLCPU.ymax - STLCPU.ymin ) - Info.res * ( Info.cellCountY-1 ) ) );
+	STLCPU.oz = - STLCPU.zmin - ( 0.5f * ( ( STLCPU.zmax - STLCPU.zmin ) - Info.res * ( Info.cellCountZ-1 ) ) );
 	
-	cellCount.n = cellCount.nx * cellCount.ny * cellCount.nz;
-	std::cout << "	nx: " << cellCount.nx << "\n";
-    std::cout << "	ny: " << cellCount.ny << "\n";
-    std::cout << "	nz: " << cellCount.nz << "\n";
-    std::cout << "	n: " << cellCount.n << "\n";
-	std::cout << "	ox: " << cellCount.ox << " mm \n";
-    std::cout << "	oy: " << cellCount.oy << " mm \n";
-    std::cout << "	oz: " << cellCount.oz << " mm \n";
-    
-    STLArbeiterStruct STLArbeiter; 
-    STLArbeiter.axArray = STLArbeiterCPU.axArray;
-    STLArbeiter.ayArray = STLArbeiterCPU.ayArray;
-    STLArbeiter.azArray = STLArbeiterCPU.azArray; 
-	STLArbeiter.bxArray = STLArbeiterCPU.bxArray;
-    STLArbeiter.byArray = STLArbeiterCPU.byArray;
-    STLArbeiter.bzArray = STLArbeiterCPU.bzArray; 
-    STLArbeiter.cxArray = STLArbeiterCPU.cxArray;
-    STLArbeiter.cyArray = STLArbeiterCPU.cyArray;
-    STLArbeiter.czArray = STLArbeiterCPU.czArray; 
-    STLArbeiter.xmin = STLArbeiterCPU.xmin;
-    STLArbeiter.ymin = STLArbeiterCPU.ymin;
-    STLArbeiter.zmin = STLArbeiterCPU.zmin; 
-    STLArbeiter.xmax = STLArbeiterCPU.xmax;
-    STLArbeiter.ymax = STLArbeiterCPU.ymax;
-    STLArbeiter.zmax = STLArbeiterCPU.zmax; 
-    STLArbeiter.triangleCount = STLArbeiterCPU.triangleCount;
-    
-	checkSTLEdges( STLArbeiter );
-    
-    MarkerStruct Marker;
-	Marker.fluidArray = MarkerArrayType( cellCount.n, 0);
-	Marker.bouncebackArray = MarkerArrayType( cellCount.n, 0);
-	Marker.givenRhoArray = MarkerArrayType( cellCount.n, 0);
-	Marker.givenUxUyUzArray = MarkerArrayType( cellCount.n, 0);
+	std::cout << "	STL.ox: " << STLCPU.ox << std::endl;
+	std::cout << "	STL.oy: " << STLCPU.oy << std::endl;
+	std::cout << "	STL.oz: " << STLCPU.oz << std::endl;
 	
-	applyMarkersFromSTL( Marker, STLArbeiter, cellCount );
+	Info.cellCountY = Info.cellCountY + 1; // adding one more "wall" layer on top
 	
-	DistributionStruct F;
-	F.shifter = IndexArrayType( 27, 0 );
-	F.fArray.setSizes( 27, cellCount.n );
-	F.fArray.setValue( 1.0f );
+	Info.cellCount = Info.cellCountX * Info.cellCountY * Info.cellCountZ;
+	std::cout << "	cellCountX: " << Info.cellCountX << std::endl;
+	std::cout << "	cellCountY: " << Info.cellCountY << std::endl;
+	std::cout << "	cellCountZ: " << Info.cellCountZ << std::endl;
+	std::cout << "	cellCount: " << Info.cellCount << std::endl;
 	
-	std::cout << "Marking cells" << std::endl;
-	applyMarkers(Marker, cellCount);
+	STLStruct STL( STLCPU );
 	
-	std::cout << "Filling F" << std::endl;
-	applyInitialization( F, cellCount);
+	checkSTLEdges( STL );
+	
+	BoolArrayType bouncebackArray = BoolArrayType( Info.cellCount, 0 );
+	
+	const bool insideMarkerValue = 0;
+	applyMarkersInsideSTL( bouncebackArray, STL, insideMarkerValue, Info );
+	
+	FStruct F;
+	FloatArray2DType fArray;
+	F.fArray.setSizes( 27, Info.cellCountX * Info.cellCountY * Info.cellCountZ );	
+	F.shifter = IntArrayType( 27, 0 );
+	
+	fillDefaultEquilibrium( F, Info);
 	
 	std::cout << "Starting simulation" << std::endl;
 	
-	const size_t iCut = (size_t)cellCount.nx / 2;
+	const int iCut = Info.cellCountX / 2;
 	int plotNumber = 0;
 	
+	const int iterationChunk = 100;
+	
 	TNL::Timer lapTimer;
+	lapTimer.reset();
 	lapTimer.start();
-	for (int i=0; i<iterationCount; i++)
+	for (int iteration=0; iteration<iterationCount; iteration++)
 	{
-		applyStreaming( F, cellCount );
-		applyLocalCellUpdate( Marker, F, cellCount );
+		applyStreaming( F, Info );
+		applyLocalCellUpdate( F, bouncebackArray, Info );
 		
-		if (i%100 == 0 && i!=0)
+		if (iteration%iterationChunk == 0 && iteration!=0)
 		{
 			lapTimer.stop();
-			std::cout << "Finished iteration " << i << std::endl;
 			auto lapTime = lapTimer.getRealTime();
-			float glups = (cellCount.n * 100) / lapTime / 1000000000;
-			std::cout << "GLUPS: " << glups << std::endl;
-			lapTimer.reset();
+			std::cout << "Finished iteration " << iteration << std::endl;
 			
-			exportSectionCutPlot( Marker, F, cellCount, iCut, plotNumber );
+			const int cellCount = Info.cellCountX * Info.cellCountY * Info.cellCountZ;
+			float glups = ((float)cellCount * (float)iterationChunk) / lapTime / 1000000000.f;
+			std::cout << "GLUPS: " << glups << std::endl;
+			
+			exportSectionCutPlotZY( F, bouncebackArray, Info, iCut, plotNumber );
 			plotNumber++;
 			
+			lapTimer.reset();
 			lapTimer.start();
 		}
 	}

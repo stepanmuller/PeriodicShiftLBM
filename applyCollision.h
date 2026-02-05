@@ -5,7 +5,7 @@
 // Computers & Mathematics with Applications, 2015
 
 // NO FORCING VERSION
-__host__ __device__ void applyCollision( float (&f)[27] )
+__host__ __device__ void applyCollision( float (&f)[27], const float &SmagorinskyConstant )
 {
 	float rho, ux, uy, uz;
 	getRhoUxUyUz( rho, ux, uy, uz, f );
@@ -110,7 +110,7 @@ __host__ __device__ void applyCollision( float (&f)[27] )
 	float fneq[27];
 	getFneq(f, feq, fneq);
 	float omegaLES;
-	getOmegaLES(fneq, rho, omegaLES);
+	getOmegaLES(fneq, rho, SmagorinskyConstant, omegaLES);
 
 	//------------------------------------------------------------------------------------
 	// -------------------------------------COLLISION-------------------------------------

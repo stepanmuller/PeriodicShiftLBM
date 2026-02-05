@@ -14,11 +14,6 @@
 #include <TNL/Timer.h>
 
 using BoolArrayType = TNL::Containers::Array< bool, TNL::Devices::Cuda, size_t >;
-
-using BoolArray3DType = TNL::Containers::NDArray< bool, 
-												TNL::Containers::SizesHolder< size_t, 0, 0, 0 >,
-												std::index_sequence< 0, 1, 2 >,
-												TNL::Devices::Cuda >;
 												
 using IntArrayType = TNL::Containers::Array< int, TNL::Devices::Cuda, size_t >;
 using IntArrayConstViewType = TNL::Containers::ArrayView< const int, TNL::Devices::Cuda, size_t >;
@@ -55,8 +50,8 @@ struct FStructCPU { IntArrayTypeCPU shifter; FloatArray2DTypeCPU fArray; };
 struct SectionCutStruct { FloatArray2DType rhoArray; FloatArray2DType uxArray; FloatArray2DType uyArray; FloatArray2DType uzArray; FloatArray2DType markerArray; };
 struct SectionCutStructCPU { FloatArray2DTypeCPU rhoArray; FloatArray2DTypeCPU uxArray; FloatArray2DTypeCPU uyArray; FloatArray2DTypeCPU uzArray; FloatArray2DTypeCPU markerArray; };		
 								
-struct InfoStruct { float res; int cellCountX; int cellCountY; int cellCountZ; int cellCount;
-					float rhoNominalPhys; float soundspeedPhys; float dtPhys; }; 
+struct InfoStruct { float res = 1.f; int cellCountX; int cellCountY; int cellCountZ; int cellCount;
+					float rhoNominalPhys = 1.f; float soundspeedPhys = 1.f; float dtPhys = 1.f; }; 
 					
 struct STLStructCPU { 	FloatArrayTypeCPU axArray; FloatArrayTypeCPU ayArray; FloatArrayTypeCPU azArray; 
 						FloatArrayTypeCPU bxArray; FloatArrayTypeCPU byArray; FloatArrayTypeCPU bzArray; 
