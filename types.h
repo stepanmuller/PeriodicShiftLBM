@@ -51,7 +51,8 @@ struct SectionCutStruct { FloatArray2DType rhoArray; FloatArray2DType uxArray; F
 struct SectionCutStructCPU { FloatArray2DTypeCPU rhoArray; FloatArray2DTypeCPU uxArray; FloatArray2DTypeCPU uyArray; FloatArray2DTypeCPU uzArray; FloatArray2DTypeCPU markerArray; };		
 								
 struct InfoStruct { float res = 1.f; int cellCountX; int cellCountY; int cellCountZ; int cellCount;
-					float rhoNominalPhys = 1.f; float soundspeedPhys = 1.f; float dtPhys = 1.f; }; 
+					float rhoNominalPhys = 1.f; float soundspeedPhys = 1.f; float dtPhys = 1.f; 
+					float iRegulatorRho = 1.f; float iRegulatorU = 0.f; }; 
 					
 struct STLStructCPU { 	FloatArrayTypeCPU axArray; FloatArrayTypeCPU ayArray; FloatArrayTypeCPU azArray; 
 						FloatArrayTypeCPU bxArray; FloatArrayTypeCPU byArray; FloatArrayTypeCPU bzArray; 

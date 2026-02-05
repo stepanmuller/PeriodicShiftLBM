@@ -15,12 +15,12 @@
 
 // w:  { 8/27, 2/27, 2/27, 2/27 , 2/27, 2/27, 2/27, 1/54, 1/54, 1/54, 1/54, 1/54, 1/54, 1/54, 1/54, 1/54, 1/54, 1/54, 1/54, 1/216, 1/216, 1/216, 1/216, 1/216, 1/216, 1/216, 1/216 };
 
-__cuda_callable__ void getCellIndex( int& cell, const int& iCell, const int& jCell, const int& kCell, InfoStruct &Info)
+__cuda_callable__ void getCellIndex( int& cell, const int& iCell, const int& jCell, const int& kCell, const InfoStruct &Info)
 {
     cell = kCell * (Info.cellCountX * Info.cellCountY) + jCell * Info.cellCountX + iCell;
 }
 
-__cuda_callable__ void getIJKCellIndex( const int& cell, int& iCell, int& jCell, int& kCell, InfoStruct &Info)
+__cuda_callable__ void getIJKCellIndex( const int& cell, int& iCell, int& jCell, int& kCell, const InfoStruct &Info)
 {
     const int xy = Info.cellCountX * Info.cellCountY;
     kCell = cell / xy;
@@ -29,7 +29,7 @@ __cuda_callable__ void getIJKCellIndex( const int& cell, int& iCell, int& jCell,
     iCell = remainder % Info.cellCountX;
 }
 
-__cuda_callable__ void getShiftedIndex( const int& cell, int (&shiftedIndex)[27], IntArrayConstViewType shifterView, InfoStruct &Info )
+__cuda_callable__ void getShiftedIndex( const int& cell, int (&shiftedIndex)[27], IntArrayConstViewType shifterView, const InfoStruct &Info )
 {
     for ( int direction = 0; direction < 27; direction++ ) 
 		{
@@ -40,7 +40,7 @@ __cuda_callable__ void getShiftedIndex( const int& cell, int (&shiftedIndex)[27]
 }
 
 __cuda_callable__ void getOuterNormal( 	const int& iCell, const int& jCell, const int& kCell, const bool& periodicMarker,
-										int& outerNormalX, int& outerNormalY, int& outerNormalZ, InfoStruct &Info )
+										int& outerNormalX, int& outerNormalY, int& outerNormalZ, const InfoStruct &Info )
 {
     outerNormalX = 0;
     outerNormalY = 0;
@@ -194,7 +194,7 @@ __cuda_callable__ void getOmegaLES(const float (&fneq)[27], const float &rho, co
 	omegaLES = 1 / tauLES;
 }
 
-__cuda_callable__ void convertToPhysicalUnits( const float &rho, float &p, float &ux, float &uy, float &uz, InfoStruct &Info )
+__cuda_callable__ void convertToPhysicalUnits( const float &rho, float &p, float &ux, float &uy, float &uz, const InfoStruct &Info )
 {
 	ux = ux * (Info.res/1000.f) / Info.dtPhys;
 	uy = uy * (Info.res/1000.f) / Info.dtPhys;
