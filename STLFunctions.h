@@ -445,44 +445,44 @@ void applyMarkersInsideSTL( BoolArrayType &markerArray, STLStruct &STL, const bo
 	};
 	TNL::Algorithms::parallelFor<TNL::Devices::Cuda>( 0, STL.triangleCount, rayHitIndexLambda );
 	
+	BoolArray3DType tempMarkerArray;
+	tempMarkerArray.setSizes( Info.cellCountX, Info.cellCountY, Info.cellCountZ );
+	auto tempMarkerArrayView = tempMarkerArray.getView();
 	auto rayLambda = [=] __cuda_callable__ ( const IntPairType& doubleIndex ) mutable
 	{
-		const int i = doubleIndex.x();
-		const int j = doubleIndex.y();
+		const int iCell = doubleIndex.x();
+		const int jCell = doubleIndex.y();
 		
 		for ( int layer = 1; layer < intersectionCountMax; layer++ ) // sort
 		{
-			int key = intersectionIndexArrayView( layer, i, j );
+			int key = intersectionIndexArrayView( layer, iCell, jCell );
 			int slider = layer - 1;
-			while ( slider >= 0 && intersectionIndexArrayView( slider, i, j ) > key ) 
+			while ( slider >= 0 && intersectionIndexArrayView( slider, iCell, jCell ) > key ) 
 			{
-				intersectionIndexArrayView( slider + 1, i, j ) = intersectionIndexArrayView( slider, i, j );
+				intersectionIndexArrayView( slider + 1, iCell, jCell ) = intersectionIndexArrayView( slider, iCell, jCell );
 				slider = slider - 1;
 			}
-			intersectionIndexArrayView( slider + 1, i, j ) = key;
+			intersectionIndexArrayView( slider + 1, iCell, jCell ) = key;
 		}
 		bool markerValue = outsideMarkerValue;
 		for ( int interval = 0; interval <= intersectionCountMax; interval++ )
 		{
 			int start = 0;
 			int end = 0;
-			if ( interval == 0 ) end = intersectionIndexArrayView( 0, i, j );
+			if ( interval == 0 ) end = intersectionIndexArrayView( 0, iCell, jCell );
 			else if ( interval == intersectionCountMax ) 
 			{
-				start = intersectionIndexArrayView( intersectionCountMax-1, i, j );
+				start = intersectionIndexArrayView( intersectionCountMax-1, iCell, jCell );
 				end = Info.cellCountZ;
 			}
 			else
 			{
-				start = intersectionIndexArrayView( interval-1, i, j );
-				end = intersectionIndexArrayView( interval, i, j );
+				start = intersectionIndexArrayView( interval-1, iCell, jCell );
+				end = intersectionIndexArrayView( interval, iCell, jCell );
 			}
-			for ( int runner = start; runner < end; runner++ )
+			for ( int kCell = start; kCell < end; kCell++ )
 			{
-				int cell;
-				getCellIndex( cell, i, j, runner, Info );
-				markerArrayView( cell ) = markerValue;
-				//markerArrayView( i, j, runner ) = markerValue;
+				tempMarkerArrayView( iCell, jCell, kCell ) = markerValue;
 			}
 			markerValue = !markerValue;
 		}		
@@ -490,6 +490,15 @@ void applyMarkersInsideSTL( BoolArrayType &markerArray, STLStruct &STL, const bo
 	IntPairType startList{ 0, 0 };
 	IntPairType endList{ Info.cellCountX, Info.cellCountY };
 	TNL::Algorithms::parallelFor<TNL::Devices::Cuda>(startList, endList, rayLambda );	
+	
+	auto cellLambda = [=] __cuda_callable__ ( const int cell ) mutable
+	{
+		int iCell, jCell, kCell;
+		getIJKCellIndex( cell, iCell, jCell, kCell, Info );
+		markerArrayView( cell ) = tempMarkerArrayView( iCell, jCell, kCell );
+	};
+	TNL::Algorithms::parallelFor<TNL::Devices::Cuda>(0, Info.cellCount, cellLambda );
+	
 	std::cout << "	Markers inside STL applied" << std::endl;
 }
 
