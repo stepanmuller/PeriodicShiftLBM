@@ -50,7 +50,7 @@ divider1 = make_axes_locatable(ax1)
 caxv = divider1.append_axes("bottom", size="5%", pad=0.4)  # moved below
 cbarv = fig.colorbar(imgv, cax=caxv, orientation="horizontal")
 cbarv.set_label("In-surface velocity magnitude [m/s]", labelpad=5)
-imgv.set_clim(0.0, 30)
+imgv.set_clim(0.0, 25)
 
 # --- streamlines ---
 s_vals = np.arange(ny) # Vertical axis (y)
@@ -74,7 +74,7 @@ divider2 = make_axes_locatable(ax2)
 caxp = divider2.append_axes("bottom", size="5%", pad=0.4)  # moved below
 cbarp = fig.colorbar(imgp, cax=caxp, orientation="horizontal")
 cbarp.set_label("Static pressure [Pa]", labelpad=5)
-imgp.set_clim( -100000, 100000 )
+imgp.set_clim( -40000, 40000 )
 
 # 4. Save results
 os.makedirs("results", exist_ok=True)
