@@ -50,7 +50,7 @@ divider1 = make_axes_locatable(ax1)
 caxv = divider1.append_axes("bottom", size="5%", pad=0.4)  # moved below
 cbarv = fig.colorbar(imgv, cax=caxv, orientation="horizontal")
 cbarv.set_label("In-surface velocity magnitude [m/s]", labelpad=5)
-imgv.set_clim(0.0, 30)
+imgv.set_clim(0.0, 40)
 
 # --- streamlines ---
 s_vals = np.arange(ny) # Vertical axis (y)

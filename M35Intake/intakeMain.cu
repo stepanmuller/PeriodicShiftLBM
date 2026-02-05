@@ -1,5 +1,5 @@
 // input physics
-constexpr float res = 0.25f; 											// mm
+constexpr float res = 0.35f; 											// mm
 constexpr float uzInlet = 0.1f; 										// also works as nominal LBM Mach number
 
 constexpr float nuPhys = 1e-6;											// m2/s water
@@ -64,9 +64,16 @@ __cuda_callable__ void getGivenRhoUxUyUz( 	const int& iCell, const int& jCell, c
 	uz = uzInlet;
 }
 
-__cuda_callable__ float getSmagorinskyConstant( const int& iCell, const int& jCell, const int& kCell )
+__cuda_callable__ float getSmagorinskyConstant( const int& iCell, const int& jCell, const int& kCell, const InfoStruct &Info )
 {
-	return SmagorinskyConstantGlobal;
+	const float xToEnd = (Info.cellCountX-1 - iCell) * Info.res;
+	if ( xToEnd > 30.f ) return SmagorinskyConstantGlobal;
+	else
+	{
+		const float interpoler = xToEnd / 30.f;
+		return SmagorinskyConstantGlobal * interpoler + 1.f * (1.f - interpoler); // set Smagorinsky high to dampen vortices before reaching the outlet
+	}
+	
 }
 
 #include "../applyLocalCellUpdate.h"

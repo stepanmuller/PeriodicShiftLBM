@@ -52,7 +52,7 @@ void applyLocalCellUpdate( FStruct &F, InfoStruct &Info )
 				}
 				applyMBBC( outerNormalX, outerNormalY, outerNormalZ, rho, ux, uy, uz, f );
 			}
-			const float SmagorinskyConstant = getSmagorinskyConstant( iCell, jCell, kCell );
+			const float SmagorinskyConstant = getSmagorinskyConstant( iCell, jCell, kCell, Info );
 			applyCollision( f, SmagorinskyConstant );
 		}
 
@@ -117,7 +117,7 @@ void applyLocalCellUpdate( FStruct &F, BoolArrayType &bouncebackArray, InfoStruc
 				}
 				applyMBBC( outerNormalX, outerNormalY, outerNormalZ, rho, ux, uy, uz, f );
 			}
-			const float SmagorinskyConstant = getSmagorinskyConstant( iCell, jCell, kCell );
+			const float SmagorinskyConstant = getSmagorinskyConstant( iCell, jCell, kCell, Info );
 			applyCollision( f, SmagorinskyConstant );
 		}
 

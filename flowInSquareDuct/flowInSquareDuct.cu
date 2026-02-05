@@ -52,7 +52,7 @@ __cuda_callable__ void getGivenRhoUxUyUz( 	const int& iCell, const int& jCell, c
 	else if ( iCell == Info.cellCountX-1 ) rho = 1.f;
 }
 
-__cuda_callable__ float getSmagorinskyConstant( const int& iCell, const int& jCell, const int& kCell )
+__cuda_callable__ float getSmagorinskyConstant( const int& iCell, const int& jCell, const int& kCell, const InfoStruct &Info  )
 {
 	return SmagorinskyConstantGlobal;
 }
