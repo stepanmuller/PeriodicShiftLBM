@@ -17,7 +17,7 @@ constexpr float tau = 3.f * nu + 0.5f;
 constexpr float massFlowDesired = 4.0f; 								// kg/s in the intake
 constexpr float iRegulatorSensitivity = 1e-7;							// how fast outlet pressure BC gets adjusted to achieve correct mass flow
 
-constexpr int iterationCount = 1000001;
+constexpr int iterationCount = 300001;
 constexpr int iterationChunk = 100;
 
 #include "../types.h"
@@ -287,7 +287,7 @@ int main(int argc, char **argv)
 		if ( iRegulatorCounter > 1000 ) enableTarget = false;
 		Info.iRegulator = std::clamp( Info.iRegulator, -0.005f, 0.005f );
 		
-		if ( iRegulatorCounter > 100 && error * previousError <= 0) // crossing zero identified
+		if ( iRegulatorCounter > 1000 && error * previousError <= 0) // crossing zero identified
 		{
 			iRegulatorTarget = iRegulatorCummulative / iRegulatorCounter;
 			iRegulatorCummulative = Info.iRegulator;
