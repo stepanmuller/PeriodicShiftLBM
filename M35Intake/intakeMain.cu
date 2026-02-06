@@ -15,8 +15,7 @@ constexpr float nu = (dtPhys * nuPhys) / ((res/1000) * (res/1000));		// LBM nu
 constexpr float tau = 3.f * nu + 0.5f;		
 
 constexpr float massFlowDesired = 4.0f; 								// kg/s in the intake
-constexpr float iRegulatorSensitivity = 5e-8;							// how fast outlet pressure BC gets adjusted to achieve correct mass flow
-constexpr float pRegulatorSensitivity = 5e-5;
+constexpr float iRegulatorSensitivity = 1e-7;							// how fast outlet pressure BC gets adjusted to achieve correct mass flow
 
 constexpr int iterationCount = 1000001;
 constexpr int iterationChunk = 100;
@@ -71,7 +70,7 @@ __cuda_callable__ void getGivenRhoUxUyUz( 	const int& iCell, const int& jCell, c
 	const int iMax = ((int)Info.cellCountX / 2) + cellsInRadius; // both included
 	const int jMin = Info.cellCountY-1 - 2*cellsInRadius;
 	const int jMax = Info.cellCountY-1; // both included
-	if ( iCell >= iMin && iCell <= iMax && jCell >= jMin && jCell <= jMax ) rho = 1.f + Info.iRegulator + Info.pRegulator; // intake
+	if ( iCell >= iMin && iCell <= iMax && jCell >= jMin && jCell <= jMax ) rho = 1.f + Info.iRegulator; // intake
 	else rho = 1.f; // lake
 }
 
@@ -267,7 +266,11 @@ int main(int argc, char **argv)
 	std::vector<float> historyRegulator( iterationCount, 0.f );
 	std::vector<float> historyMassFlow( iterationCount, 0.f );
 	std::vector<float> historyIntakeEta( iterationCount, 0.f );
-	float movingError = 0.f;
+	float previousError = 0.f;
+	float iRegulatorTarget = 0.f;
+	double iRegulatorCummulative = 0.f;
+	bool enableTarget = false;
+	int iRegulatorCounter = 0;
 	
 	TNL::Timer lapTimer;
 	lapTimer.reset();
@@ -277,21 +280,30 @@ int main(int argc, char **argv)
 		applyStreaming( F, Info );
 		applyLocalCellUpdate( F, bouncebackArray, Info );
 		
-		float rhoPrevious = 1.0f + Info.iRegulator;
-		
 		float massFlow = getMassFlowOut( F, bouncebackArray, Info );
 		float error = massFlowDesired - massFlow;
 		Info.iRegulator = Info.iRegulator - iRegulatorSensitivity * error;
+		if ( enableTarget ) Info.iRegulator = Info.iRegulator * 0.99f + iRegulatorTarget * 0.01;
+		if ( iRegulatorCounter > 1000 ) enableTarget = false;
 		Info.iRegulator = std::clamp( Info.iRegulator, -0.005f, 0.005f );
-		movingError = movingError * 0.999f + 0.001f * error;
-		Info.pRegulator = - pRegulatorSensitivity * movingError;
-		Info.iRegulator = std::clamp( Info.pRegulator, -0.005f, 0.005f );
+		
+		if ( iRegulatorCounter > 100 && error * previousError <= 0) // crossing zero identified
+		{
+			iRegulatorTarget = iRegulatorCummulative / iRegulatorCounter;
+			iRegulatorCummulative = Info.iRegulator;
+			iRegulatorCounter = 1;
+			enableTarget = true;
+		}
+		
+		iRegulatorCummulative = iRegulatorCummulative + Info.iRegulator;
+		iRegulatorCounter++;
+		previousError = error;
 
 		float intakePower = getIntakePower( F, bouncebackArray, Info );
 		float lakePower = 0.5f * massFlow * uzInletPhys * uzInletPhys;
 		float intakeEta = std::max({0.f, intakePower}) / lakePower;
 		
-		historyRegulator[iteration] = Info.iRegulator + Info.pRegulator;
+		historyRegulator[iteration] = Info.iRegulator;
 		historyMassFlow[iteration] = massFlow;
 		historyIntakeEta[iteration] = intakeEta;
 		
@@ -300,7 +312,7 @@ int main(int argc, char **argv)
 			lapTimer.stop();
 			auto lapTime = lapTimer.getRealTime();
 			std::cout << "Finished iteration " << iteration << std::endl;
-			std::cout << "Outlet rho adjusted to: " << 1.0f + Info.iRegulator + Info.pRegulator << std::endl;
+			std::cout << "Outlet rho adjusted to: " << 1.0f + Info.iRegulator << std::endl;
 			std::cout << "Mass flow out: " << massFlow << " kg/s" << std::endl; 
 			std::cout << "Intake eta: " << intakeEta << std::endl;
 			
