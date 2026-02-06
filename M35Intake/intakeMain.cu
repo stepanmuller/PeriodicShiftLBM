@@ -15,8 +15,8 @@ constexpr float nu = (dtPhys * nuPhys) / ((res/1000) * (res/1000));		// LBM nu
 constexpr float tau = 3.f * nu + 0.5f;		
 
 constexpr float massFlowDesired = 4.0f; 								// kg/s in the intake
-constexpr float iRegulatorSensitivity = 2e-8;							// how fast outlet pressure BC gets adjusted to achieve correct mass flow
-constexpr float pRegulatorSensitivity = 1e-4;
+constexpr float iRegulatorSensitivity = 5e-8;							// how fast outlet pressure BC gets adjusted to achieve correct mass flow
+constexpr float pRegulatorSensitivity = 5e-5;
 
 constexpr int iterationCount = 1000001;
 constexpr int iterationChunk = 100;
@@ -282,9 +282,10 @@ int main(int argc, char **argv)
 		float massFlow = getMassFlowOut( F, bouncebackArray, Info );
 		float error = massFlowDesired - massFlow;
 		Info.iRegulator = Info.iRegulator - iRegulatorSensitivity * error;
-		Info.iRegulator = std::clamp( Info.iRegulator, -0.01f, 0.01f );
+		Info.iRegulator = std::clamp( Info.iRegulator, -0.005f, 0.005f );
 		movingError = movingError * 0.999f + 0.001f * error;
 		Info.pRegulator = - pRegulatorSensitivity * movingError;
+		Info.iRegulator = std::clamp( Info.pRegulator, -0.005f, 0.005f );
 
 		float intakePower = getIntakePower( F, bouncebackArray, Info );
 		float lakePower = 0.5f * massFlow * uzInletPhys * uzInletPhys;
