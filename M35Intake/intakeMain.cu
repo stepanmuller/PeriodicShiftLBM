@@ -15,7 +15,8 @@ constexpr float nu = (dtPhys * nuPhys) / ((res/1000) * (res/1000));		// LBM nu
 constexpr float tau = 3.f * nu + 0.5f;		
 
 constexpr float massFlowDesired = 4.0f; 								// kg/s in the intake
-constexpr float iRegulatorSensitivity = 1e-7;							// how fast outlet pressure BC gets adjusted to achieve correct mass flow
+constexpr float iRegulatorSensitivity = 2e-8;							// how fast outlet pressure BC gets adjusted to achieve correct mass flow
+constexpr float pRegulatorSensitivity = 1e-4;
 
 constexpr int iterationCount = 1000001;
 constexpr int iterationChunk = 100;
@@ -70,7 +71,7 @@ __cuda_callable__ void getGivenRhoUxUyUz( 	const int& iCell, const int& jCell, c
 	const int iMax = ((int)Info.cellCountX / 2) + cellsInRadius; // both included
 	const int jMin = Info.cellCountY-1 - 2*cellsInRadius;
 	const int jMax = Info.cellCountY-1; // both included
-	if ( iCell >= iMin && iCell <= iMax && jCell >= jMin && jCell <= jMax ) rho = 1.f + Info.iRegulator; // intake
+	if ( iCell >= iMin && iCell <= iMax && jCell >= jMin && jCell <= jMax ) rho = 1.f + Info.iRegulator + Info.pRegulator; // intake
 	else rho = 1.f; // lake
 }
 
@@ -189,7 +190,7 @@ float getIntakePower( FStruct &F, BoolArrayType &bouncebackArray, InfoStruct &In
 	return intakePower;
 }
 
-void exportRegulatorData(const std::vector<float>& iRegulator, const std::vector<float>& massFlow, const std::vector<float>& eta, int &currentIteration) {
+void exportRegulatorData(const std::vector<float>& regulator, const std::vector<float>& massFlow, const std::vector<float>& eta, int &currentIteration) {
     FILE* fp = fopen("/dev/shm/regulator_history.bin", "wb");
     if (!fp) return;
     
@@ -198,7 +199,7 @@ void exportRegulatorData(const std::vector<float>& iRegulator, const std::vector
     fwrite(&count, sizeof(int), 1, fp);
     
     // Write the three arrays
-    fwrite(iRegulator.data(), sizeof(float), count, fp);
+    fwrite(regulator.data(), sizeof(float), count, fp);
     fwrite(massFlow.data(), sizeof(float), count, fp);
     fwrite(eta.data(), sizeof(float), count, fp);
     
@@ -263,9 +264,10 @@ int main(int argc, char **argv)
 	const int iCut = Info.cellCountX / 2;
 	int plotNumber = 0;
 	
-	std::vector<float> historyIRegulator( iterationCount, 0.f );
+	std::vector<float> historyRegulator( iterationCount, 0.f );
 	std::vector<float> historyMassFlow( iterationCount, 0.f );
 	std::vector<float> historyIntakeEta( iterationCount, 0.f );
+	float movingError = 0.f;
 	
 	TNL::Timer lapTimer;
 	lapTimer.reset();
@@ -281,12 +283,14 @@ int main(int argc, char **argv)
 		float error = massFlowDesired - massFlow;
 		Info.iRegulator = Info.iRegulator - iRegulatorSensitivity * error;
 		Info.iRegulator = std::clamp( Info.iRegulator, -0.01f, 0.01f );
+		movingError = movingError * 0.999f + 0.001f * error;
+		Info.pRegulator = - pRegulatorSensitivity * movingError;
 
 		float intakePower = getIntakePower( F, bouncebackArray, Info );
 		float lakePower = 0.5f * massFlow * uzInletPhys * uzInletPhys;
 		float intakeEta = std::max({0.f, intakePower}) / lakePower;
 		
-		historyIRegulator[iteration] = Info.iRegulator;
+		historyRegulator[iteration] = Info.iRegulator + Info.pRegulator;
 		historyMassFlow[iteration] = massFlow;
 		historyIntakeEta[iteration] = intakeEta;
 		
@@ -295,7 +299,7 @@ int main(int argc, char **argv)
 			lapTimer.stop();
 			auto lapTime = lapTimer.getRealTime();
 			std::cout << "Finished iteration " << iteration << std::endl;
-			std::cout << "Outlet rho adjusted to: " << 1.0f + Info.iRegulator << std::endl;
+			std::cout << "Outlet rho adjusted to: " << 1.0f + Info.iRegulator + Info.pRegulator << std::endl;
 			std::cout << "Mass flow out: " << massFlow << " kg/s" << std::endl; 
 			std::cout << "Intake eta: " << intakeEta << std::endl;
 			
@@ -305,7 +309,7 @@ int main(int argc, char **argv)
 			exportSectionCutPlotZY( F, bouncebackArray, Info, iCut, plotNumber );
 			plotNumber++;
 			
-			exportRegulatorData( historyIRegulator, historyMassFlow, historyIntakeEta, iteration );
+			exportRegulatorData( historyRegulator, historyMassFlow, historyIntakeEta, iteration );
 			
 			std::cout << std::endl;
 			
