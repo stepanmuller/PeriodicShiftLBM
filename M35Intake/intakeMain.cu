@@ -1,5 +1,5 @@
 // input physics
-constexpr float res = 0.4f; 											// mm
+constexpr float res = 0.35f; 											// mm
 constexpr float uzInlet = 0.05f; 										// also works as nominal LBM Mach number
 
 constexpr float nuPhys = 1e-6;											// m2/s water
@@ -15,9 +15,9 @@ constexpr float nu = (dtPhys * nuPhys) / ((res/1000) * (res/1000));		// LBM nu
 constexpr float tau = 3.f * nu + 0.5f;		
 
 constexpr float massFlowDesired = 4.0f; 								// kg/s in the intake
-constexpr float iRegulatorRhoSensitivity = 2e-8;						// how fast outlet pressure BC gets adjusted to achieve correct mass flow
+constexpr float iRegulatorSensitivity = 1e-7;							// how fast outlet pressure BC gets adjusted to achieve correct mass flow
 
-constexpr int iterationCount = 500001;
+constexpr int iterationCount = 1000001;
 constexpr int iterationChunk = 100;
 
 #include "../types.h"
@@ -38,7 +38,7 @@ constexpr int iterationChunk = 100;
 
 #include "../STLFunctions.h"
 
-std::string STLPath = "M35IntakeSTL.STL";
+std::string STLPath = "M35IntakeLoaderSTL.STL";
 
 __cuda_callable__ void getMarkers( 	const int& iCell, const int& jCell, const int& kCell, 
 									bool& fluidMarker, bool& bouncebackMarker, bool& mirrorMarker, bool& periodicMarker, bool& givenRhoMarker, bool& givenUxUyUzMarker,
@@ -70,7 +70,7 @@ __cuda_callable__ void getGivenRhoUxUyUz( 	const int& iCell, const int& jCell, c
 	const int iMax = ((int)Info.cellCountX / 2) + cellsInRadius; // both included
 	const int jMin = Info.cellCountY-1 - 2*cellsInRadius;
 	const int jMax = Info.cellCountY-1; // both included
-	if ( iCell >= iMin && iCell <= iMax && jCell >= jMin && jCell <= jMax ) rho = Info.iRegulatorRho; // intake
+	if ( iCell >= iMin && iCell <= iMax && jCell >= jMin && jCell <= jMax ) rho = 1.f + Info.iRegulator; // intake
 	else rho = 1.f; // lake
 }
 
@@ -189,95 +189,22 @@ float getIntakePower( FStruct &F, BoolArrayType &bouncebackArray, InfoStruct &In
 	return intakePower;
 }
 
-float getLakeMomentumOut( FStruct &F, BoolArrayType &bouncebackArray, InfoStruct &Info )
-{
-	auto fArrayView  = F.fArray.getView();
-	auto shifterView  = F.shifter.getConstView();
-	auto bouncebackArrayView = bouncebackArray.getConstView();
-	
-	const int cellsInRadius = (int)(17.5f / Info.res) + 1;
-	const int iMin = ((int)Info.cellCountX / 2) - cellsInRadius;
-	const int iMax = ((int)Info.cellCountX / 2) + cellsInRadius; // both included
-	const int jMin = Info.cellCountY-1 - 2*cellsInRadius;
-	const int jMax = Info.cellCountY-1; // both included
-	
-	const int start = 0;
-	const int end = Info.cellCountX * Info.cellCountY;
-	
-	auto fetch = [ = ] __cuda_callable__( const int singleIndex )
-	{
-		const int iCell = singleIndex % Info.cellCountX;
-		const int jCell = singleIndex / Info.cellCountX;
-		const int kCell = Info.cellCountZ-1;
-		int cell;
-		getCellIndex( cell, iCell, jCell, kCell, Info );
-		bool bouncebackMarker = bouncebackArrayView( cell );
-		if ( bouncebackMarker ) return 0.f;
-		if ( iCell >= iMin && iCell <= iMax && jCell >= jMin && jCell <= jMax ) return 0.f; // intake
-		
-		int shiftedIndex[27];
-		getShiftedIndex( cell, shiftedIndex, shifterView, Info );
-		float f[27];
-		for (int direction = 0; direction < 27; direction++) f[direction] = fArrayView( direction, shiftedIndex[direction] );	
-		float uz = 0;
-		float rho, ux, uy;
-		getRhoUxUyUz(rho, ux, uy, uz, f);
-		float p;
-		convertToPhysicalUnits( rho, p, ux, uy, uz, Info );
-		float volumetricFlow = uz * (Info.res / 1000.f) * (Info.res / 1000.f);
-		float massFlow = volumetricFlow * 1000.f;
-		float lakeMomentumOut = massFlow * uz;
-		return lakeMomentumOut;
-	};
-	auto reduction = [] __cuda_callable__( const float& a, const float& b )
-	{
-		return a + b;
-	};
-	
-	float lakeMomentumOut = TNL::Algorithms::reduce<TNL::Devices::Cuda>( start, end, fetch, reduction, 0.f );
-	return lakeMomentumOut;
-}
-
-float getLakeMomentumIn( FStruct &F, BoolArrayType &bouncebackArray, InfoStruct &Info )
-{
-	auto fArrayView  = F.fArray.getView();
-	auto shifterView  = F.shifter.getConstView();
-	auto bouncebackArrayView = bouncebackArray.getConstView();
-	
-	const int start = 0;
-	const int end = Info.cellCountX * Info.cellCountY;
-	
-	auto fetch = [ = ] __cuda_callable__( const int singleIndex )
-	{
-		const int iCell = singleIndex % Info.cellCountX;
-		const int jCell = singleIndex / Info.cellCountX;
-		const int kCell = 0;
-		int cell;
-		getCellIndex( cell, iCell, jCell, kCell, Info );
-		bool bouncebackMarker = bouncebackArrayView( cell );
-		if ( bouncebackMarker ) return 0.f;
-		
-		int shiftedIndex[27];
-		getShiftedIndex( cell, shiftedIndex, shifterView, Info );
-		float f[27];
-		for ( int direction = 0; direction < 27; direction++ ) f[direction] = fArrayView( direction, shiftedIndex[direction] );	
-		float uz = 0;
-		float rho, ux, uy;
-		getRhoUxUyUz(rho, ux, uy, uz, f);
-		float p;
-		convertToPhysicalUnits( rho, p, ux, uy, uz, Info );
-		float volumetricFlow = uz * (Info.res / 1000.f) * (Info.res / 1000.f);
-		float massFlow = volumetricFlow * 1000.f;
-		float lakeMomentumIn = massFlow * uz + p * (Info.res / 1000.f) * (Info.res / 1000.f);
-		return lakeMomentumIn;
-	};
-	auto reduction = [] __cuda_callable__( const float& a, const float& b )
-	{
-		return a + b;
-	};
-	
-	float lakeMomentumIn = TNL::Algorithms::reduce<TNL::Devices::Cuda>( start, end, fetch, reduction, 0.f );
-	return lakeMomentumIn;
+void exportRegulatorData(const std::vector<float>& iRegulator, const std::vector<float>& massFlow, const std::vector<float>& eta, int &currentIteration) {
+    FILE* fp = fopen("/dev/shm/regulator_history.bin", "wb");
+    if (!fp) return;
+    
+    // Header: [Number of entries recorded so far]
+    int count = currentIteration + 1;
+    fwrite(&count, sizeof(int), 1, fp);
+    
+    // Write the three arrays
+    fwrite(iRegulator.data(), sizeof(float), count, fp);
+    fwrite(massFlow.data(), sizeof(float), count, fp);
+    fwrite(eta.data(), sizeof(float), count, fp);
+    
+    fclose(fp);
+    // Call the python plotter (non-blocking if possible, but system() is fine for now)
+    system("python3 regulatorPlotter.py &"); 
 }
 
 int main(int argc, char **argv)
@@ -336,6 +263,10 @@ int main(int argc, char **argv)
 	const int iCut = Info.cellCountX / 2;
 	int plotNumber = 0;
 	
+	std::vector<float> historyIRegulator( iterationCount, 0.f );
+	std::vector<float> historyMassFlow( iterationCount, 0.f );
+	std::vector<float> historyIntakeEta( iterationCount, 0.f );
+	
 	TNL::Timer lapTimer;
 	lapTimer.reset();
 	lapTimer.start();
@@ -344,40 +275,37 @@ int main(int argc, char **argv)
 		applyStreaming( F, Info );
 		applyLocalCellUpdate( F, bouncebackArray, Info );
 		
+		float rhoPrevious = 1.0f + Info.iRegulator;
+		
 		float massFlow = getMassFlowOut( F, bouncebackArray, Info );
 		float error = massFlowDesired - massFlow;
-		Info.iRegulatorRho = Info.iRegulatorRho - iRegulatorRhoSensitivity * error;
-		Info.iRegulatorRho = std::clamp( Info.iRegulatorRho, 0.98f, 1.02f );
+		Info.iRegulator = Info.iRegulator - iRegulatorSensitivity * error;
+		Info.iRegulator = std::clamp( Info.iRegulator, -0.01f, 0.01f );
+
+		float intakePower = getIntakePower( F, bouncebackArray, Info );
+		float lakePower = 0.5f * massFlow * uzInletPhys * uzInletPhys;
+		float intakeEta = std::max({0.f, intakePower}) / lakePower;
+		
+		historyIRegulator[iteration] = Info.iRegulator;
+		historyMassFlow[iteration] = massFlow;
+		historyIntakeEta[iteration] = intakeEta;
 		
 		if (iteration%iterationChunk == 0 && iteration!=0)
 		{
 			lapTimer.stop();
 			auto lapTime = lapTimer.getRealTime();
 			std::cout << "Finished iteration " << iteration << std::endl;
-			std::cout << "Outlet rho adjusted to: " << Info.iRegulatorRho << std::endl;
+			std::cout << "Outlet rho adjusted to: " << 1.0f + Info.iRegulator << std::endl;
 			std::cout << "Mass flow out: " << massFlow << " kg/s" << std::endl; 
-			float intakePower = getIntakePower( F, bouncebackArray, Info );
-			std::cout << "Intake power: " << intakePower << " W" << std::endl; 
-			float lakePower = 0.5f * massFlow * uzInletPhys * uzInletPhys;
-			float intakeEta = std::max({0.f, intakePower}) / lakePower;
 			std::cout << "Intake eta: " << intakeEta << std::endl;
-			float lakeMomentumIn = getLakeMomentumIn( F, bouncebackArray, Info );
-			float lakeMomentumOut = getLakeMomentumOut( F, bouncebackArray, Info );
 			
-			std::cout << "Lake momentum in: " << lakeMomentumIn << " N" << std::endl;
-			std::cout << "Lake momentum out: " << lakeMomentumOut << " N" << std::endl;
-			std::cout << "Pump part of the momentum: " << massFlow * uzInletPhys << " N" << std::endl;
-	
-			float intakeDrag = lakeMomentumIn - lakeMomentumOut - massFlow * uzInletPhys;
-			std::cout << "Intake drag: " << intakeDrag << " N" << std::endl;
-			
-			const int cellCount = Info.cellCountX * Info.cellCountY * Info.cellCountZ;
-			float glups = ((float)cellCount * (float)iterationChunk) / lapTime / 1000000000.f;
+			float glups = ((float)Info.cellCount * (float)iterationChunk) / lapTime / 1000000000.f;
 			std::cout << "GLUPS: " << glups << std::endl;
 			
 			exportSectionCutPlotZY( F, bouncebackArray, Info, iCut, plotNumber );
-			//exportSectionCutPlotZX( F, bouncebackArray, Info, iCut, plotNumber );
 			plotNumber++;
+			
+			exportRegulatorData( historyIRegulator, historyMassFlow, historyIntakeEta, iteration );
 			
 			std::cout << std::endl;
 			
