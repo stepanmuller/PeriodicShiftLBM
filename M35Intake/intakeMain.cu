@@ -38,7 +38,7 @@ constexpr int iterationChunk = 100;
 
 #include "../STLFunctions.h"
 
-std::string STLPath = "M35IntakeLoaderSTL.STL";
+std::string STLPath = "M35IntakeSTL.STL";
 
 __cuda_callable__ void getMarkers( 	const int& iCell, const int& jCell, const int& kCell, 
 									bool& fluidMarker, bool& bouncebackMarker, bool& mirrorMarker, bool& periodicMarker, bool& givenRhoMarker, bool& givenUxUyUzMarker,
