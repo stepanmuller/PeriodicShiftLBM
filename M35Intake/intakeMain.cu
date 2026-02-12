@@ -1,5 +1,5 @@
 // input physics
-constexpr float res = 0.6f; 											// mm
+constexpr float res = 0.35f; 											// mm
 constexpr float uzInlet = 0.05f; 										// also works as nominal LBM Mach number
 constexpr float rhoOutlet = 1.0f;
 
@@ -74,8 +74,8 @@ __cuda_callable__ void getGivenRhoUxUyUz( 	const int& iCell, const int& jCell, c
 
 __cuda_callable__ float getSmagorinskyConstant( const int& iCell, const int& jCell, const int& kCell, const InfoStruct &Info )
 {
-	const float xToEnd = (Info.cellCountX-1 - iCell) * Info.res;
-	if ( xToEnd > 30.f ) return SmagorinskyConstantGlobal;
+	const float zToEnd = (Info.cellCountZ-1 - kCell) * Info.res;
+	if ( zToEnd > 1.f ) return SmagorinskyConstantGlobal;
 	else
 	{
 		return 1.f; // set Smagorinsky high to dampen vortices before reaching the outlet
@@ -134,7 +134,7 @@ float getMassFlowOut( FStruct &F, BoolArrayType &bouncebackArray, InfoStruct &In
 	return massFlow;
 }
 
-float getIntakePower( FStruct &F, BoolArrayType &bouncebackArray, InfoStruct &Info )
+float getIntakePower( FStruct &F, BoolArrayType &bouncebackArray, InfoStruct &Info, STLStruct &STL )
 {
 	auto fArrayView  = F.fArray.getView();
 	auto shifterView  = F.shifter.getConstView();
@@ -157,6 +157,11 @@ float getIntakePower( FStruct &F, BoolArrayType &bouncebackArray, InfoStruct &In
 		const int iCell = iMin + singleIndex % spanX;
 		const int jCell = jMin + singleIndex / spanX;
 		const int kCell = Info.cellCountZ-1;
+		
+		const float xCell = iCell * Info.res;
+		const float yCell = jCell * Info.res;
+		const float xRelative = xCell - STL.ox;
+		const float yRelative = yCell - STL.oy;
 		int cell;
 		getCellIndex( cell, iCell, jCell, kCell, Info );
 		bool bouncebackMarker = bouncebackArrayView( cell );
@@ -174,8 +179,15 @@ float getIntakePower( FStruct &F, BoolArrayType &bouncebackArray, InfoStruct &In
 		float volumetricFlow = uz * (Info.res / 1000.f) * (Info.res / 1000.f);
 		float volumetricPower = p * volumetricFlow;
 		float massFlow = volumetricFlow * 1000.f;
-		float kineticPower = 0.5f * massFlow * uz * std::abs( uz );
-		float totalPower = volumetricPower + kineticPower;
+		float kineticPowerNormal = 0.5f * massFlow * uz * std::abs( uz );
+		
+		const float radius = std::hypot( xRelative, yRelative );
+		const float uFi = (radius > 1e-6f) 
+			? (xRelative * uy - yRelative * ux) / radius 
+			: 0.0f;
+			
+		float kineticPowerRotational = - 0.5f * massFlow * uFi * std::abs( uFi );
+		float totalPower = volumetricPower + kineticPowerNormal + kineticPowerRotational;
 		return totalPower;
 	};
 	auto reduction = [] __cuda_callable__( const float& a, const float& b )
@@ -257,7 +269,7 @@ int main(int argc, char **argv)
 	
 	std::cout << "Starting simulation" << std::endl;
 	
-	const int iCut = Info.cellCountX / 2 - (int)(13 / Info.res);
+	const int iCut = Info.cellCountX / 2;
 	
 	const int iMin = Info.cellCountX / 2 - (int)(30 / Info.res);
 	const int iMax = Info.cellCountX / 2 + (int)(30 / Info.res);
@@ -270,11 +282,6 @@ int main(int argc, char **argv)
 	
 	std::vector<float> historyMassFlow( iterationCount, 0.f );
 	std::vector<float> historyIntakeEta( iterationCount, 0.f );
-	float previousError = 0.f;
-	float iRegulatorTarget = 0.f;
-	double iRegulatorCummulative = 0.f;
-	bool enableTarget = false;
-	int iRegulatorCounter = 0;
 	
 	TNL::Timer lapTimer;
 	lapTimer.reset();
@@ -285,7 +292,7 @@ int main(int argc, char **argv)
 		applyLocalCellUpdate( F, bouncebackArray, Info );
 		
 		float massFlow = getMassFlowOut( F, bouncebackArray, Info );
-		float intakePower = getIntakePower( F, bouncebackArray, Info );
+		float intakePower = getIntakePower( F, bouncebackArray, Info, STL );
 		float lakePower = 0.5f * massFlow * uzInletPhys * uzInletPhys;
 		float intakeEta = std::max({0.f, intakePower}) / lakePower;
 		
@@ -297,7 +304,6 @@ int main(int argc, char **argv)
 			lapTimer.stop();
 			auto lapTime = lapTimer.getRealTime();
 			std::cout << "Finished iteration " << iteration << std::endl;
-			std::cout << "Outlet rho adjusted to: " << 1.0f + Info.iRegulator << std::endl;
 			std::cout << "Mass flow out: " << massFlow << " kg/s" << std::endl; 
 			std::cout << "Intake eta: " << intakeEta << std::endl;
 			

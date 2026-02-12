@@ -6,13 +6,13 @@ import pyvista as pv
 FILE_PATH = "/dev/shm/sim_data.bin"
 
 # Visualization Settings
-N_STREAMLINES = 1000     # Density of lines
+N_STREAMLINES = 1500     # Density of lines
 LINE_WIDTH = 1.5         # Thickness
 MAX_LEN = 1000           # Length of streamlines (increased to ensure they span domain)
 OPACITY = 1.0            
 
 # View Controls (Applies AFTER auto-centering)
-VIEW_AZIMUTH = -150.0     # Rotate camera left/right (Degrees)
+VIEW_AZIMUTH = 60.0     # Rotate camera left/right (Degrees)
 VIEW_ELEVATION = 10.0    # Rotate camera up/down (Degrees)
 ZOOM_FACTOR = 1.5        # 1.0 = Fit to screen. 1.2 = Zoom in 20%. 0.8 = Zoom out.
 
