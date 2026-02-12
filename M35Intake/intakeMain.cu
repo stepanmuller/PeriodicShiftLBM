@@ -8,7 +8,7 @@ constexpr float rhoNominalPhys = 1000.0f;								// kg/m3 water
 constexpr float SmagorinskyConstantGlobal = 0.1f; 						// set to zero to turn off LES
 
 // calculated from input
-constexpr float uzInletPhys = 17.f; 									// m/s
+constexpr float uzInletPhys = 20.f; 									// m/s
 constexpr float dtPhys = (uzInlet / uzInletPhys) * (res/1000); 			// s
 constexpr float invSqrt3 = 0.577350269f; 
 constexpr float soundspeedPhys = invSqrt3 * (res/1000) / dtPhys; 		// m/s
@@ -257,7 +257,15 @@ int main(int argc, char **argv)
 	
 	std::cout << "Starting simulation" << std::endl;
 	
-	const int iCut = Info.cellCountX / 2;
+	const int iCut = Info.cellCountX / 2 - (int)(13 / Info.res);
+	
+	const int iMin = Info.cellCountX / 2 - (int)(30 / Info.res);
+	const int iMax = Info.cellCountX / 2 + (int)(30 / Info.res);
+	const int jMin = Info.cellCountY - (int)(80 / Info.res);
+	const int jMax = Info.cellCountY-1;
+	const int kMin = (int)(50 / Info.res);
+	const int kMax = Info.cellCountZ-1;
+	
 	int plotNumber = 0;
 	
 	std::vector<float> historyMassFlow( iterationCount, 0.f );
@@ -297,6 +305,9 @@ int main(int argc, char **argv)
 			std::cout << "GLUPS: " << glups << std::endl;
 			
 			exportSectionCutPlotZY( F, bouncebackArray, Info, iCut, plotNumber );
+			
+			exportSection3DPlot( F, bouncebackArray, Info, iMin, jMin, kMin, iMax, jMax, kMax, plotNumber );
+			
 			plotNumber++;
 			
 			exportRegulatorData( historyMassFlow, historyIntakeEta, iteration );
