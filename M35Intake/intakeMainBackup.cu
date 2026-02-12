@@ -1,7 +1,6 @@
 // input physics
-constexpr float res = 0.6f; 											// mm
+constexpr float res = 0.35f; 											// mm
 constexpr float uzInlet = 0.05f; 										// also works as nominal LBM Mach number
-constexpr float rhoOutlet = 1.0f;
 
 constexpr float nuPhys = 1e-6;											// m2/s water
 constexpr float rhoNominalPhys = 1000.0f;								// kg/m3 water
@@ -15,8 +14,11 @@ constexpr float soundspeedPhys = invSqrt3 * (res/1000) / dtPhys; 		// m/s
 constexpr float nu = (dtPhys * nuPhys) / ((res/1000) * (res/1000));		// LBM nu
 constexpr float tau = 3.f * nu + 0.5f;		
 
+constexpr float massFlowDesired = 4.0f; 								// kg/s in the intake
+constexpr float iRegulatorSensitivity = 1e-7;							// how fast outlet pressure BC gets adjusted to achieve correct mass flow
+
 constexpr int iterationCount = 300001;
-constexpr int iterationChunk = 1000;
+constexpr int iterationChunk = 100;
 
 #include "../types.h"
 
@@ -36,7 +38,7 @@ constexpr int iterationChunk = 1000;
 
 #include "../STLFunctions.h"
 
-std::string STLPath = "M40IntakeNacaSTL.STL";
+std::string STLPath = "M40IntakeSTL.STL";
 
 __cuda_callable__ void getMarkers( 	const int& iCell, const int& jCell, const int& kCell, 
 									bool& fluidMarker, bool& bouncebackMarker, bool& mirrorMarker, bool& periodicMarker, bool& givenRhoMarker, bool& givenUxUyUzMarker,
@@ -68,14 +70,14 @@ __cuda_callable__ void getGivenRhoUxUyUz( 	const int& iCell, const int& jCell, c
 	const int iMax = ((int)Info.cellCountX / 2) + cellsInRadius; // both included
 	const int jMin = Info.cellCountY-1 - 2*cellsInRadius;
 	const int jMax = Info.cellCountY-1; // both included
-	if ( iCell >= iMin && iCell <= iMax && jCell >= jMin && jCell <= jMax ) rho = rhoOutlet; // intake
+	if ( iCell >= iMin && iCell <= iMax && jCell >= jMin && jCell <= jMax ) rho = 1.f + Info.iRegulator; // intake
 	else rho = 1.f; // lake
 }
 
 __cuda_callable__ float getSmagorinskyConstant( const int& iCell, const int& jCell, const int& kCell, const InfoStruct &Info )
 {
 	const float xToEnd = (Info.cellCountX-1 - iCell) * Info.res;
-	if ( xToEnd > 30.f ) return SmagorinskyConstantGlobal;
+	if ( xToEnd > 60.f ) return SmagorinskyConstantGlobal;
 	else
 	{
 		return 1.f; // set Smagorinsky high to dampen vortices before reaching the outlet
@@ -187,7 +189,7 @@ float getIntakePower( FStruct &F, BoolArrayType &bouncebackArray, InfoStruct &In
 	return intakePower;
 }
 
-void exportRegulatorData( const std::vector<float>& massFlow, const std::vector<float>& eta, int &currentIteration ) {
+void exportRegulatorData(const std::vector<float>& regulator, const std::vector<float>& massFlow, const std::vector<float>& eta, int &currentIteration) {
     FILE* fp = fopen("/dev/shm/regulator_history.bin", "wb");
     if (!fp) return;
     
@@ -195,7 +197,8 @@ void exportRegulatorData( const std::vector<float>& massFlow, const std::vector<
     int count = currentIteration + 1;
     fwrite(&count, sizeof(int), 1, fp);
     
-    // Write the three arraysrhoOutlet
+    // Write the three arrays
+    fwrite(regulator.data(), sizeof(float), count, fp);
     fwrite(massFlow.data(), sizeof(float), count, fp);
     fwrite(eta.data(), sizeof(float), count, fp);
     
@@ -260,6 +263,7 @@ int main(int argc, char **argv)
 	const int iCut = Info.cellCountX / 2;
 	int plotNumber = 0;
 	
+	std::vector<float> historyRegulator( iterationCount, 0.f );
 	std::vector<float> historyMassFlow( iterationCount, 0.f );
 	std::vector<float> historyIntakeEta( iterationCount, 0.f );
 	float previousError = 0.f;
@@ -277,10 +281,29 @@ int main(int argc, char **argv)
 		applyLocalCellUpdate( F, bouncebackArray, Info );
 		
 		float massFlow = getMassFlowOut( F, bouncebackArray, Info );
+		float error = massFlowDesired - massFlow;
+		Info.iRegulator = Info.iRegulator - iRegulatorSensitivity * error;
+		if ( enableTarget ) Info.iRegulator = Info.iRegulator * 0.99f + iRegulatorTarget * 0.01;
+		if ( iRegulatorCounter > 1000 ) enableTarget = false;
+		Info.iRegulator = std::clamp( Info.iRegulator, -0.005f, 0.005f );
+		
+		if ( iRegulatorCounter > 1000 && error * previousError <= 0) // crossing zero identified
+		{
+			iRegulatorTarget = iRegulatorCummulative / iRegulatorCounter;
+			iRegulatorCummulative = Info.iRegulator;
+			iRegulatorCounter = 1;
+			enableTarget = true;
+		}
+		
+		iRegulatorCummulative = iRegulatorCummulative + Info.iRegulator;
+		iRegulatorCounter++;
+		previousError = error;
+
 		float intakePower = getIntakePower( F, bouncebackArray, Info );
 		float lakePower = 0.5f * massFlow * uzInletPhys * uzInletPhys;
 		float intakeEta = std::max({0.f, intakePower}) / lakePower;
 		
+		historyRegulator[iteration] = Info.iRegulator;
 		historyMassFlow[iteration] = massFlow;
 		historyIntakeEta[iteration] = intakeEta;
 		
@@ -299,7 +322,7 @@ int main(int argc, char **argv)
 			exportSectionCutPlotZY( F, bouncebackArray, Info, iCut, plotNumber );
 			plotNumber++;
 			
-			exportRegulatorData( historyMassFlow, historyIntakeEta, iteration );
+			exportRegulatorData( historyRegulator, historyMassFlow, historyIntakeEta, iteration );
 			
 			std::cout << std::endl;
 			

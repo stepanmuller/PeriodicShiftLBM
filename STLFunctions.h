@@ -179,49 +179,67 @@ void checkSTLEdges( STLStruct &STL )
 	std::cout<< "	Total shared edge problems: " << errorCounter << std::endl; 
 }
 
-__host__ __device__ bool getRayHitYesNo( 	const long long &ak, const long long &al, 
-											const long long &bk, const long long &bl,
-											const long long &ck, const long long &cl )
+__host__ __device__ bool getRayHitYesNo( 	const long long &ax, const long long &ay, 
+											const long long &bx, const long long &by,
+											const long long &cx, const long long &cy )
 {
-    // Calculate Edge Functions
-    long long w0 = bk * cl - bl * ck;
-    long long w1 = ck * al - cl * ak;
-    long long w2 = ak * bl - al * bk;
-
-    const long long area = w0 + w1 + w2;
-    if (area == 0) {
-        return false; 
-    }
-
-    bool flipped = (area < 0);
-    if (flipped) { w0 = -w0; w1 = -w1; w2 = -w2; }
+    // First, find how ABC is oriented. A -> B -> C going anti clockwise gives positive signed area
+    const long long abx = bx - ax;
+    const long long aby = by - ay;
+    const long long bcx = cx - bx;
+    const long long bcy = cy - by;
+    const long long cax = ax - cx;
+    const long long cay = ay - cy;
     
-    // EDGE 0 CHECK
-    if (w0 < 0) { return false; }
-    if (w0 == 0) {
-        const long long dx = flipped ? (ak - bk) : (bk - ak);
-        const long long dy = flipped ? (al - bl) : (bl - al);
-        if (!((dy < 0) || (dy == 0 && dx > 0))) { return false; }
-    }
+    const long long signedArea = abx * bcy - aby * bcx;
+    if ( signedArea == 0 ) return false; 
+    
+    long long qz = 1;
+    if ( signedArea < 0 ) qz = -1; // now ABCQ has positive volume
+    
+    const long long wab = qz * ( abx * ( -by ) - aby * ( -bx ) );
+    const long long wbc = qz * ( bcx * ( -cy ) - bcy * ( -cx ) );
+    const long long wca = qz * ( cax * ( -ay ) - cay * ( -ax ) );
+    if ( wab > 0 && wbc > 0 && wca > 0 ) return true;
+    if ( wab < 0 || wbc < 0 || wca < 0 ) return false;
+    
+    if ( wab == 0 )
+    {
+		if ( abx == 0 ) // vertical edge
+		{
+			if ( cx < 0 ) return true;
+			else return false;
+		}
+		// if we got here the edge is not vertical, so we can determine above or below
+		if ( bx > 0 && cy * bx > by * cx ) return true;
+		if ( bx < 0 && cy * bx < by * cx ) return true;
+	}
+	
+	if ( wbc == 0 )
+    {
+		if ( bcx == 0 ) // vertical edge
+		{
+			if ( ax < 0 ) return true;
+			else return false;
+		}
+		// if we got here the edge is not vertical, so we can determine above or below
+		if ( cx > 0 && ay * cx > cy * ax ) return true;
+		if ( cx < 0 && ay * cx < cy * ax ) return true;
+	}
+	
+	if ( wca == 0 )
+    {
+		if ( cax == 0 ) // vertical edge
+		{
+			if ( bx < 0 ) return true;
+			else return false;
+		}
+		// if we got here the edge is not vertical, so we can determine above or below
+		if ( ax > 0 && by * ax > ay * bx ) return true;
+		if ( ax < 0 && by * ax < ay * bx ) return true;
+	}
 
-    // EDGE 1 CHECK
-    if (w1 < 0) { return false; }
-    if (w1 == 0) {
-        const long long dx = flipped ? (bk - ck) : (ck - bk);
-        const long long dy = flipped ? (bl - cl) : (cl - bl);
-        if (!((dy < 0) || (dy == 0 && dx > 0))) { return false; }
-    }
-
-    // EDGE 2 CHECK
-    if (w2 < 0) { return false; }
-    if (w2 == 0) {
-        const long long dx = flipped ? (ck - ak) : (ak - ck);
-        const long long dy = flipped ? (cl - al) : (al - cl);
-        if (!((dy < 0) || (dy == 0 && dx > 0))) { return false; }
-    }
-
-    // If we reached this point, all checks passed!
-    return true; 
+    return false; 
 }
 
 __host__ __device__ float getRayHitZCoordinate(	const float &ax, const float &ay, const float &az,
@@ -340,7 +358,7 @@ void applyMarkersInsideSTL( BoolArrayType &markerArray, STLStruct &STL, const bo
 	int intersectionCountMax = TNL::Algorithms::reduce<TNL::Devices::Cuda>( start, end, fetch, reduction, 0 );
 	std::cout << "	intersectionCountMax: " << intersectionCountMax << std::endl; 
 	
-	/*
+	// DEBUG START
 	// check for odd intersections, that would signalize some error
 	int oddIntersectionCounter = 0;
 	for ( int j = 0; j < Info.cellCountY; j++ ) 
@@ -352,15 +370,53 @@ void applyMarkersInsideSTL( BoolArrayType &markerArray, STLStruct &STL, const bo
 			{
 				std::cout << "	Odd intersection count for i: " << i << ", j: " << j << ", : " << intersectionCount << std::endl;
 				oddIntersectionCounter++;
-			}
-			if ( intersectionCount > 2 ) 
-			{
-				std::cout << "	Large intersection count for i: " << i << ", j: " << j << ", : " << intersectionCount << std::endl;
+				
+				
+				for ( int triangleIndex = 0; triangleIndex < STL.triangleCount; triangleIndex++ )
+				{
+					const float ax = STL.axArray.getElement( triangleIndex );
+					const float ay = STL.ayArray.getElement( triangleIndex );
+					const float bx = STL.bxArray.getElement( triangleIndex );
+					const float by = STL.byArray.getElement( triangleIndex );
+					const float cx = STL.cxArray.getElement( triangleIndex );
+					const float cy = STL.cyArray.getElement( triangleIndex );
+					// transform STL floats to integer grid that is 100x finer than the LBM grid to prevent float errors
+					// transform into coordinate system of the LBM grid
+					// make the STL coords odd, rays will be even, this prevents hitting a vortex
+					const float scale = 50.0f / Info.res;
+					const long long ok = round( STL.ox * scale );
+					const long long ol = round( STL.oy * scale );
+					const long long ak = (long long)(round( ax * scale ) + ok) * 2 + 1;
+					const long long al = (long long)(round( ay * scale ) + ol) * 2 + 1;
+					const long long bk = (long long)(round( bx * scale ) + ok) * 2 + 1;
+					const long long bl = (long long)(round( by * scale ) + ol) * 2 + 1;
+					const long long ck = (long long)(round( cx * scale ) + ok) * 2 + 1;
+					const long long cl = (long long)(round( cy * scale ) + ol) * 2 + 1;
+					
+					const long long rayK = i * 100;
+					const long long rayL = j * 100;
+					// transform the triangle into coordinate system where ray is [0, 0]
+					const long long ak0 = ak - rayK;
+					const long long al0 = al - rayL;
+					const long long bk0 = bk - rayK;
+					const long long bl0 = bl - rayL;
+					const long long ck0 = ck - rayK;
+					const long long cl0 = cl - rayL;
+
+					const bool rayHit = getRayHitYesNo( ak0, al0, bk0, bl0, ck0, cl0 );
+
+					if ( rayHit ) 
+					{
+						std::cout << "	Ray hit for i: " << i << ", j: " << j << ", : " << intersectionCount << ", triangleIndex: " << triangleIndex << std::endl;
+						std::cout << "	Coords: [" << ak0 << ", " << al0 << "], [" << bk0 << ", " << bl0 << "], [" << ck0 << ", " << cl0 << "]" << std::endl;
+					}
+				}
+				
 			}
 		}
 	}		
 	std::cout<< "	Total rays with odd intersection count: " << oddIntersectionCounter << std::endl;   
-	*/
+	// DEBUG END
 	
 	// extracting the intersection indexes
 	IntArray3DType intersectionIndexArray;

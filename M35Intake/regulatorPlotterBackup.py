@@ -40,44 +40,54 @@ def add_average_diagnostics(ax, iterations, data, unit_str="", fmt=".3f"):
     
     return f"{avg_val:{fmt}}{unit_str}"
 
-def plot_history():
+def plot_regulator():
     try:
         with open("/dev/shm/regulator_history.bin", "rb") as f:
             count = np.fromfile(f, dtype=np.int32, count=1)[0]
-            # Regulator read removed here
+            i_reg = np.fromfile(f, dtype=np.float32, count=count)
             m_flow = np.fromfile(f, dtype=np.float32, count=count)
             eta = np.fromfile(f, dtype=np.float32, count=count)
     except Exception:
         return
 
-    # Changed to 2 subplots instead of 3
-    fig, axs = plt.subplots(2, 1, figsize=(16, 9), sharex=True)
+    fig, axs = plt.subplots(3, 1, figsize=(16, 9), sharex=True)
     iterations = np.arange(count)
     bbox_props = dict(boxstyle="square,pad=0.3", fc="white", ec="black", lw=1, alpha=0.8)
 
-    # --- Subplot 1: Mass Flow (Moved to top) ---
-    axs[0].plot(iterations, m_flow, color='black', linewidth=1.2, alpha=0.7)
-    axs[0].set_ylabel(r"$\dot{m}$ [kg/s]")
-    axs[0].set_title(r"\textbf{History}") # Title moved here
+    # --- Subplot 1: Regulator Value ---
+    axs[0].plot(iterations, i_reg, color='black', linewidth=1.2, alpha=0.7)
+    axs[0].set_ylabel(r"Regulator $\Delta \rho$ [1]")
+    axs[0].set_title(r"\textbf{History}")
     axs[0].grid(True, linestyle='--', alpha=0.4)
     axs[0].yaxis.set_major_locator(MaxNLocator(nbins=8))
-    set_smart_ylim(axs[0], m_flow)
+    set_smart_ylim(axs[0], i_reg)
     
-    label_m = add_average_diagnostics(axs[0], iterations, m_flow, unit_str=" kg/s")
-    axs[0].text(0.98, 0.90, f'\\textbf{{{label_m}}}', 
+    label_i = add_average_diagnostics(axs[0], iterations, i_reg, fmt=".6f")
+    axs[0].text(0.98, 0.90, f'\\textbf{{{label_i}}}', 
                 transform=axs[0].transAxes, ha='right', va='top', bbox=bbox_props)
 
-    # --- Subplot 2: Intake Efficiency (Moved to bottom) ---
-    axs[1].plot(iterations, eta, color='black', linewidth=1.2, alpha=0.7)
-    axs[1].set_ylabel(r"$\eta_{Intake}$ [1]")
-    axs[1].set_xlabel(r"Iteration")
+    # --- Subplot 2: Mass Flow ---
+    axs[1].plot(iterations, m_flow, color='black', linewidth=1.2, alpha=0.7)
+    axs[1].set_ylabel(r"$\dot{m}$ [kg/s]")
     axs[1].grid(True, linestyle='--', alpha=0.4)
     axs[1].yaxis.set_major_locator(MaxNLocator(nbins=8))
-    set_smart_ylim(axs[1], eta)
+    set_smart_ylim(axs[1], m_flow)
     
-    label_e = add_average_diagnostics(axs[1], iterations, eta)
-    axs[1].text(0.98, 0.90, f'\\textbf{{{label_e}}}', 
+    label_m = add_average_diagnostics(axs[1], iterations, m_flow, unit_str=" kg/s")
+    axs[1].text(0.98, 0.90, f'\\textbf{{{label_m}}}', 
                 transform=axs[1].transAxes, ha='right', va='top', bbox=bbox_props)
+
+    # --- Subplot 3: Intake Efficiency ---
+    axs[2].plot(iterations, eta, color='black', linewidth=1.2, alpha=0.7)
+    axs[2].set_ylabel(r"$\eta_{Intake}$ [1]")
+    axs[2].set_xlabel(r"Iteration")
+    axs[2].grid(True, linestyle='--', alpha=0.4)
+    axs[2].yaxis.set_major_locator(MaxNLocator(nbins=8))
+    set_smart_ylim(axs[2], eta)
+    
+    label_e = add_average_diagnostics(axs[2], iterations, eta)
+    axs[2].text(0.98, 0.90, f'\\textbf{{{label_e}}}', 
+                transform=axs[2].transAxes, ha='right', va='top', bbox=bbox_props)
 
     plt.tight_layout()
     os.makedirs("results", exist_ok=True)
@@ -85,4 +95,4 @@ def plot_history():
     plt.close()
 
 if __name__ == "__main__":
-    plot_history()
+    plot_regulator()
