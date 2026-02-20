@@ -1,4 +1,4 @@
-// Version with call for bouncebackMarker as an explicit function of i, j, k
+// Version with call for bouncebackMarker as an explicit function of i, j, k without report array
 void applyLocalCellUpdate( FStruct &F, InfoStruct &Info )
 {
 	auto fArrayView  = F.fArray.getView();
@@ -61,7 +61,7 @@ void applyLocalCellUpdate( FStruct &F, InfoStruct &Info )
 	TNL::Algorithms::parallelFor<TNL::Devices::Cuda>(0, Info.cellCount, cellLambda );
 }
 
-// Version with bouncebackMarker loaded from memory
+// Version with bouncebackMarker loaded from memory without report array
 void applyLocalCellUpdate( FStruct &F, BoolArrayType &bouncebackArray, InfoStruct &Info )
 {
 	auto fArrayView  = F.fArray.getView();

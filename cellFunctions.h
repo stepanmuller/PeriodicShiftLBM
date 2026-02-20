@@ -201,3 +201,10 @@ __cuda_callable__ void convertToPhysicalUnits( const float &rho, float &p, float
 	uz = uz * (Info.res/1000.f) / Info.dtPhys;
 	p = (rho - 1.f) * Info.rhoNominalPhys * Info.soundspeedPhys * Info.soundspeedPhys;
 }
+
+__cuda_callable__ void convertToPhysicalForce( float &gx, float &gy, float &gz, const InfoStruct &Info )
+{
+	gx = gx * Info.rhoNominalPhys * (Info.res/1000.f) * (Info.res/1000.f) * (Info.res/1000.f) * (Info.res/1000.f) / (Info.dtPhys * Info.dtPhys);
+	gy = gy * Info.rhoNominalPhys * (Info.res/1000.f) * (Info.res/1000.f) * (Info.res/1000.f) * (Info.res/1000.f) / (Info.dtPhys * Info.dtPhys);
+	gz = gz * Info.rhoNominalPhys * (Info.res/1000.f) * (Info.res/1000.f) * (Info.res/1000.f) * (Info.res/1000.f) / (Info.dtPhys * Info.dtPhys);
+}
