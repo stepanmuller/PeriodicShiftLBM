@@ -1,9 +1,10 @@
 // Version without marker array
-void exportSectionCutPlotXY( FStruct &F, InfoStruct &Info, const int &kCell, const int &plotNumber )
+void exportSectionCutPlotXY( GridStruct &Grid, const int &kCell, const int &plotNumber )
 {
 	std::cout << "Exporting XY section cut plot " << plotNumber << std::endl;
-	auto fArrayView  = F.fArray.getConstView();
-	auto shifterView  = F.shifter.getConstView();
+	auto fArrayView  = Grid.fArray.getConstView();
+	auto shifterView  = Grid.shifter.getConstView();
+	InfoStruct Info = Grid.Info;
 	
 	SectionCutStruct SectionCut;
 	SectionCut.rhoArray.setSizes( Info.cellCountY, Info.cellCountX );
@@ -63,8 +64,9 @@ void exportSectionCutPlotXY( FStruct &F, InfoStruct &Info, const int &kCell, con
 			float uy = SectionCutCPU.uyArray.getElement(jCell, iCell);
 			float uz = SectionCutCPU.uzArray.getElement(jCell, iCell);
 			float marker = SectionCutCPU.markerArray.getElement(jCell, iCell);
-			float p;
-			convertToPhysicalUnits( rho, p, ux, uy, uz, Info );
+			float p = rho;
+			convertToPhysicalVelocity( ux, uy, uz, Info );
+			convertToPhysicalPressure( p, Info );
 			float data[5] = {p, ux, uy, uz, marker};
 			fwrite(data, sizeof(float), 5, fp);
 		}
@@ -73,20 +75,22 @@ void exportSectionCutPlotXY( FStruct &F, InfoStruct &Info, const int &kCell, con
 	system("python3 plotter.py");
 }
 
-void exportSectionCutPlotZY( FStruct &F, BoolArrayType &inputMarkerArray, InfoStruct &Info, const int &iCell, const int &plotNumber )
+
+/*
+void exportSectionCutPlotZY( BoolArrayType &inputMarkerArray, GridStruct &Grid, const int &iCell, const int &plotNumber )
 {
 	std::cout << "Exporting ZY section cut plot " << plotNumber << std::endl;
-	auto fArrayView  = F.fArray.getConstView();
-	auto shifterView  = F.shifter.getConstView();
+	auto fArrayView  = Grid.fArray.getConstView();
+	auto shifterView  = Grid.shifter.getConstView();
 	
 	auto inputMarkerArrayView  = inputMarkerArray.getConstView();
 	
 	SectionCutStruct SectionCut;
-	SectionCut.rhoArray.setSizes( Info.cellCountY, Info.cellCountZ );
-	SectionCut.uxArray.setSizes( Info.cellCountY, Info.cellCountZ );
-	SectionCut.uyArray.setSizes( Info.cellCountY, Info.cellCountZ );
-	SectionCut.uzArray.setSizes( Info.cellCountY, Info.cellCountZ );
-	SectionCut.markerArray.setSizes( Info.cellCountY, Info.cellCountZ );
+	SectionCut.rhoArray.setSizes( Grid.Info.cellCountY, Grid.Info.cellCountZ );
+	SectionCut.uxArray.setSizes( Grid.Info.cellCountY, Grid.Info.cellCountZ );
+	SectionCut.uyArray.setSizes( Grid.Info.cellCountY, Grid.Info.cellCountZ );
+	SectionCut.uzArray.setSizes( Grid.Info.cellCountY, Grid.Info.cellCountZ );
+	SectionCut.markerArray.setSizes( Grid.Info.cellCountY, Grid.Info.cellCountZ );
 		
 	auto rhoArrayView = SectionCut.rhoArray.getView();
 	auto uxArrayView = SectionCut.uxArray.getView();
@@ -99,9 +103,9 @@ void exportSectionCutPlotZY( FStruct &F, BoolArrayType &inputMarkerArray, InfoSt
 		const int kCell = doubleIndex[0];
 		const int jCell = doubleIndex[1];
 		int cell;
-		getCellIndex( cell, iCell, jCell, kCell, Info );
+		getCellIndex( cell, iCell, jCell, kCell, Grid );
 		int shiftedIndex[27];
-		getShiftedIndex( cell, shiftedIndex, shifterView, Info );
+		getShiftedIndex( cell, shiftedIndex, shifterView, Grid );
 		float f[27];
 		for (int direction = 0; direction < 27; direction++) f[direction] = fArrayView( direction, shiftedIndex[direction] );	
 		float rho, ux, uy, uz;
@@ -114,7 +118,7 @@ void exportSectionCutPlotZY( FStruct &F, BoolArrayType &inputMarkerArray, InfoSt
 		markerArrayView( jCell, kCell ) = marker;
 	};
 	IntPairType start{ 0, 0 };
-	IntPairType end{ Info.cellCountZ, Info.cellCountY };
+	IntPairType end{ Grid.Info.cellCountZ, Grid.Info.cellCountY };
 	TNL::Algorithms::parallelFor<TNL::Devices::Cuda>(start, end, cellLambda );
 	
 	SectionCutStructCPU SectionCutCPU;
@@ -125,12 +129,12 @@ void exportSectionCutPlotZY( FStruct &F, BoolArrayType &inputMarkerArray, InfoSt
 	SectionCutCPU.markerArray = SectionCut.markerArray;
 	
 	FILE* fp = fopen("/dev/shm/sim_data.bin", "wb"); 	// Use /dev/shm/ for a pure RAM-based "file" on Linux
-	int header[4] = {plotNumber, (int)Info.cellCountY, (int)Info.cellCountZ, 5};
+	int header[4] = {plotNumber, (int)Grid.Info.cellCountY, (int)Grid.Info.cellCountZ, 5};
 	fwrite(header, sizeof(int), 4, fp);
 	
-	for (int jCell = 0; jCell < Info.cellCountY; jCell++)
+	for (int jCell = 0; jCell < Grid.Info.cellCountY; jCell++)
 	{
-		for (int kCell = 0; kCell < Info.cellCountZ; kCell++)
+		for (int kCell = 0; kCell < Grid.Info.cellCountZ; kCell++)
 		{
 			float rho = SectionCutCPU.rhoArray.getElement(jCell, kCell);
 			float ux = SectionCutCPU.uxArray.getElement(jCell, kCell);
@@ -138,7 +142,7 @@ void exportSectionCutPlotZY( FStruct &F, BoolArrayType &inputMarkerArray, InfoSt
 			float uz = SectionCutCPU.uzArray.getElement(jCell, kCell);
 			float marker = SectionCutCPU.markerArray.getElement(jCell, kCell);
 			float p;
-			convertToPhysicalUnits( rho, p, ux, uy, uz, Info );
+			convertToPhysicalUnits( rho, p, ux, uy, uz, Grid );
 			float data[5] = {p, ux, uy, uz, marker};
 			fwrite(data, sizeof(float), 5, fp);
 		}
@@ -147,20 +151,20 @@ void exportSectionCutPlotZY( FStruct &F, BoolArrayType &inputMarkerArray, InfoSt
 	system("python3 plotter.py");
 }
 
-void exportSectionCutPlotZX( FStruct &F, BoolArrayType &inputMarkerArray, InfoStruct &Info, const int &jCell, const int &plotNumber )
+void exportSectionCutPlotZX( BoolArrayType &inputMarkerArray, GridStruct &Grid, const int &jCell, const int &plotNumber )
 {
 	std::cout << "Exporting ZX section cut plot " << plotNumber << std::endl;
-	auto fArrayView  = F.fArray.getConstView();
-	auto shifterView  = F.shifter.getConstView();
+	auto fArrayView  = Grid.fArray.getConstView();
+	auto shifterView  = Grid.shifter.getConstView();
 	
 	auto inputMarkerArrayView  = inputMarkerArray.getConstView();
 	
 	SectionCutStruct SectionCut;
-	SectionCut.rhoArray.setSizes( Info.cellCountX, Info.cellCountZ );
-	SectionCut.uxArray.setSizes( Info.cellCountX, Info.cellCountZ );
-	SectionCut.uyArray.setSizes( Info.cellCountX, Info.cellCountZ );
-	SectionCut.uzArray.setSizes( Info.cellCountX, Info.cellCountZ );
-	SectionCut.markerArray.setSizes( Info.cellCountX, Info.cellCountZ );
+	SectionCut.rhoArray.setSizes( Grid.Info.cellCountX, Grid.Info.cellCountZ );
+	SectionCut.uxArray.setSizes( Grid.Info.cellCountX, Grid.Info.cellCountZ );
+	SectionCut.uyArray.setSizes( Grid.Info.cellCountX, Grid.Info.cellCountZ );
+	SectionCut.uzArray.setSizes( Grid.Info.cellCountX, Grid.Info.cellCountZ );
+	SectionCut.markerArray.setSizes( Grid.Info.cellCountX, Grid.Info.cellCountZ );
 		
 	auto rhoArrayView = SectionCut.rhoArray.getView();
 	auto uxArrayView = SectionCut.uxArray.getView();
@@ -173,9 +177,9 @@ void exportSectionCutPlotZX( FStruct &F, BoolArrayType &inputMarkerArray, InfoSt
 		const int kCell = doubleIndex[0];
 		const int iCell = doubleIndex[1];
 		int cell;
-		getCellIndex( cell, iCell, jCell, kCell, Info );
+		getCellIndex( cell, iCell, jCell, kCell, Grid );
 		int shiftedIndex[27];
-		getShiftedIndex( cell, shiftedIndex, shifterView, Info );
+		getShiftedIndex( cell, shiftedIndex, shifterView, Grid );
 		float f[27];
 		for (int direction = 0; direction < 27; direction++) f[direction] = fArrayView( direction, shiftedIndex[direction] );	
 		float rho, ux, uy, uz;
@@ -188,7 +192,7 @@ void exportSectionCutPlotZX( FStruct &F, BoolArrayType &inputMarkerArray, InfoSt
 		markerArrayView( iCell, kCell ) = marker;
 	};
 	IntPairType start{ 0, 0 };
-	IntPairType end{ Info.cellCountZ, Info.cellCountX };
+	IntPairType end{ Grid.Info.cellCountZ, Grid.Info.cellCountX };
 	TNL::Algorithms::parallelFor<TNL::Devices::Cuda>(start, end, cellLambda );
 	
 	SectionCutStructCPU SectionCutCPU;
@@ -199,12 +203,12 @@ void exportSectionCutPlotZX( FStruct &F, BoolArrayType &inputMarkerArray, InfoSt
 	SectionCutCPU.markerArray = SectionCut.markerArray;
 	
 	FILE* fp = fopen("/dev/shm/sim_data.bin", "wb"); 	// Use /dev/shm/ for a pure RAM-based "file" on Linux
-	int header[4] = {plotNumber, (int)Info.cellCountX, (int)Info.cellCountZ, 5};
+	int header[4] = {plotNumber, (int)Grid.Info.cellCountX, (int)Grid.Info.cellCountZ, 5};
 	fwrite(header, sizeof(int), 4, fp);
 	
-	for (int iCell = 0; iCell < Info.cellCountX; iCell++)
+	for (int iCell = 0; iCell < Grid.Info.cellCountX; iCell++)
 	{
-		for (int kCell = 0; kCell < Info.cellCountZ; kCell++)
+		for (int kCell = 0; kCell < Grid.Info.cellCountZ; kCell++)
 		{
 			float rho = SectionCutCPU.rhoArray.getElement(iCell, kCell);
 			float ux = SectionCutCPU.uxArray.getElement(iCell, kCell);
@@ -212,7 +216,7 @@ void exportSectionCutPlotZX( FStruct &F, BoolArrayType &inputMarkerArray, InfoSt
 			float uz = SectionCutCPU.uzArray.getElement(iCell, kCell);
 			float marker = SectionCutCPU.markerArray.getElement(iCell, kCell);
 			float p;
-			convertToPhysicalUnits( rho, p, ux, uy, uz, Info );
+			convertToPhysicalUnits( rho, p, ux, uy, uz, Grid );
 			float data[5] = {p, ux, uy, uz, marker};
 			fwrite(data, sizeof(float), 5, fp);
 		}
@@ -221,11 +225,11 @@ void exportSectionCutPlotZX( FStruct &F, BoolArrayType &inputMarkerArray, InfoSt
 	system("python3 plotter.py");
 }
 
-void exportSection3DPlot( FStruct &F, BoolArrayType &inputMarkerArray, InfoStruct &Info, const int &iMin, const int &jMin, const int &kMin, const int &iMax, const int &jMax, const int &kMax, const int &plotNumber )
+void exportSection3DPlot( BoolArrayType &inputMarkerArray, GridStruct &Grid, const int &iMin, const int &jMin, const int &kMin, const int &iMax, const int &jMax, const int &kMax, const int &plotNumber )
 {
 	std::cout << "Exporting Section 3D " << plotNumber << std::endl;
-	auto fArrayView  = F.fArray.getConstView();
-	auto shifterView  = F.shifter.getConstView();
+	auto fArrayView  = Grid.fArray.getConstView();
+	auto shifterView  = Grid.shifter.getConstView();
 	
 	auto inputMarkerArrayView  = inputMarkerArray.getConstView();
 	
@@ -252,9 +256,9 @@ void exportSection3DPlot( FStruct &F, BoolArrayType &inputMarkerArray, InfoStruc
 		const int jCell = tripleIndex[1];
 		const int kCell = tripleIndex[2];
 		int cell;
-		getCellIndex( cell, iCell, jCell, kCell, Info );
+		getCellIndex( cell, iCell, jCell, kCell, Grid );
 		int shiftedIndex[27];
-		getShiftedIndex( cell, shiftedIndex, shifterView, Info );
+		getShiftedIndex( cell, shiftedIndex, shifterView, Grid );
 		float f[27];
 		for (int direction = 0; direction < 27; direction++) f[direction] = fArrayView( direction, shiftedIndex[direction] );	
 		float rho, ux, uy, uz;
@@ -293,7 +297,7 @@ void exportSection3DPlot( FStruct &F, BoolArrayType &inputMarkerArray, InfoStruc
 				float uz = Section3DCPU.uzArray.getElement( iCell, jCell, kCell );
 				float marker = Section3DCPU.markerArray.getElement( iCell, jCell, kCell );
 				float p;
-				convertToPhysicalUnits( rho, p, ux, uy, uz, Info );
+				convertToPhysicalUnits( rho, p, ux, uy, uz, Grid );
 				float data[5] = {p, ux, uy, uz, marker};
 				fwrite(data, sizeof(float), 5, fp);
 			}
@@ -302,3 +306,5 @@ void exportSection3DPlot( FStruct &F, BoolArrayType &inputMarkerArray, InfoStruc
 	fclose(fp);
 	system("python3 plotter3D.py");
 }
+
+*/

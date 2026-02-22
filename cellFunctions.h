@@ -15,42 +15,42 @@
 
 // w:  { 8/27, 2/27, 2/27, 2/27 , 2/27, 2/27, 2/27, 1/54, 1/54, 1/54, 1/54, 1/54, 1/54, 1/54, 1/54, 1/54, 1/54, 1/54, 1/54, 1/216, 1/216, 1/216, 1/216, 1/216, 1/216, 1/216, 1/216 };
 
-__cuda_callable__ void getCellIndex( int& cell, const int& iCell, const int& jCell, const int& kCell, const GridStruct &Grid )
+__cuda_callable__ void getCellIndex( int& cell, const int& iCell, const int& jCell, const int& kCell, const InfoStruct &Info )
 {
-    cell = kCell * (Grid.cellCountX * Grid.cellCountY) + jCell * Grid.cellCountX + iCell;
+    cell = kCell * (Info.cellCountX * Info.cellCountY) + jCell * Info.cellCountX + iCell;
 }
 
-__cuda_callable__ void getIJKCellIndex( const int& cell, int& iCell, int& jCell, int& kCell, const GridStruct &Grid)
+__cuda_callable__ void getIJKCellIndex( const int& cell, int& iCell, int& jCell, int& kCell, const InfoStruct &Info)
 {
-    const int xy = Grid.cellCountX * Grid.cellCountY;
+    const int xy = Info.cellCountX * Info.cellCountY;
     kCell = cell / xy;
     const int remainder = cell % xy;
-    jCell = remainder / Grid.cellCountX;
-    iCell = remainder % Grid.cellCountX;
+    jCell = remainder / Info.cellCountX;
+    iCell = remainder % Info.cellCountX;
 }
 
-__cuda_callable__ void getShiftedIndex( const int& cell, int (&shiftedIndex)[27], IntArrayConstViewType shifterView, const GridStruct &Grid )
+__cuda_callable__ void getShiftedIndex( const int& cell, int (&shiftedIndex)[27], IntArrayConstViewType shifterView, const InfoStruct &Info )
 {
     for ( int direction = 0; direction < 27; direction++ ) 
 		{
 			const int shift = shifterView[direction];
 			shiftedIndex[direction] = cell + shift;
-			if (shiftedIndex[direction] >= Grid.cellCount) shiftedIndex[direction] -= Grid.cellCount;
+			if (shiftedIndex[direction] >= Info.cellCount) shiftedIndex[direction] -= Info.cellCount;
 		}	
 }
 
 __cuda_callable__ void getOuterNormal( 	const int& iCell, const int& jCell, const int& kCell, const bool& periodicMarker,
-										int& outerNormalX, int& outerNormalY, int& outerNormalZ, const GridStruct &Grid )
+										int& outerNormalX, int& outerNormalY, int& outerNormalZ, const InfoStruct &Info )
 {
     outerNormalX = 0;
     outerNormalY = 0;
     outerNormalZ = 0;
     if 			( iCell == 0 ) 						outerNormalX = -1;
-    else if 	( iCell == Grid.cellCountX - 1 ) 	outerNormalX = 1;
+    else if 	( iCell == Info.cellCountX - 1 ) 	outerNormalX = 1;
     if 			( jCell == 0 ) 						outerNormalY = -1;
-    else if 	( jCell == Grid.cellCountY - 1) 	outerNormalY = 1;
+    else if 	( jCell == Info.cellCountY - 1) 	outerNormalY = 1;
     if 			( kCell == 0 ) 						outerNormalZ = -1;
-    else if 	( kCell == Grid.cellCountZ - 1 ) 	outerNormalZ = 1;
+    else if 	( kCell == Info.cellCountZ - 1 ) 	outerNormalZ = 1;
     
     if ( periodicMarker ) outerNormalZ = 0;
 }
@@ -195,23 +195,23 @@ __cuda_callable__ void getOmegaLES( const float (&fneq)[27], const float &rho, c
 	omegaLES = 1 / tauLES;
 }
 
-__cuda_callable__ void convertToPhysicalVelocity( float &ux, float &uy, float &uz, const GridStruct &Grid )
+__cuda_callable__ void convertToPhysicalVelocity( float &ux, float &uy, float &uz, const InfoStruct &Info )
 {
-	ux = ux * (Grid.res/1000.f) / Grid.dtPhys;
-	uy = uy * (Grid.res/1000.f) / Grid.dtPhys;
-	uz = uz * (Grid.res/1000.f) / Grid.dtPhys;
+	ux = ux * (Info.res/1000.f) / Info.dtPhys;
+	uy = uy * (Info.res/1000.f) / Info.dtPhys;
+	uz = uz * (Info.res/1000.f) / Info.dtPhys;
 }
 
-__cuda_callable__ void convertToPhysicalPressure( float &rho, const GridStruct &Grid )
+__cuda_callable__ void convertToPhysicalPressure( float &rho, const InfoStruct &Info )
 {
 	// converts LBM rho to physical pressure, overwrites the variable (LBM rho -> physical p)
-	p = (rho - 1.f) * rhoNominalPhys * soundspeedPhys * soundspeedPhys;
+	const float p = (rho - 1.f) * rhoNominalPhys * soundspeedPhys * soundspeedPhys;
 	rho = p;
 }
 
-__cuda_callable__ void convertToPhysicalForce( float &gx, float &gy, float &gz, const GridStruct &Grid )
+__cuda_callable__ void convertToPhysicalForce( float &gx, float &gy, float &gz, const InfoStruct &Info )
 {
-	gx = gx * rhoNominalPhys * (Grid.res/1000.f) * (Grid.res/1000.f) * (Grid.res/1000.f) * (Grid.res/1000.f) / (Grid.dtPhys * Grid.dtPhys);
-	gy = gy * rhoNominalPhys * (Grid.res/1000.f) * (Grid.res/1000.f) * (Grid.res/1000.f) * (Grid.res/1000.f) / (Grid.dtPhys * Grid.dtPhys);
-	gz = gz * rhoNominalPhys * (Grid.res/1000.f) * (Grid.res/1000.f) * (Grid.res/1000.f) * (Grid.res/1000.f) / (Grid.dtPhys * Grid.dtPhys);
+	gx = gx * rhoNominalPhys * (Info.res/1000.f) * (Info.res/1000.f) * (Info.res/1000.f) * (Info.res/1000.f) / (Info.dtPhys * Info.dtPhys);
+	gy = gy * rhoNominalPhys * (Info.res/1000.f) * (Info.res/1000.f) * (Info.res/1000.f) * (Info.res/1000.f) / (Info.dtPhys * Info.dtPhys);
+	gz = gz * rhoNominalPhys * (Info.res/1000.f) * (Info.res/1000.f) * (Info.res/1000.f) * (Info.res/1000.f) / (Info.dtPhys * Info.dtPhys);
 }

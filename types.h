@@ -61,9 +61,11 @@ struct SectionCutStructCPU { FloatArray2DTypeCPU rhoArray; FloatArray2DTypeCPU u
 
 struct Section3DStruct { FloatArray3DType rhoArray; FloatArray3DType uxArray; FloatArray3DType uyArray; FloatArray3DType uzArray; FloatArray3DType markerArray; };
 struct Section3DStructCPU { FloatArray3DTypeCPU rhoArray; FloatArray3DTypeCPU uxArray; FloatArray3DTypeCPU uyArray; FloatArray3DTypeCPU uzArray; FloatArray3DTypeCPU markerArray; };	
+
+struct InfoStruct { float gridID = 0; float res = 1.f; int cellCountX; int cellCountY; int cellCountZ; int cellCount; float ox = 0.f; float oy = 0.f; float oz = 0.f; float nu = 1.f; float dtPhys = 1.f; 
+					int iSubgridStart = 0; int jSubgridStart = 0; int kSubgridStart = 0; int iSubgridEnd = 0; int jSubgridEnd = 0; int kSubgridEnd = 0; }; 
 								
-struct GridStruct { float res = 1.f; int cellCountX; int cellCountY; int cellCountZ; int cellCount; float ox = 0.f; float oy = 0.f; float oz = 0.f; float nu = 1.f; float dtPhys = 1.f; 
-					FloatArray2DType fArray; IntArrayType shifter; }; 
+struct GridStruct { InfoStruct Info; FloatArray2DType fArray; IntArrayType shifter; }; 
 					
 struct PhysicalUnitStruct { float rhoNominalPhys = 1.f; float soundspeedPhys = 1.f; float dtPhys = 1.f; };
 					
