@@ -1,7 +1,7 @@
-void fillDefaultEquilibrium( FStruct& F, InfoStruct &Info )
+void fillDefaultEquilibrium( GridStruct &Grid )
 {
 	std::cout << "Filling fArray with default equilibrium, rho = 1, ux, uy, uz = 0" << std::endl;
-	auto fArrayView  = F.fArray.getView();
+	auto fArrayView  = Grid.fArray.getView();
 
 	auto cellLambda = [=] __cuda_callable__ ( const int cell ) mutable
 	{
@@ -14,14 +14,14 @@ void fillDefaultEquilibrium( FStruct& F, InfoStruct &Info )
 		for ( int i = 0; i < 27; i++ ) fArrayView( i, cell ) = feq[i];
 	};
 	int start = 0;
-	int end = Info.cellCountX * Info.cellCountY * Info.cellCountZ;
+	int end = Grid.cellCountX * Grid.cellCountY * Grid.cellCountZ;
 	TNL::Algorithms::parallelFor<TNL::Devices::Cuda>(start, end, cellLambda );
 }
 
-void fillDefaultEquilibrium( FStruct& F, InfoStruct &Info, const float &rho, const float &ux, const float &uy, const float &uz )
+void fillDefaultEquilibrium( GridStruct &Grid, const float &rho, const float &ux, const float &uy, const float &uz )
 {
 	std::cout << "Filling fArray with equilibrium per request" << std::endl;
-	auto fArrayView  = F.fArray.getView();
+	auto fArrayView  = Grid.fArray.getView();
 
 	auto cellLambda = [=] __cuda_callable__ ( const int cell ) mutable
 	{
@@ -30,27 +30,27 @@ void fillDefaultEquilibrium( FStruct& F, InfoStruct &Info, const float &rho, con
 		for ( int i = 0; i < 27; i++ ) fArrayView( i, cell ) = feq[i];
 	};
 	int start = 0;
-	int end = Info.cellCountX * Info.cellCountY * Info.cellCountZ;
+	int end = Grid.cellCountX * Grid.cellCountY * Grid.cellCountZ;
 	TNL::Algorithms::parallelFor<TNL::Devices::Cuda>(start, end, cellLambda );
 }
 
-void fillDefaultEquilibriumFromFunction( FStruct& F, InfoStruct &Info )
+void fillDefaultEquilibriumFromFunction( GridStruct &Grid )
 {
 	std::cout << "Filling fArray with equilibrium per function" << std::endl;
-	auto fArrayView  = F.fArray.getView();
+	auto fArrayView  = Grid.fArray.getView();
 
 	auto cellLambda = [=] __cuda_callable__ ( const int cell ) mutable
 	{
 		int iCell, jCell, kCell;
-		getIJKCellIndex( cell, iCell, jCell, kCell, Info );
+		getIJKCellIndex( cell, iCell, jCell, kCell, Grid );
 		float feq[27];
 		float rho = 1.f;
 		float ux, uy, uz = 0.f;
-		getInitialRhoUxUyUz( iCell, jCell, kCell, rho, ux, uy, uz, Info );
+		getInitialRhoUxUyUz( iCell, jCell, kCell, rho, ux, uy, uz, Grid );
 		getFeq(rho, ux, uy, uz, feq);
 		for ( int i = 0; i < 27; i++ ) fArrayView( i, cell ) = feq[i];
 	};
 	int start = 0;
-	int end = Info.cellCountX * Info.cellCountY * Info.cellCountZ;
+	int end = Grid.cellCountX * Grid.cellCountY * Grid.cellCountZ;
 	TNL::Algorithms::parallelFor<TNL::Devices::Cuda>(start, end, cellLambda );
 }

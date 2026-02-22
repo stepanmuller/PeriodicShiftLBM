@@ -54,7 +54,6 @@ using FloatArray3DTypeCPU = TNL::Containers::NDArray< float,
 using IntPairType = TNL::Containers::StaticArray< 2, int >;											
 using IntTripleType = TNL::Containers::StaticArray< 3, int >;
 
-struct FStruct { IntArrayType shifter; FloatArray2DType fArray; };
 struct FStructCPU { IntArrayTypeCPU shifter; FloatArray2DTypeCPU fArray; };
 
 struct SectionCutStruct { FloatArray2DType rhoArray; FloatArray2DType uxArray; FloatArray2DType uyArray; FloatArray2DType uzArray; FloatArray2DType markerArray; };
@@ -63,15 +62,16 @@ struct SectionCutStructCPU { FloatArray2DTypeCPU rhoArray; FloatArray2DTypeCPU u
 struct Section3DStruct { FloatArray3DType rhoArray; FloatArray3DType uxArray; FloatArray3DType uyArray; FloatArray3DType uzArray; FloatArray3DType markerArray; };
 struct Section3DStructCPU { FloatArray3DTypeCPU rhoArray; FloatArray3DTypeCPU uxArray; FloatArray3DTypeCPU uyArray; FloatArray3DTypeCPU uzArray; FloatArray3DTypeCPU markerArray; };	
 								
-struct InfoStruct { float res = 1.f; int cellCountX; int cellCountY; int cellCountZ; int cellCount;
-					float rhoNominalPhys = 1.f; float soundspeedPhys = 1.f; float dtPhys = 1.f; 
-					float iRegulator = 0.f; }; 
+struct GridStruct { float res = 1.f; int cellCountX; int cellCountY; int cellCountZ; int cellCount; float ox = 0.f; float oy = 0.f; float oz = 0.f; float nu = 1.f; float dtPhys = 1.f; 
+					FloatArray2DType fArray; IntArrayType shifter; }; 
+					
+struct PhysicalUnitStruct { float rhoNominalPhys = 1.f; float soundspeedPhys = 1.f; float dtPhys = 1.f; };
 					
 struct STLStructCPU { 	FloatArrayTypeCPU axArray; FloatArrayTypeCPU ayArray; FloatArrayTypeCPU azArray; 
 						FloatArrayTypeCPU bxArray; FloatArrayTypeCPU byArray; FloatArrayTypeCPU bzArray; 
 						FloatArrayTypeCPU cxArray; FloatArrayTypeCPU cyArray; FloatArrayTypeCPU czArray; 
 						float xmin; float ymin; float zmin; float xmax; float ymax; float zmax; 
-						float ox; float oy; float oz; int triangleCount; }; // ox, oy, oz is the position of STL origin in global coordinates
+						float ox = 0.f; float oy = 0.f; float oz = 0.f; int triangleCount; }; // ox, oy, oz is the position of STL origin in global coordinates
 
 struct STLStruct { 	FloatArrayType axArray; FloatArrayType ayArray; FloatArrayType azArray; 
 					FloatArrayType bxArray; FloatArrayType byArray; FloatArrayType bzArray; 

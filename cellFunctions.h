@@ -15,42 +15,42 @@
 
 // w:  { 8/27, 2/27, 2/27, 2/27 , 2/27, 2/27, 2/27, 1/54, 1/54, 1/54, 1/54, 1/54, 1/54, 1/54, 1/54, 1/54, 1/54, 1/54, 1/54, 1/216, 1/216, 1/216, 1/216, 1/216, 1/216, 1/216, 1/216 };
 
-__cuda_callable__ void getCellIndex( int& cell, const int& iCell, const int& jCell, const int& kCell, const InfoStruct &Info)
+__cuda_callable__ void getCellIndex( int& cell, const int& iCell, const int& jCell, const int& kCell, const GridStruct &Grid )
 {
-    cell = kCell * (Info.cellCountX * Info.cellCountY) + jCell * Info.cellCountX + iCell;
+    cell = kCell * (Grid.cellCountX * Grid.cellCountY) + jCell * Grid.cellCountX + iCell;
 }
 
-__cuda_callable__ void getIJKCellIndex( const int& cell, int& iCell, int& jCell, int& kCell, const InfoStruct &Info)
+__cuda_callable__ void getIJKCellIndex( const int& cell, int& iCell, int& jCell, int& kCell, const GridStruct &Grid)
 {
-    const int xy = Info.cellCountX * Info.cellCountY;
+    const int xy = Grid.cellCountX * Grid.cellCountY;
     kCell = cell / xy;
     const int remainder = cell % xy;
-    jCell = remainder / Info.cellCountX;
-    iCell = remainder % Info.cellCountX;
+    jCell = remainder / Grid.cellCountX;
+    iCell = remainder % Grid.cellCountX;
 }
 
-__cuda_callable__ void getShiftedIndex( const int& cell, int (&shiftedIndex)[27], IntArrayConstViewType shifterView, const InfoStruct &Info )
+__cuda_callable__ void getShiftedIndex( const int& cell, int (&shiftedIndex)[27], IntArrayConstViewType shifterView, const GridStruct &Grid )
 {
     for ( int direction = 0; direction < 27; direction++ ) 
 		{
 			const int shift = shifterView[direction];
 			shiftedIndex[direction] = cell + shift;
-			if (shiftedIndex[direction] >= Info.cellCount) shiftedIndex[direction] -= Info.cellCount;
+			if (shiftedIndex[direction] >= Grid.cellCount) shiftedIndex[direction] -= Grid.cellCount;
 		}	
 }
 
 __cuda_callable__ void getOuterNormal( 	const int& iCell, const int& jCell, const int& kCell, const bool& periodicMarker,
-										int& outerNormalX, int& outerNormalY, int& outerNormalZ, const InfoStruct &Info )
+										int& outerNormalX, int& outerNormalY, int& outerNormalZ, const GridStruct &Grid )
 {
     outerNormalX = 0;
     outerNormalY = 0;
     outerNormalZ = 0;
     if 			( iCell == 0 ) 						outerNormalX = -1;
-    else if 	( iCell == Info.cellCountX - 1 ) 	outerNormalX = 1;
+    else if 	( iCell == Grid.cellCountX - 1 ) 	outerNormalX = 1;
     if 			( jCell == 0 ) 						outerNormalY = -1;
-    else if 	( jCell == Info.cellCountY - 1) 	outerNormalY = 1;
+    else if 	( jCell == Grid.cellCountY - 1) 	outerNormalY = 1;
     if 			( kCell == 0 ) 						outerNormalZ = -1;
-    else if 	( kCell == Info.cellCountZ - 1 ) 	outerNormalZ = 1;
+    else if 	( kCell == Grid.cellCountZ - 1 ) 	outerNormalZ = 1;
     
     if ( periodicMarker ) outerNormalZ = 0;
 }
@@ -152,8 +152,9 @@ __cuda_callable__ void getRhoUxUyUz(
 			+f[21] - f[22] - f[23] + f[24] - f[25] + f[26]) / rho;
 }
 
-__cuda_callable__ void getOmegaLES(const float (&fneq)[27], const float &rho, const float &SmagorinskyConstant, float &omegaLES)
+__cuda_callable__ void getOmegaLES( const float (&fneq)[27], const float &rho, const float &nu, const float &SmagorinskyConstant, float &omegaLES )
 {
+	const float tau = 3.f * nu + 0.5f;
 	if (SmagorinskyConstant == 0)
 	{
 		omegaLES = 1 / tau;
@@ -194,17 +195,23 @@ __cuda_callable__ void getOmegaLES(const float (&fneq)[27], const float &rho, co
 	omegaLES = 1 / tauLES;
 }
 
-__cuda_callable__ void convertToPhysicalUnits( const float &rho, float &p, float &ux, float &uy, float &uz, const InfoStruct &Info )
+__cuda_callable__ void convertToPhysicalVelocity( float &ux, float &uy, float &uz, const GridStruct &Grid )
 {
-	ux = ux * (Info.res/1000.f) / Info.dtPhys;
-	uy = uy * (Info.res/1000.f) / Info.dtPhys;
-	uz = uz * (Info.res/1000.f) / Info.dtPhys;
-	p = (rho - 1.f) * Info.rhoNominalPhys * Info.soundspeedPhys * Info.soundspeedPhys;
+	ux = ux * (Grid.res/1000.f) / Grid.dtPhys;
+	uy = uy * (Grid.res/1000.f) / Grid.dtPhys;
+	uz = uz * (Grid.res/1000.f) / Grid.dtPhys;
 }
 
-__cuda_callable__ void convertToPhysicalForce( float &gx, float &gy, float &gz, const InfoStruct &Info )
+__cuda_callable__ void convertToPhysicalPressure( float &rho, const GridStruct &Grid )
 {
-	gx = gx * Info.rhoNominalPhys * (Info.res/1000.f) * (Info.res/1000.f) * (Info.res/1000.f) * (Info.res/1000.f) / (Info.dtPhys * Info.dtPhys);
-	gy = gy * Info.rhoNominalPhys * (Info.res/1000.f) * (Info.res/1000.f) * (Info.res/1000.f) * (Info.res/1000.f) / (Info.dtPhys * Info.dtPhys);
-	gz = gz * Info.rhoNominalPhys * (Info.res/1000.f) * (Info.res/1000.f) * (Info.res/1000.f) * (Info.res/1000.f) / (Info.dtPhys * Info.dtPhys);
+	// converts LBM rho to physical pressure, overwrites the variable (LBM rho -> physical p)
+	p = (rho - 1.f) * rhoNominalPhys * soundspeedPhys * soundspeedPhys;
+	rho = p;
+}
+
+__cuda_callable__ void convertToPhysicalForce( float &gx, float &gy, float &gz, const GridStruct &Grid )
+{
+	gx = gx * rhoNominalPhys * (Grid.res/1000.f) * (Grid.res/1000.f) * (Grid.res/1000.f) * (Grid.res/1000.f) / (Grid.dtPhys * Grid.dtPhys);
+	gy = gy * rhoNominalPhys * (Grid.res/1000.f) * (Grid.res/1000.f) * (Grid.res/1000.f) * (Grid.res/1000.f) / (Grid.dtPhys * Grid.dtPhys);
+	gz = gz * rhoNominalPhys * (Grid.res/1000.f) * (Grid.res/1000.f) * (Grid.res/1000.f) * (Grid.res/1000.f) / (Grid.dtPhys * Grid.dtPhys);
 }

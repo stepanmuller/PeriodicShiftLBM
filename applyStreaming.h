@@ -9,9 +9,9 @@ IntArrayType cxArray{ 0, 1,-1, 0, 0, 0, 0, 1,-1, 1,-1,-1, 1, 0, 0,-1, 1, 0, 0,-1
 IntArrayType cyArray{ 0, 0, 0, 0, 0,-1, 1, 0, 0, 0, 0,-1, 1, 1,-1, 1,-1, 1,-1, 1,-1,-1, 1,-1, 1,-1, 1 };
 IntArrayType czArray{ 0, 0, 0,-1, 1, 0, 0,-1, 1, 1,-1, 0, 0,-1, 1, 0, 0, 1,-1,-1, 1, 1,-1,-1, 1,-1, 1 };
 
-void applyStreaming( FStruct& F, InfoStruct &Info )
+void applyStreaming( GridStruct& Grid )
 {
-	auto shifterView = F.shifter.getView();
+	auto shifterView = Grid.shifter.getView();
 	auto cxArrayView = cxArray.getConstView();
 	auto cyArrayView = cyArray.getConstView();
 	auto czArrayView = czArray.getConstView();
@@ -19,10 +19,10 @@ void applyStreaming( FStruct& F, InfoStruct &Info )
 	{
 		int shift = shifterView[direction];
 		shift -= cxArrayView[direction];
-		shift -= Info.cellCountX * cyArrayView[direction];
-		shift -= Info.cellCountY * Info.cellCountX * czArrayView[direction];
-		if ( shift < 0 ) shift += Info.cellCount;
-		else if ( shift >= Info.cellCount ) shift -= Info.cellCount;
+		shift -= Grid.cellCountX * cyArrayView[direction];
+		shift -= Grid.cellCountY * Grid.cellCountX * czArrayView[direction];
+		if ( shift < 0 ) shift += Grid.cellCount;
+		else if ( shift >= Grid.cellCount ) shift -= Grid.cellCount;
 		shifterView[direction] = shift;
 	};
 	TNL::Algorithms::parallelFor<TNL::Devices::Cuda>( 0, 27, directionLambda );

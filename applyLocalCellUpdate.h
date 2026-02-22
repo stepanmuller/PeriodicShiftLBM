@@ -1,19 +1,19 @@
 // Version with call for bouncebackMarker as an explicit function of i, j, k without report array
-void applyLocalCellUpdate( FStruct &F, InfoStruct &Info )
+void applyLocalCellUpdate( GridStruct &Grid )
 {
-	auto fArrayView  = F.fArray.getView();
-	auto shifterView  = F.shifter.getConstView();
+	auto fArrayView  = Grid.fArray.getView();
+	auto shifterView  = Grid.shifter.getConstView();
 	
 	auto cellLambda = [=] __cuda_callable__ ( const int cell ) mutable
 	{
 		int iCell, jCell, kCell;
-		getIJKCellIndex( cell, iCell, jCell, kCell, Info );
+		getIJKCellIndex( cell, iCell, jCell, kCell, Grid );
 			
 		int shiftedIndex[27];
-		getShiftedIndex( cell, shiftedIndex, shifterView, Info );
+		getShiftedIndex( cell, shiftedIndex, shifterView, Grid );
 		
 		bool fluidMarker, bouncebackMarker, mirrorMarker, periodicMarker, givenRhoMarker, givenUxUyUzMarker;
-		getMarkers( iCell, jCell, kCell, fluidMarker, bouncebackMarker, mirrorMarker, periodicMarker, givenRhoMarker, givenUxUyUzMarker, Info );
+		getMarkers( iCell, jCell, kCell, fluidMarker, bouncebackMarker, mirrorMarker, periodicMarker, givenRhoMarker, givenUxUyUzMarker, Grid );
 		
 		float f[27];
 		float rho, ux, uy, uz;
@@ -32,8 +32,8 @@ void applyLocalCellUpdate( FStruct &F, InfoStruct &Info )
 			else
 			{
 				int outerNormalX, outerNormalY, outerNormalZ;
-				getOuterNormal( iCell, jCell, kCell, periodicMarker, outerNormalX, outerNormalY, outerNormalZ, Info );
-				getGivenRhoUxUyUz( iCell, jCell, kCell, rho, ux, uy, uz, Info );
+				getOuterNormal( iCell, jCell, kCell, periodicMarker, outerNormalX, outerNormalY, outerNormalZ, Grid );
+				getGivenRhoUxUyUz( iCell, jCell, kCell, rho, ux, uy, uz, Grid );
 				if ( mirrorMarker )
 				{
 					applyMirror( outerNormalX, outerNormalY, outerNormalZ, f );
@@ -52,17 +52,16 @@ void applyLocalCellUpdate( FStruct &F, InfoStruct &Info )
 				}
 				applyMBBC( outerNormalX, outerNormalY, outerNormalZ, rho, ux, uy, uz, f );
 			}
-			const float SmagorinskyConstant = getSmagorinskyConstant( iCell, jCell, kCell, Info );
-			applyCollision( f, SmagorinskyConstant );
+			const float SmagorinskyConstant = getSmagorinskyConstant( iCell, jCell, kCell, Grid );
+			applyCollision( f, Grid.nu, SmagorinskyConstant );
 		}
-
 		for ( int direction = 0; direction < 27; direction++ ) fArrayView( direction, shiftedIndex[direction] ) = f[direction];
 	};
-	TNL::Algorithms::parallelFor<TNL::Devices::Cuda>(0, Info.cellCount, cellLambda );
+	TNL::Algorithms::parallelFor<TNL::Devices::Cuda>(0, Grid.cellCount, cellLambda );
 }
 
 // Version with bouncebackMarker loaded from memory without report array
-void applyLocalCellUpdate( FStruct &F, BoolArrayType &bouncebackArray, InfoStruct &Info )
+void applyLocalCellUpdate( FStruct &F, BoolArrayType &bouncebackArray, GridStruct &Grid )
 {
 	auto fArrayView  = F.fArray.getView();
 	auto shifterView  = F.shifter.getConstView();
@@ -71,14 +70,14 @@ void applyLocalCellUpdate( FStruct &F, BoolArrayType &bouncebackArray, InfoStruc
 	auto cellLambda = [=] __cuda_callable__ ( const int cell ) mutable
 	{
 		int iCell, jCell, kCell;
-		getIJKCellIndex( cell, iCell, jCell, kCell, Info );
+		getIJKCellIndex( cell, iCell, jCell, kCell, Grid );
 			
 		int shiftedIndex[27];
-		getShiftedIndex( cell, shiftedIndex, shifterView, Info );
+		getShiftedIndex( cell, shiftedIndex, shifterView, Grid );
 		
 		bool fluidMarker, bouncebackMarker, mirrorMarker, periodicMarker, givenRhoMarker, givenUxUyUzMarker;
 		bouncebackMarker = bouncebackArrayView( cell );
-		getMarkers( iCell, jCell, kCell, fluidMarker, bouncebackMarker, mirrorMarker, periodicMarker, givenRhoMarker, givenUxUyUzMarker, Info );
+		getMarkers( iCell, jCell, kCell, fluidMarker, bouncebackMarker, mirrorMarker, periodicMarker, givenRhoMarker, givenUxUyUzMarker, Grid );
 		
 		float f[27];
 		float rho, ux, uy, uz;
@@ -97,8 +96,8 @@ void applyLocalCellUpdate( FStruct &F, BoolArrayType &bouncebackArray, InfoStruc
 			else
 			{
 				int outerNormalX, outerNormalY, outerNormalZ;
-				getOuterNormal( iCell, jCell, kCell, periodicMarker, outerNormalX, outerNormalY, outerNormalZ, Info );
-				getGivenRhoUxUyUz( iCell, jCell, kCell, rho, ux, uy, uz, Info );
+				getOuterNormal( iCell, jCell, kCell, periodicMarker, outerNormalX, outerNormalY, outerNormalZ, Grid );
+				getGivenRhoUxUyUz( iCell, jCell, kCell, rho, ux, uy, uz, Grid );
 				if ( mirrorMarker )
 				{
 					applyMirror( outerNormalX, outerNormalY, outerNormalZ, f );
@@ -117,11 +116,11 @@ void applyLocalCellUpdate( FStruct &F, BoolArrayType &bouncebackArray, InfoStruc
 				}
 				applyMBBC( outerNormalX, outerNormalY, outerNormalZ, rho, ux, uy, uz, f );
 			}
-			const float SmagorinskyConstant = getSmagorinskyConstant( iCell, jCell, kCell, Info );
+			const float SmagorinskyConstant = getSmagorinskyConstant( iCell, jCell, kCell, Grid );
 			applyCollision( f, SmagorinskyConstant );
 		}
 
 		for ( int direction = 0; direction < 27; direction++ ) fArrayView( direction, shiftedIndex[direction] ) = f[direction];
 	};
-	TNL::Algorithms::parallelFor<TNL::Devices::Cuda>(0, Info.cellCount, cellLambda );
+	TNL::Algorithms::parallelFor<TNL::Devices::Cuda>(0, Grid.cellCount, cellLambda );
 }
