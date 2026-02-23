@@ -19,42 +19,48 @@ void applyCoarseFineGridCommunication( GridStruct &GridCoarse, GridStruct &GridF
 		int shiftedIndexFine[27];
 		getShiftedIndex( cellFine, shiftedIndexFine, shifterViewFine, InfoFine );
 		
-		const int iCoarse = iFine / 2 + InfoCoarse.iSubgridStart;
-		const int jCoarse = jFine / 2 + InfoCoarse.jSubgridStart;
-		const int kCoarse = kFine / 2 + InfoCoarse.kSubgridStart;
-		int cellCoarse;
-		getCellIndex( cellCoarse, iCoarse, jCoarse, kCoarse, InfoCoarse );
-		int shiftedIndexCoarse[27];
-		getShiftedIndex( cellCoarse, shiftedIndexCoarse, shifterViewCoarse, InfoCoarse );
+		MarkerStruct Marker;
+		getMarkers( iFine, jFine, kFine, Marker, InfoFine );
 		
-		float f[27];
-		for (int direction = 0; direction < 27; direction++) f[direction] = fArrayViewCoarse( direction, shiftedIndexCoarse[direction] );	
-		for (int direction = 0; direction < 27; direction++) fArrayViewFine( direction, shiftedIndexFine[direction] ) = f[direction];	
+		if ( Marker.ghost )
+		{
+			const int iCoarse = iFine / 2 + InfoCoarse.iSubgridStart;
+			const int jCoarse = jFine / 2 + InfoCoarse.jSubgridStart;
+			const int kCoarse = kFine / 2 + InfoCoarse.kSubgridStart;
+			int cellCoarse;
+			getCellIndex( cellCoarse, iCoarse, jCoarse, kCoarse, InfoCoarse );
+			int shiftedIndexCoarse[27];
+			getShiftedIndex( cellCoarse, shiftedIndexCoarse, shifterViewCoarse, InfoCoarse );
+			
+			float f[27];
+			for (int direction = 0; direction < 27; direction++) f[direction] = fArrayViewCoarse( direction, shiftedIndexCoarse[direction] );	
+			for (int direction = 0; direction < 27; direction++) fArrayViewFine( direction, shiftedIndexFine[direction] ) = f[direction];	
+		}
 	};
 	
 	// Start X
 	IntTripleType start{ 0, 0, 0 };
-	IntTripleType end{ 2, InfoFine.cellCountY-1, InfoFine.cellCountZ-1 };
+	IntTripleType end{ 2, InfoFine.cellCountY, InfoFine.cellCountZ };
 	TNL::Algorithms::parallelFor<TNL::Devices::Cuda>(start, end, writeToFineCellLambda );
 	// End X
-	start = IntTripleType{ InfoFine.cellCountX-3, 0, 0 };
-	end = IntTripleType{ InfoFine.cellCountX-1, InfoFine.cellCountY-1, InfoFine.cellCountZ-1 };
+	start = IntTripleType{ InfoFine.cellCountX-2, 0, 0 };
+	end = IntTripleType{ InfoFine.cellCountX, InfoFine.cellCountY, InfoFine.cellCountZ };
 	TNL::Algorithms::parallelFor<TNL::Devices::Cuda>(start, end, writeToFineCellLambda );
 	// Start Y
 	start = IntTripleType{ 0, 0, 0 };
-	end = IntTripleType{ InfoFine.cellCountX-1, 2, InfoFine.cellCountZ-1 };
+	end = IntTripleType{ InfoFine.cellCountX, 2, InfoFine.cellCountZ };
 	TNL::Algorithms::parallelFor<TNL::Devices::Cuda>(start, end, writeToFineCellLambda );
 	// End Y
-	start = IntTripleType{ 0, InfoFine.cellCountY-3, 0 };
-	end = IntTripleType{ InfoFine.cellCountX-1, InfoFine.cellCountY-1, InfoFine.cellCountZ-1 };
+	start = IntTripleType{ 0, InfoFine.cellCountY-2, 0 };
+	end = IntTripleType{ InfoFine.cellCountX, InfoFine.cellCountY, InfoFine.cellCountZ };
 	TNL::Algorithms::parallelFor<TNL::Devices::Cuda>(start, end, writeToFineCellLambda );
 	// Start Z
 	start = IntTripleType{ 0, 0, 0 };
-	end = IntTripleType{ InfoFine.cellCountX-1, InfoFine.cellCountY-1, 2 };
+	end = IntTripleType{ InfoFine.cellCountX, InfoFine.cellCountY, 2 };
 	TNL::Algorithms::parallelFor<TNL::Devices::Cuda>(start, end, writeToFineCellLambda );
 	// End Z
-	start = IntTripleType{ 0, 0, InfoFine.cellCountZ-3 };
-	end = IntTripleType{ InfoFine.cellCountX-1, InfoFine.cellCountY-1, InfoFine.cellCountZ-1 };
+	start = IntTripleType{ 0, 0, InfoFine.cellCountZ-2 };
+	end = IntTripleType{ InfoFine.cellCountX, InfoFine.cellCountY, InfoFine.cellCountZ };
 	TNL::Algorithms::parallelFor<TNL::Devices::Cuda>(start, end, writeToFineCellLambda );
 	
 	// SECOND, READ FROM FINE GRID, TAKE AVERAGE, WRITE TO COARSE GRID

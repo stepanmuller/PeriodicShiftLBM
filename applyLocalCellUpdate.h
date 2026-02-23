@@ -13,41 +13,44 @@ void applyLocalCellUpdate( GridStruct &Grid )
 		int shiftedIndex[27];
 		getShiftedIndex( cell, shiftedIndex, shifterView, Info );
 		
-		bool fluidMarker, bouncebackMarker, mirrorMarker, periodicMarker, givenRhoMarker, givenUxUyUzMarker;
-		getMarkers( iCell, jCell, kCell, fluidMarker, bouncebackMarker, mirrorMarker, periodicMarker, givenRhoMarker, givenUxUyUzMarker, Info );
+		MarkerStruct Marker;
+		getMarkers( iCell, jCell, kCell, Marker, Info );
+		
+		if ( Marker.ghost ) return;
 		
 		float f[27];
 		float rho, ux, uy, uz;
 		for ( int direction = 0; direction < 27; direction++ )	f[direction] = fArrayView(direction, shiftedIndex[direction]);
 		
-		if ( bouncebackMarker )
+		if ( Marker.bounceback )
 		{
 			applyBounceback(f);
 		}
 		else 
 		{
-			if ( fluidMarker )
+			if ( Marker.fluid )
 			{
 				// do nothing, just skip the else block below
 			}
 			else
 			{
 				int outerNormalX, outerNormalY, outerNormalZ;
-				getOuterNormal( iCell, jCell, kCell, periodicMarker, outerNormalX, outerNormalY, outerNormalZ, Info );
+				getOuterNormal( iCell, jCell, kCell, outerNormalX, outerNormalY, outerNormalZ, Info );  
+				if ( Marker.periodic ) outerNormalZ = 0;
 				getGivenRhoUxUyUz( iCell, jCell, kCell, rho, ux, uy, uz, Info );
-				if ( mirrorMarker )
+				if ( Marker.mirror )
 				{
 					applyMirror( outerNormalX, outerNormalY, outerNormalZ, f );
 				}
-				else if ( givenRhoMarker && !givenUxUyUzMarker )
+				else if ( Marker.givenRho && !Marker.givenUxUyUz )
 				{
 					restoreUxUyUz( outerNormalX, outerNormalY, outerNormalZ, rho, ux, uy, uz, f );
 				}
-				else if ( !givenRhoMarker && givenUxUyUzMarker )
+				else if ( !Marker.givenRho && Marker.givenUxUyUz )
 				{
 					restoreRho( outerNormalX, outerNormalY, outerNormalZ, rho, ux, uy, uz, f );
 				}
-				else if ( !givenRhoMarker && !givenUxUyUzMarker )
+				else if ( !Marker.givenRho && !Marker.givenUxUyUz )
 				{
 					restoreRhoUxUyUz( outerNormalX, outerNormalY, outerNormalZ, rho, ux, uy, uz, f );
 				}

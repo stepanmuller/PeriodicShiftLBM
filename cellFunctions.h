@@ -39,7 +39,7 @@ __cuda_callable__ void getShiftedIndex( const int& cell, int (&shiftedIndex)[27]
 		}	
 }
 
-__cuda_callable__ void getOuterNormal( 	const int& iCell, const int& jCell, const int& kCell, const bool& periodicMarker,
+__cuda_callable__ void getOuterNormal( 	const int& iCell, const int& jCell, const int& kCell,
 										int& outerNormalX, int& outerNormalY, int& outerNormalZ, const InfoStruct &Info )
 {
     outerNormalX = 0;
@@ -51,8 +51,6 @@ __cuda_callable__ void getOuterNormal( 	const int& iCell, const int& jCell, cons
     else if 	( jCell == Info.cellCountY - 1) 	outerNormalY = 1;
     if 			( kCell == 0 ) 						outerNormalZ = -1;
     else if 	( kCell == Info.cellCountZ - 1 ) 	outerNormalZ = 1;
-    
-    if ( periodicMarker ) outerNormalZ = 0;
 }
 
 __cuda_callable__ void getFeq(

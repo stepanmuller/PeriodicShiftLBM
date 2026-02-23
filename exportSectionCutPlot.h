@@ -31,9 +31,9 @@ void exportSectionCutPlotXY( GridStruct &Grid, const int &kCell, const int &plot
 		for (int direction = 0; direction < 27; direction++) f[direction] = fArrayView( direction, shiftedIndex[direction] );	
 		float rho, ux, uy, uz;
 		getRhoUxUyUz(rho, ux, uy, uz, f);
-		bool fluidMarker, bouncebackMarker, mirrorMarker, periodicMarker, givenRhoMarker, givenUxUyUzMarker;
-		getMarkers( iCell, jCell, kCell, fluidMarker, bouncebackMarker, mirrorMarker, periodicMarker, givenRhoMarker, givenUxUyUzMarker, Info );
-		const float marker = bouncebackMarker;
+		MarkerStruct Marker;
+		getMarkers( iCell, jCell, kCell, Marker, Info );
+		const float marker = Marker.bounceback;
 		rhoArrayView( jCell, iCell ) = rho;
 		uxArrayView( jCell, iCell ) = ux;
 		uyArrayView( jCell, iCell ) = uy;

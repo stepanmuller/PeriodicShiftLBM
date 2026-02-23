@@ -30,8 +30,6 @@ constexpr int iterationChunk = 1000;
 #include "../applyStreaming.h"
 #include "../applyCollision.h"
 
-#include "../multigridFunctions.h"
-
 #include "../boundaryConditions/applyBounceback.h"
 #include "../boundaryConditions/applyMirror.h"
 #include "../boundaryConditions/restoreRho.h"
@@ -40,36 +38,30 @@ constexpr int iterationChunk = 1000;
 #include "../boundaryConditions/applyMBBC.h"
 
 __cuda_callable__ void getMarkers( 	const int& iCell, const int& jCell, const int& kCell, 
-									bool& fluidMarker, bool& bouncebackMarker, bool& mirrorMarker, bool& periodicMarker, bool& givenRhoMarker, bool& givenUxUyUzMarker,
-									const InfoStruct& Info )
+									MarkerStruct &Marker, const InfoStruct& Info )
 {
-    fluidMarker = 0;
-	bouncebackMarker = 0;
-	mirrorMarker = 0;
-	givenRhoMarker = 0;
-	givenUxUyUzMarker = 0;
-	
-	const float xPhys = iCell * Info.res + Info.ox;
+   	const float xPhys = iCell * Info.res + Info.ox;
 	const float yPhys = jCell * Info.res + Info.oy;
 	const float zPhys = kCell * Info.res + Info.oz;
 	
 	const float r2 = (xPhys-sphereXPhys) * (xPhys - sphereXPhys) + (yPhys - sphereYPhys) * (yPhys - sphereYPhys) + (zPhys - sphereZPhys) * (zPhys - sphereZPhys);
 	
-	if ( Info.gridID != 0 )
+	if ( Info.gridID != 0 ) // if not zero, we are on a finer grid
 	{
-		if ( r2 <= sphereRadiusPhys * sphereRadiusPhys ) bouncebackMarker = 1;
-		else fluidMarker = 1;
-		periodicMarker = 0;
+		if ( iCell < 2 || iCell > Info.cellCountX-3 ) Marker.ghost = 1;
+		else if ( jCell < 2 || jCell > Info.cellCountY-3 ) Marker.ghost = 1;
+		else if ( kCell < 2 || kCell > Info.cellCountZ-3 ) Marker.ghost = 1;
+		else if ( r2 <= sphereRadiusPhys * sphereRadiusPhys ) Marker.bounceback = 1;
+		else Marker.fluid = 1;
 	}	
-	else
+	else // we are on the coarse grid
 	{
-		if ( r2 <= sphereRadiusPhys * sphereRadiusPhys ) bouncebackMarker = 1;
-		else if ( jCell == 0 || jCell == Info.cellCountY-1 ) givenUxUyUzMarker = 1;
-		else if ( kCell == 0 || kCell == Info.cellCountZ-1 ) givenUxUyUzMarker = 1;
-		else if ( iCell == 0 ) givenUxUyUzMarker = 1;
-		else if ( iCell == Info.cellCountX-1 ) givenRhoMarker = 1;
-		else fluidMarker = 1;
-		periodicMarker = 0;
+		if ( r2 <= sphereRadiusPhys * sphereRadiusPhys ) Marker.bounceback = 1;
+		else if ( jCell == 0 || jCell == Info.cellCountY-1 ) Marker.givenUxUyUz = 1;
+		else if ( kCell == 0 || kCell == Info.cellCountZ-1 ) Marker.givenUxUyUz = 1;
+		else if ( iCell == 0 ) Marker.givenUxUyUz = 1;
+		else if ( iCell == Info.cellCountX-1 ) Marker.givenRho = 1;
+		else Marker.fluid = 1;
 	}
 }
 
@@ -94,14 +86,15 @@ __cuda_callable__ void getInitialRhoUxUyUz( const int &iCell, const int &jCell, 
 	ux = uxInlet;
 	uy = 0.f;
 	uz = 0.f;
-	bool fluidMarker, bouncebackMarker, mirrorMarker, periodicMarker, givenRhoMarker, givenUxUyUzMarker;
-	getMarkers( iCell, jCell, kCell, fluidMarker, bouncebackMarker, mirrorMarker, periodicMarker, givenRhoMarker, givenUxUyUzMarker, Info );
-	if ( bouncebackMarker ) ux = 0.f;
+	MarkerStruct Marker;
+	getMarkers( iCell, jCell, kCell, Marker, Info );
+	if ( Marker.bounceback ) ux = 0.f;
 }
 
 #include "../applyLocalCellUpdate.h"
 #include "../exportSectionCutPlot.h"
 #include "../fillEquilibrium.h"
+#include "../multigridFunctions.h"
 
 float getSphereDrag( GridStruct &Grid )
 {
@@ -134,10 +127,10 @@ float getSphereDrag( GridStruct &Grid )
 		int cell;
 		getCellIndex( cell, iCell, jCell, kCell, Info );
 		
-		bool fluidMarker, bouncebackMarker, mirrorMarker, periodicMarker, givenRhoMarker, givenUxUyUzMarker;
-		getMarkers( iCell, jCell, kCell, fluidMarker, bouncebackMarker, mirrorMarker, periodicMarker, givenRhoMarker, givenUxUyUzMarker, Info );
+		MarkerStruct Marker;
+		getMarkers( iCell, jCell, kCell, Marker, Info );
 		
-		if ( !bouncebackMarker ) return 0.f;
+		if ( !Marker.bounceback ) return 0.f;
 		
 		int shiftedIndex[27];
 		getShiftedIndex( cell, shiftedIndex, shifterView, Info );
