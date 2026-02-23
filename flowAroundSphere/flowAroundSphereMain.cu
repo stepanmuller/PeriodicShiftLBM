@@ -1,7 +1,7 @@
 constexpr float sphereDiameterPhys = 2000.f;											// mm
 constexpr float resGlobal = 200.f; 														// mm
 constexpr float uxInlet = 0.07f; 														// also works as nominal LBM Mach number
-constexpr float reynoldsNumber = 1000.f;
+constexpr float reynoldsNumber = 10000.f;
 constexpr float SmagorinskyConstantGlobal = 0.0f; 										// set to zero to turn off LES
 
 constexpr float sphereRadiusPhys = 0.5 * sphereDiameterPhys;							// mm
@@ -23,6 +23,7 @@ const int cellCountZ = cellCountX;
 
 constexpr int iterationCount = 100000;
 constexpr int iterationChunk = 1000;
+constexpr int gridLevelCount = 5;
 
 #include "../types.h"
 
@@ -48,10 +49,10 @@ __cuda_callable__ void getMarkers( 	const int& iCell, const int& jCell, const in
 	
 	if ( Info.gridID != 0 ) // if not zero, we are on a finer grid
 	{
-		if ( iCell < 2 || iCell > Info.cellCountX-3 ) Marker.ghost = 1;
+		if ( r2 <= sphereRadiusPhys * sphereRadiusPhys ) Marker.bounceback = 1;
+		else if ( iCell < 2 || iCell > Info.cellCountX-3 ) Marker.ghost = 1;
 		else if ( jCell < 2 || jCell > Info.cellCountY-3 ) Marker.ghost = 1;
 		else if ( kCell < 2 || kCell > Info.cellCountZ-3 ) Marker.ghost = 1;
-		else if ( r2 <= sphereRadiusPhys * sphereRadiusPhys ) Marker.bounceback = 1;
 		else Marker.fluid = 1;
 	}	
 	else // we are on the coarse grid
@@ -165,55 +166,77 @@ void exportHistoryData( const std::vector<float>& historyDragCoefficient, const 
     system("python3 historyPlotter.py &"); 
 }
 
+void updateGrid( std::vector<GridStruct>& grids, int level ) 
+{
+    applyStreaming(grids[level]);
+    applyLocalCellUpdate(grids[level]);
+    if (level < gridLevelCount - 1) 
+    {
+        for (int i = 0; i < 2; i++) updateGrid(grids, level + 1);
+        applyCoarseFineGridCommunication(grids[level], grids[level + 1]);
+    }
+}
+
 int main(int argc, char **argv)
 {
+	std::vector<GridStruct> grids(gridLevelCount);
 	// Coarse grid: Grid0
-	GridStruct Grid0;
-	Grid0.Info.res = resGlobal;
-	Grid0.Info.cellCountX = cellCountX;
-	Grid0.Info.cellCountY = cellCountY;
-	Grid0.Info.cellCountZ = cellCountZ;
-	Grid0.Info.cellCount = Grid0.Info.cellCountX * Grid0.Info.cellCountY * Grid0.Info.cellCountZ;
-	std::cout << "Cell count grid 0: " << Grid0.Info.cellCount << std::endl;
-	Grid0.Info.dtPhys = dtPhysGlobal;
-	Grid0.Info.nu = (Grid0.Info.dtPhys * nuPhys) / ((Grid0.Info.res/1000) * (Grid0.Info.res/1000));
-	Grid0.fArray.setSizes( 27, Grid0.Info.cellCount );	
-	Grid0.shifter = IntArrayType( 27, 0 );
-	fillEquilibriumFromFunction( Grid0 );
-
-	Grid0.Info.iSubgridStart = (int)((sphereXPhys - 2.f * sphereRadiusPhys) / Grid0.Info.res);
-	Grid0.Info.iSubgridEnd = (int)((sphereXPhys + 2.f * sphereRadiusPhys) / Grid0.Info.res) + 2;
-	Grid0.Info.jSubgridStart = (int)((sphereYPhys - 2.f * sphereRadiusPhys) / Grid0.Info.res);
-	Grid0.Info.jSubgridEnd = (int)((sphereYPhys + 2.f * sphereRadiusPhys) / Grid0.Info.res) + 2;
-	Grid0.Info.kSubgridStart = (int)((sphereZPhys - 2.f * sphereRadiusPhys) / Grid0.Info.res);
-	Grid0.Info.kSubgridEnd = (int)((sphereZPhys + 2.f * sphereRadiusPhys) / Grid0.Info.res) + 2;
+	grids[0].Info.res = resGlobal;
+	grids[0].Info.dtPhys = dtPhysGlobal;
+	grids[0].Info.nu = (grids[0].Info.dtPhys * nuPhys) / ((grids[0].Info.res/1000) * (grids[0].Info.res/1000));
+	grids[0].Info.cellCountX = cellCountX;
+	grids[0].Info.cellCountY = cellCountY;
+	grids[0].Info.cellCountZ = cellCountZ;
+	grids[0].Info.cellCount = grids[0].Info.cellCountX * grids[0].Info.cellCountY * grids[0].Info.cellCountZ;
+	grids[0].fArray.setSizes( 27, grids[0].Info.cellCount );
+	grids[0].shifter = IntArrayType( 27, 0 );
+	fillEquilibriumFromFunction( grids[0] );
 	
-	std::cout << "Grid 0 subgrid bounds: " 
-				<< Grid0.Info.iSubgridStart << " " << Grid0.Info.iSubgridEnd << " "
-				<< Grid0.Info.jSubgridStart << " " << Grid0.Info.jSubgridEnd << " "
-				<< Grid0.Info.kSubgridStart << " " << Grid0.Info.kSubgridEnd << " "
-				<< std::endl;
+	for ( int level = 1; level < gridLevelCount; level++ )
+	{
+		grids[level].Info.gridID = grids[level-1].Info.gridID + 1;
+		grids[level].Info.res = grids[level-1].Info.res * 0.5f;
+		grids[level].Info.dtPhys = grids[level-1].Info.dtPhys * 0.5f;
+		grids[level].Info.nu = (grids[level].Info.dtPhys * nuPhys) / ((grids[level].Info.res/1000.f) * (grids[level].Info.res/1000.f));
+		
+		float progress = (float)level / (float)(gridLevelCount-1);
+		progress = std::pow( progress, 0.5f );
+		const float xStart = progress * 1.25f * sphereDiameterPhys;
+		const float xEnd = (1 - progress) * domainSizePhys + progress * 2.75f * sphereDiameterPhys;
+		const float yStart = progress * 4.75f * sphereDiameterPhys;
+		
+		grids[level-1].Info.iSubgridStart = (int)((xStart - grids[level-1].Info.ox) / grids[level-1].Info.res + 0.5f);
+		grids[level-1].Info.iSubgridEnd = (int)((xEnd - grids[level-1].Info.ox) / grids[level-1].Info.res + 0.5f);
+		grids[level-1].Info.jSubgridStart = (int)((yStart - grids[level-1].Info.oy) / grids[level-1].Info.res + 0.5f);
+		grids[level-1].Info.jSubgridEnd = grids[level-1].Info.jSubgridStart + ( grids[level-1].Info.iSubgridEnd - grids[level-1].Info.iSubgridStart );
+		grids[level-1].Info.kSubgridStart = grids[level-1].Info.jSubgridStart;
+		grids[level-1].Info.kSubgridEnd = grids[level-1].Info.jSubgridEnd;
+		
+		grids[level].Info.ox = grids[level-1].Info.ox + grids[level-1].Info.iSubgridStart * grids[level-1].Info.res - grids[level].Info.res * 0.5f;
+		grids[level].Info.oy = grids[level-1].Info.oy + grids[level-1].Info.jSubgridStart * grids[level-1].Info.res - grids[level].Info.res * 0.5f;
+		grids[level].Info.oz = grids[level-1].Info.oz + grids[level-1].Info.kSubgridStart * grids[level-1].Info.res - grids[level].Info.res * 0.5f;
+		
+		grids[level].Info.cellCountX = (grids[level-1].Info.iSubgridEnd - grids[level-1].Info.iSubgridStart) * 2;
+		grids[level].Info.cellCountY = (grids[level-1].Info.jSubgridEnd - grids[level-1].Info.jSubgridStart) * 2;
+		grids[level].Info.cellCountZ = (grids[level-1].Info.kSubgridEnd - grids[level-1].Info.kSubgridStart) * 2;
+		grids[level].Info.cellCount = grids[level].Info.cellCountX * grids[level].Info.cellCountY * grids[level].Info.cellCountZ;
+		
+		grids[level].fArray.setSizes( 27, grids[level].Info.cellCount );	
+		grids[level].shifter = IntArrayType( 27, 0 );
+		fillEquilibriumFromFunction( grids[level] );
+	}
 	
-	// Finer grid: Grid1
-	GridStruct Grid1;
-	Grid1.Info.gridID = Grid0.Info.gridID + 1;
-	Grid1.Info.res = Grid0.Info.res * 0.5f;
-	Grid1.Info.ox = Grid0.Info.iSubgridStart * Grid0.Info.res - Grid1.Info.res * 0.5f;
-	Grid1.Info.oy = Grid0.Info.jSubgridStart * Grid0.Info.res - Grid1.Info.res * 0.5f;
-	Grid1.Info.oz = Grid0.Info.kSubgridStart * Grid0.Info.res - Grid1.Info.res * 0.5f;
-	
-	std::cout << "Grid 1 origin: " << Grid1.Info.ox << " " << Grid1.Info.oy << " " << Grid1.Info.oz << " " << std::endl;
-	
-	Grid1.Info.cellCountX = (Grid0.Info.iSubgridEnd - Grid0.Info.iSubgridStart) * 2;
-	Grid1.Info.cellCountY = (Grid0.Info.jSubgridEnd - Grid0.Info.jSubgridStart) * 2;
-	Grid1.Info.cellCountZ = (Grid0.Info.kSubgridEnd - Grid0.Info.kSubgridStart) * 2;
-	Grid1.Info.cellCount = Grid1.Info.cellCountX * Grid1.Info.cellCountY * Grid1.Info.cellCountZ;
-	std::cout << "Cell count grid 1: " << Grid1.Info.cellCount << std::endl;
-	Grid1.Info.dtPhys = Grid0.Info.dtPhys * 0.5f;
-	Grid1.Info.nu = (Grid1.Info.dtPhys * nuPhys) / ((Grid1.Info.res/1000) * (Grid1.Info.res/1000));
-	Grid1.fArray.setSizes( 27, Grid1.Info.cellCount );	
-	Grid1.shifter = IntArrayType( 27, 0 );
-	fillEquilibriumFromFunction( Grid1 );
+	int cellCountTotal = 0;
+	int cellUpdatesPerIteration = 0;
+	for ( int level = 0; level < gridLevelCount; level++ )
+	{
+		const int cellCountLevel = grids[level].Info.cellCount;
+		std::cout << "Cell count on grid " << level << ": " << cellCountLevel << std::endl;
+		cellCountTotal += cellCountLevel; 
+		cellUpdatesPerIteration += cellCountLevel * std::pow(2, level);
+	}
+	std::cout << "Cell count total: " << cellCountTotal << std::endl;
+	std::cout << "Cell updates per iteration: " << cellUpdatesPerIteration << std::endl;
 	
 	std::cout << "Starting simulation" << std::endl;
 	
@@ -224,16 +247,9 @@ int main(int argc, char **argv)
 	lapTimer.start();
 	for (int iteration=0; iteration<=iterationCount; iteration++)
 	{
-		applyStreaming( Grid0 );
-		applyLocalCellUpdate( Grid0 );
-		for ( int subgridIteration = 0; subgridIteration <= 1; subgridIteration++ )
-		{
-			applyStreaming( Grid1 );
-			applyLocalCellUpdate( Grid1 );
-		}
-		applyCoarseFineGridCommunication( Grid0, Grid1 );
+		updateGrid( grids, 0 );
 		
-		const float drag = getSphereDrag( Grid0 );
+		const float drag = getSphereDrag( grids[gridLevelCount-1] );
 		const float dragCoefficient = - (8 * drag) / (rhoNominalPhys * uxInletPhys * uxInletPhys * 3.14159f * (sphereDiameterPhys / 1000.f) * (sphereDiameterPhys / 1000.f));
 		
 		historyDragCoefficient[iteration] = dragCoefficient;
@@ -246,15 +262,15 @@ int main(int argc, char **argv)
 			std::cout << "Drag " << drag << std::endl;
 			std::cout << "Drag coefficient " << dragCoefficient << std::endl;
 			
-			const float updateCount = ((float)Grid0.Info.cellCount + 2 * (float)Grid1.Info.cellCount) * (float)iterationChunk;
+			const float updateCount = (float)cellUpdatesPerIteration * (float)iterationChunk;
 			const float glups = updateCount / lapTime / 1000000000.f;
 			std::cout << "GLUPS: " << glups << std::endl;
 			
-			const int kCut0 = Grid0.Info.cellCountZ / 2;
-			exportSectionCutPlotXY( Grid0, kCut0, iteration );
-			
-			const int kCut1 = Grid1.Info.cellCountZ / 2;
-			exportSectionCutPlotXY( Grid1, kCut1, iteration + 1 );
+			for ( int level = 0; level < gridLevelCount; level++ )
+			{
+				const int kCut = grids[level].Info.cellCountZ / 2;
+				exportSectionCutPlotXY( grids[level], kCut, iteration + level );
+			}
 			
 			exportHistoryData( historyDragCoefficient, iteration );
 			

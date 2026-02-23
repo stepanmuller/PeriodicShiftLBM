@@ -31,8 +31,10 @@ uMag_masked = np.ma.masked_where(mask == 1, uMag)
 # 3. Plotting
 fig, ax = plt.subplots(figsize=(8, 6))
 
-cmap = plt.cm.jet.copy()
-cmap.set_bad(color='grey')
+#cmap = plt.cm.jet.copy()
+#cmap.set_bad(color='grey')
+cmap = plt.cm.viridis.copy()
+cmap.set_bad(color='black')
 
 im = ax.imshow(uMag_masked, origin="lower", cmap=cmap)
 ax.axis("off")
