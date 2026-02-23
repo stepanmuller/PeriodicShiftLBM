@@ -1,5 +1,5 @@
 constexpr float sphereDiameterPhys = 2000.f;											// mm
-constexpr float resGlobal = 200.f; 														// mm
+constexpr float resGlobal = 100.f; 														// mm
 constexpr float uxInlet = 0.07f; 														// also works as nominal LBM Mach number
 constexpr float reynoldsNumber = 1000.f;
 constexpr float SmagorinskyConstantGlobal = 0.0f; 										// set to zero to turn off LES
@@ -21,7 +21,7 @@ const int cellCountX = static_cast<int>(std::ceil(domainSizePhys / resGlobal));
 const int cellCountY = cellCountX;
 const int cellCountZ = cellCountX;
 
-constexpr int iterationCount = 1000;
+constexpr int iterationCount = 100000;
 constexpr int iterationChunk = 1000;
 
 #include "../types.h"
@@ -30,7 +30,7 @@ constexpr int iterationChunk = 1000;
 #include "../applyStreaming.h"
 #include "../applyCollision.h"
 
-//#include "../multigridFunctions.h"
+#include "../multigridFunctions.h"
 
 #include "../boundaryConditions/applyBounceback.h"
 #include "../boundaryConditions/applyMirror.h"
@@ -54,22 +54,23 @@ __cuda_callable__ void getMarkers( 	const int& iCell, const int& jCell, const in
 	const float zPhys = kCell * Info.res + Info.oz;
 	
 	const float r2 = (xPhys-sphereXPhys) * (xPhys - sphereXPhys) + (yPhys - sphereYPhys) * (yPhys - sphereYPhys) + (zPhys - sphereZPhys) * (zPhys - sphereZPhys);
-		
-	if ( r2 <= sphereRadiusPhys * sphereRadiusPhys ) bouncebackMarker = 1;
-	else if ( Info.gridID != 0 ) // this would mean that we are on the fine grid, so we need to skip the boundary conditions that are only applied to coarse grid
+	
+	if ( Info.gridID != 0 )
 	{
-		fluidMarker = 1;
+		if ( r2 <= sphereRadiusPhys * sphereRadiusPhys ) bouncebackMarker = 1;
+		else fluidMarker = 1;
 		periodicMarker = 0;
-		return;
+	}	
+	else
+	{
+		if ( r2 <= sphereRadiusPhys * sphereRadiusPhys ) bouncebackMarker = 1;
+		else if ( jCell == 0 || jCell == Info.cellCountY-1 ) givenUxUyUzMarker = 1;
+		else if ( kCell == 0 || kCell == Info.cellCountZ-1 ) givenUxUyUzMarker = 1;
+		else if ( iCell == 0 ) givenUxUyUzMarker = 1;
+		else if ( iCell == Info.cellCountX-1 ) givenRhoMarker = 1;
+		else fluidMarker = 1;
+		periodicMarker = 0;
 	}
-	
-	else if ( jCell == 0 || jCell == Info.cellCountY-1 ) givenUxUyUzMarker = 1;
-	else if ( kCell == 0 || kCell == Info.cellCountZ-1 ) givenUxUyUzMarker = 1;
-	else if ( iCell == 0 ) givenUxUyUzMarker = 1;
-	else if ( iCell == Info.cellCountX-1 ) givenRhoMarker = 1;
-	else fluidMarker = 1;
-	
-	periodicMarker = 0;
 }
 
 __cuda_callable__ void getGivenRhoUxUyUz( 	const int& iCell, const int& jCell, const int& kCell, 
@@ -202,13 +203,17 @@ int main(int argc, char **argv)
 	
 	// Finer grid: Grid1
 	GridStruct Grid1;
+	Grid1.Info.gridID = Grid0.Info.gridID + 1;
 	Grid1.Info.res = Grid0.Info.res * 0.5f;
 	Grid1.Info.ox = Grid0.Info.iSubgridStart * Grid0.Info.res - Grid1.Info.res * 0.5f;
 	Grid1.Info.oy = Grid0.Info.jSubgridStart * Grid0.Info.res - Grid1.Info.res * 0.5f;
 	Grid1.Info.oz = Grid0.Info.kSubgridStart * Grid0.Info.res - Grid1.Info.res * 0.5f;
-	Grid1.Info.cellCountX = Grid0.Info.iSubgridEnd - Grid0.Info.iSubgridStart;
-	Grid1.Info.cellCountY = Grid0.Info.jSubgridEnd - Grid0.Info.jSubgridStart;
-	Grid1.Info.cellCountZ = Grid0.Info.kSubgridEnd - Grid0.Info.kSubgridStart;
+	
+	std::cout << "Grid 1 origin: " << Grid1.Info.ox << " " << Grid1.Info.oy << " " << Grid1.Info.oz << " " << std::endl;
+	
+	Grid1.Info.cellCountX = (Grid0.Info.iSubgridEnd - Grid0.Info.iSubgridStart) * 2;
+	Grid1.Info.cellCountY = (Grid0.Info.jSubgridEnd - Grid0.Info.jSubgridStart) * 2;
+	Grid1.Info.cellCountZ = (Grid0.Info.kSubgridEnd - Grid0.Info.kSubgridStart) * 2;
 	Grid1.Info.cellCount = Grid1.Info.cellCountX * Grid1.Info.cellCountY * Grid1.Info.cellCountZ;
 	std::cout << "Cell count grid 1: " << Grid1.Info.cellCount << std::endl;
 	Grid1.Info.dtPhys = Grid0.Info.dtPhys * 0.5f;
@@ -226,6 +231,8 @@ int main(int argc, char **argv)
 	lapTimer.start();
 	for (int iteration=0; iteration<=iterationCount; iteration++)
 	{
+		applyCoarseFineGridCommunication( Grid0, Grid1 );
+		
 		applyStreaming( Grid0 );
 		applyLocalCellUpdate( Grid0 );
 		
@@ -248,7 +255,8 @@ int main(int argc, char **argv)
 			std::cout << "Drag " << drag << std::endl;
 			std::cout << "Drag coefficient " << dragCoefficient << std::endl;
 			
-			float glups = ((float)Grid0.Info.cellCount * (float)iterationChunk) / lapTime / 1000000000.f;
+			const float updateCount = ((float)Grid0.Info.cellCount + 2 * (float)Grid1.Info.cellCount) * (float)iterationChunk;
+			const float glups = updateCount / lapTime / 1000000000.f;
 			std::cout << "GLUPS: " << glups << std::endl;
 			
 			const int kCut0 = Grid0.Info.cellCountZ / 2;
