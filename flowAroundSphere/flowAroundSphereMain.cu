@@ -94,7 +94,7 @@ __cuda_callable__ void getInitialRhoUxUyUz( const int &iCell, const int &jCell, 
 #include "../applyLocalCellUpdate.h"
 #include "../exportSectionCutPlot.h"
 #include "../fillEquilibrium.h"
-#include "../multigridFunctions.h"
+#include "../gridRefinementFunctions.h"
 
 float getSphereDrag( GridStruct &Grid )
 {
