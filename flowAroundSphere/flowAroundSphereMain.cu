@@ -1,5 +1,5 @@
 constexpr float sphereDiameterPhys = 2000.f;											// mm
-constexpr float resGlobal = 100.f; 														// mm
+constexpr float resGlobal = 200.f; 														// mm
 constexpr float uxInlet = 0.07f; 														// also works as nominal LBM Mach number
 constexpr float reynoldsNumber = 1000.f;
 constexpr float SmagorinskyConstantGlobal = 0.0f; 										// set to zero to turn off LES
@@ -224,16 +224,14 @@ int main(int argc, char **argv)
 	lapTimer.start();
 	for (int iteration=0; iteration<=iterationCount; iteration++)
 	{
-		applyCoarseFineGridCommunication( Grid0, Grid1 );
-		
 		applyStreaming( Grid0 );
 		applyLocalCellUpdate( Grid0 );
-		
 		for ( int subgridIteration = 0; subgridIteration <= 1; subgridIteration++ )
 		{
 			applyStreaming( Grid1 );
 			applyLocalCellUpdate( Grid1 );
 		}
+		applyCoarseFineGridCommunication( Grid0, Grid1 );
 		
 		const float drag = getSphereDrag( Grid0 );
 		const float dragCoefficient = - (8 * drag) / (rhoNominalPhys * uxInletPhys * uxInletPhys * 3.14159f * (sphereDiameterPhys / 1000.f) * (sphereDiameterPhys / 1000.f));
