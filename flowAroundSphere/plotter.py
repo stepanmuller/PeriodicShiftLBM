@@ -44,15 +44,15 @@ ax.axis("off")
 # loc=8 is "lower center". width/height are percentages of the parent axes.
 # borderpad provides a tiny bit of breathing room from the bottom edge.
 axins = inset_axes(ax,
-                   width="40%",  
-                   height="5%",  
-                   loc='lower center',
-                   borderpad=4)
+                   width="30%",  
+                   height="4%",  
+                   loc='upper left',
+                   borderpad=1)
 
 # Create the colorbar and style it
 cbar = fig.colorbar(im, cax=axins, orientation="horizontal")
 cbar.ax.tick_params(labelsize=8, colors='black')
-cbar.set_label('LBM velocity magnitude', color='black', fontsize=10)
+cbar.set_label('LBM velocity magnitude', color='black', fontsize=8)
 
 # 5. Save results
 os.makedirs("results", exist_ok=True)

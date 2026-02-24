@@ -234,6 +234,10 @@ int main(int argc, char **argv)
 		std::cout << "Cell count on grid " << level << ": " << cellCountLevel << std::endl;
 		cellCountTotal += cellCountLevel; 
 		cellUpdatesPerIteration += cellCountLevel * std::pow(2, level);
+		cellUpdatesPerIteration -= (grids[level].Info.iSubgridEnd - grids[level].Info.iSubgridStart - 2) 
+								* (grids[level].Info.jSubgridEnd - grids[level].Info.jSubgridStart - 2) 
+								* (grids[level].Info.kSubgridEnd - grids[level].Info.kSubgridStart - 2)
+								* std::pow(2, level);
 	}
 	std::cout << "Cell count total: " << cellCountTotal << std::endl;
 	std::cout << "Cell updates per iteration: " << cellUpdatesPerIteration << std::endl;
@@ -265,6 +269,11 @@ int main(int argc, char **argv)
 			const float updateCount = (float)cellUpdatesPerIteration * (float)iterationChunk;
 			const float glups = updateCount / lapTime / 1000000000.f;
 			std::cout << "GLUPS: " << glups << std::endl;
+			
+			for ( int level = gridLevelCount-2; level >= 0; level-- )
+			{
+				fillCoarseGridFromFine( grids[level], grids[level+1] );
+			}
 			
 			for ( int level = 0; level < gridLevelCount; level++ )
 			{

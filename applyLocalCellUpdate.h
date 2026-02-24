@@ -17,6 +17,10 @@ void applyLocalCellUpdate( GridStruct &Grid )
 		getMarkers( iCell, jCell, kCell, Marker, Info );
 		
 		if ( Marker.ghost ) return;
+		if ( (iCell>Info.iSubgridStart&&iCell<Info.iSubgridEnd-1) 
+			&& (jCell>Info.jSubgridStart&&jCell<Info.jSubgridEnd-1) 
+			&& (kCell>Info.kSubgridStart&&kCell<Info.kSubgridEnd-1) 
+			) return;
 		
 		float f[27];
 		float rho, ux, uy, uz;
