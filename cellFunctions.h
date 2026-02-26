@@ -125,7 +125,7 @@ __cuda_callable__ void getFeq(
 
 __cuda_callable__ void getFneq(const float (&f)[27], const float (&feq)[27], float (&fneq)[27])
 {
-	for (size_t i = 0; i < 27; i++)	fneq[i] = f[i] - feq[i];
+	for ( int i = 0; i < 27; i++ ) fneq[i] = f[i] - feq[i];
 }
 
 __cuda_callable__ void getRhoUxUyUz(
