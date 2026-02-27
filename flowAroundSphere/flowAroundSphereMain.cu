@@ -23,7 +23,7 @@ const int cellCountZ = cellCountX;
 
 constexpr int iterationCount = 100000;
 constexpr int iterationChunk = 1000;
-constexpr int gridLevelCount = 5;
+constexpr int gridLevelCount = 4;
 
 #include "../types.h"
 
@@ -50,9 +50,9 @@ __cuda_callable__ void getMarkers( 	const int& iCell, const int& jCell, const in
 	if ( Info.gridID != 0 ) // if not zero, we are on a finer grid
 	{
 		if ( r2 <= sphereRadiusPhys * sphereRadiusPhys ) Marker.bounceback = 1;
-		else if ( iCell < 2 || iCell > Info.cellCountX-3 ) Marker.ghost = 1;
-		else if ( jCell < 2 || jCell > Info.cellCountY-3 ) Marker.ghost = 1;
-		else if ( kCell < 2 || kCell > Info.cellCountZ-3 ) Marker.ghost = 1;
+		else if ( iCell == 0 || iCell == Info.cellCountX-1 ) Marker.ghost = 1;
+		else if ( jCell == 0 || jCell == Info.cellCountY-1 ) Marker.ghost = 1;
+		else if ( kCell == 0 || kCell == Info.cellCountZ-1 ) Marker.ghost = 1;
 		else Marker.fluid = 1;
 	}	
 	else // we are on the coarse grid
