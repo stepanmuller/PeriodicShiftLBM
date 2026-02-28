@@ -1,3 +1,4 @@
+import sys
 import os
 import numpy as np
 import matplotlib.pyplot as plt
@@ -28,9 +29,9 @@ def set_smart_ylim(ax, data):
     ax.set_ylim(y_min - padding, y_max + padding)
 
 def add_average_diagnostics(ax, iterations, data, unit_str="", fmt=".3f"):
-    """Calculates last 10% average, draws the line, and returns the formatted string."""
+    """Calculates last 20% average, draws the line, and returns the formatted string."""
     count = len(data)
-    window = max(1, count // 10)
+    window = max(1, count // 5)
     avg_val = np.mean(data[-window:])
     
     ax.hlines(y=avg_val, xmin=iterations[-window], xmax=iterations[-1], 
@@ -38,7 +39,7 @@ def add_average_diagnostics(ax, iterations, data, unit_str="", fmt=".3f"):
     
     return f"{avg_val:{fmt}}{unit_str}"
 
-def plot_history():
+def plot_history(file_number):
     try:
         with open("/dev/shm/historyData.bin", "rb") as f:
             count = np.fromfile(f, dtype=np.int32, count=1)[0]
@@ -67,9 +68,12 @@ def plot_history():
             transform=ax.transAxes, ha='right', va='top', bbox=bbox_props)
 
     plt.tight_layout()
-    os.makedirs("results", exist_ok=True)
-    plt.savefig("results/000History.png", dpi=300)
+    os.makedirs("results/History", exist_ok=True)
+    filename = str(file_number) + "History.png"
+    plt.savefig("results/History/" + filename, dpi=300)
     plt.close()
 
 if __name__ == "__main__":
-    plot_history()
+    # Get the argument from the command line, defaulting to 0 if none is provided
+    file_num = int(sys.argv[1]) if len(sys.argv) > 1 else 0
+    plot_history(file_num)
