@@ -289,24 +289,22 @@ void applyMarkersInsideSTL( BoolArrayType &markerArray, STLStruct &STL, const bo
 
     auto counterLambda = [ = ] __cuda_callable__( const int triangleIndex ) mutable
     {
-		const float ax = axArrayView[ triangleIndex ];
-		const float ay = ayArrayView[ triangleIndex ];
-		const float bx = bxArrayView[ triangleIndex ];
-		const float by = byArrayView[ triangleIndex ];
-		const float cx = cxArrayView[ triangleIndex ];
-		const float cy = cyArrayView[ triangleIndex ];
+		// transform into the coordinate system of the LBM grid
+		const float ax = axArrayView[ triangleIndex ] + STL.ox - Info.ox;
+		const float ay = ayArrayView[ triangleIndex ] + STL.oy - Info.oy;
+		const float bx = bxArrayView[ triangleIndex ] + STL.ox - Info.ox;
+		const float by = byArrayView[ triangleIndex ] + STL.oy - Info.oy;
+		const float cx = cxArrayView[ triangleIndex ] + STL.ox - Info.ox;
+		const float cy = cyArrayView[ triangleIndex ] + STL.oy - Info.oy;
 		// transform STL floats to integer grid that is 100x finer than the LBM grid to prevent float errors
-		// transform into coordinate system of the LBM grid
 		// make the STL coords odd, rays will be even, this prevents hitting a vortex
 		const float scale = 50.0f / Info.res;
-		const long long ok = round( STL.ox * scale );
-		const long long ol = round( STL.oy * scale );
-		const long long ak = (long long)(round( ax * scale ) + ok) * 2 + 1;
-		const long long al = (long long)(round( ay * scale ) + ol) * 2 + 1;
-		const long long bk = (long long)(round( bx * scale ) + ok) * 2 + 1;
-		const long long bl = (long long)(round( by * scale ) + ol) * 2 + 1;
-		const long long ck = (long long)(round( cx * scale ) + ok) * 2 + 1;
-		const long long cl = (long long)(round( cy * scale ) + ol) * 2 + 1;
+		const long long ak = (long long)(round( ax * scale )) * 2 + 1;
+		const long long al = (long long)(round( ay * scale )) * 2 + 1;
+		const long long bk = (long long)(round( bx * scale )) * 2 + 1;
+		const long long bl = (long long)(round( by * scale )) * 2 + 1;
+		const long long ck = (long long)(round( cx * scale )) * 2 + 1;
+		const long long cl = (long long)(round( cy * scale )) * 2 + 1;
 		
 		const long long kmin = std::max({ 0LL, std::min({ ak, bk, ck, (long long)(Info.cellCountX-1)*100 }) });
 		const long long kmax = std::min({ (long long)(Info.cellCountX-1)*100, std::max({ ak, bk, ck, 0LL }) });
@@ -358,66 +356,6 @@ void applyMarkersInsideSTL( BoolArrayType &markerArray, STLStruct &STL, const bo
 	int intersectionCountMax = TNL::Algorithms::reduce<TNL::Devices::Cuda>( start, end, fetch, reduction, 0 );
 	std::cout << "	intersectionCountMax: " << intersectionCountMax << std::endl; 
 	
-	// DEBUG START
-	// check for odd intersections, that would signalize some error
-	int oddIntersectionCounter = 0;
-	for ( int j = 0; j < Info.cellCountY; j++ ) 
-	{
-		for ( int i = 0; i < Info.cellCountX; i++ ) 
-		{
-			int intersectionCount = intersectionCounterArray.getElement(i, j);
-			if ( intersectionCount % 2 != 0 ) 
-			{
-				std::cout << "	Odd intersection count for i: " << i << ", j: " << j << ", : " << intersectionCount << std::endl;
-				oddIntersectionCounter++;
-				
-				
-				for ( int triangleIndex = 0; triangleIndex < STL.triangleCount; triangleIndex++ )
-				{
-					const float ax = STL.axArray.getElement( triangleIndex );
-					const float ay = STL.ayArray.getElement( triangleIndex );
-					const float bx = STL.bxArray.getElement( triangleIndex );
-					const float by = STL.byArray.getElement( triangleIndex );
-					const float cx = STL.cxArray.getElement( triangleIndex );
-					const float cy = STL.cyArray.getElement( triangleIndex );
-					// transform STL floats to integer grid that is 100x finer than the LBM grid to prevent float errors
-					// transform into coordinate system of the LBM grid
-					// make the STL coords odd, rays will be even, this prevents hitting a vortex
-					const float scale = 50.0f / Info.res;
-					const long long ok = round( STL.ox * scale );
-					const long long ol = round( STL.oy * scale );
-					const long long ak = (long long)(round( ax * scale ) + ok) * 2 + 1;
-					const long long al = (long long)(round( ay * scale ) + ol) * 2 + 1;
-					const long long bk = (long long)(round( bx * scale ) + ok) * 2 + 1;
-					const long long bl = (long long)(round( by * scale ) + ol) * 2 + 1;
-					const long long ck = (long long)(round( cx * scale ) + ok) * 2 + 1;
-					const long long cl = (long long)(round( cy * scale ) + ol) * 2 + 1;
-					
-					const long long rayK = i * 100;
-					const long long rayL = j * 100;
-					// transform the triangle into coordinate system where ray is [0, 0]
-					const long long ak0 = ak - rayK;
-					const long long al0 = al - rayL;
-					const long long bk0 = bk - rayK;
-					const long long bl0 = bl - rayL;
-					const long long ck0 = ck - rayK;
-					const long long cl0 = cl - rayL;
-
-					const bool rayHit = getRayHitYesNo( ak0, al0, bk0, bl0, ck0, cl0 );
-
-					if ( rayHit ) 
-					{
-						std::cout << "	Ray hit for i: " << i << ", j: " << j << ", : " << intersectionCount << ", triangleIndex: " << triangleIndex << std::endl;
-						std::cout << "	Coords: [" << ak0 << ", " << al0 << "], [" << bk0 << ", " << bl0 << "], [" << ck0 << ", " << cl0 << "]" << std::endl;
-					}
-				}
-				
-			}
-		}
-	}		
-	std::cout<< "	Total rays with odd intersection count: " << oddIntersectionCounter << std::endl;   
-	// DEBUG END
-	
 	// extracting the intersection indexes
 	IntArray3DType intersectionIndexArray;
 	intersectionIndexArray.setSizes( intersectionCountMax, Info.cellCountX, Info.cellCountY );
@@ -427,27 +365,25 @@ void applyMarkersInsideSTL( BoolArrayType &markerArray, STLStruct &STL, const bo
 	
 	auto rayHitIndexLambda = [ = ] __cuda_callable__( const int triangleIndex ) mutable
     {
-		const float ax = axArrayView[ triangleIndex ];
-		const float ay = ayArrayView[ triangleIndex ];
-		const float az = azArrayView[ triangleIndex ];
-		const float bx = bxArrayView[ triangleIndex ];
-		const float by = byArrayView[ triangleIndex ];
-		const float bz = bzArrayView[ triangleIndex ];
-		const float cx = cxArrayView[ triangleIndex ];
-		const float cy = cyArrayView[ triangleIndex ];
-		const float cz = czArrayView[ triangleIndex ];
+		// transform into the coordinate system of the LBM grid
+		const float ax = axArrayView[ triangleIndex ] + STL.ox - Info.ox;
+		const float ay = ayArrayView[ triangleIndex ] + STL.oy - Info.oy;
+		const float az = azArrayView[ triangleIndex ] + STL.oz - Info.oz;
+		const float bx = bxArrayView[ triangleIndex ] + STL.ox - Info.ox;
+		const float by = byArrayView[ triangleIndex ] + STL.oy - Info.oy;
+		const float bz = bzArrayView[ triangleIndex ] + STL.oz - Info.oz;
+		const float cx = cxArrayView[ triangleIndex ] + STL.ox - Info.ox;
+		const float cy = cyArrayView[ triangleIndex ] + STL.oy - Info.oy;
+		const float cz = czArrayView[ triangleIndex ] + STL.oz - Info.oz;
 		// transform STL floats to integer grid that is 100x finer than the LBM grid to prevent float errors
-		// transform into coordinate system of the LBM grid
 		// make the STL coords odd, rays will be even, this prevents hitting a vortex
 		const float scale = 50.0f / Info.res;
-		const long long ok = round( STL.ox * scale );
-		const long long ol = round( STL.oy * scale );
-		const long long ak = (long long)(round( ax * scale ) + ok) * 2 + 1;
-		const long long al = (long long)(round( ay * scale ) + ol) * 2 + 1;
-		const long long bk = (long long)(round( bx * scale ) + ok) * 2 + 1;
-		const long long bl = (long long)(round( by * scale ) + ol) * 2 + 1;
-		const long long ck = (long long)(round( cx * scale ) + ok) * 2 + 1;
-		const long long cl = (long long)(round( cy * scale ) + ol) * 2 + 1;
+		const long long ak = (long long)(round( ax * scale )) * 2 + 1;
+		const long long al = (long long)(round( ay * scale )) * 2 + 1;
+		const long long bk = (long long)(round( bx * scale )) * 2 + 1;
+		const long long bl = (long long)(round( by * scale )) * 2 + 1;
+		const long long ck = (long long)(round( cx * scale )) * 2 + 1;
+		const long long cl = (long long)(round( cy * scale )) * 2 + 1;
 		
 		const long long kmin = std::max({ 0LL, std::min({ ak, bk, ck, (long long)(Info.cellCountX-1)*100 }) });
 		const long long kmax = std::min({ (long long)(Info.cellCountX-1)*100, std::max({ ak, bk, ck, 0LL }) });

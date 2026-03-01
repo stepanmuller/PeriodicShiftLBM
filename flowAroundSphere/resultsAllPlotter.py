@@ -177,6 +177,13 @@ yLegendList.append("Cumulant AllOne, D/res = 160")
 yColorList.append("black")
 yStyleList.append("X") 
 
+# Cumulant AllOne, D/res = 320
+xList.append(np.array([1000000]))
+yList.append(np.array([0.575]))
+yLegendList.append("Cumulant AllOne, D/res = 320")
+yColorList.append("purple")
+yStyleList.append("X") 
+
 # ==========================================
 # 2. PLOT STYLING (LaTeX Enabled)
 # ==========================================

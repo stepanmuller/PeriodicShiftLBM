@@ -65,7 +65,7 @@ struct Section3DStructCPU { FloatArray3DTypeCPU rhoArray; FloatArray3DTypeCPU ux
 struct InfoStruct { float gridID = 0; float res = 1.f; int cellCountX; int cellCountY; int cellCountZ; int cellCount; float ox = 0.f; float oy = 0.f; float oz = 0.f; float nu = 1.f; float dtPhys = 1.f; 
 					int iSubgridStart = 0; int jSubgridStart = 0; int kSubgridStart = 0; int iSubgridEnd = 0; int jSubgridEnd = 0; int kSubgridEnd = 0; }; 
 								
-struct GridStruct { InfoStruct Info; FloatArray2DType fArray; IntArrayType shifter; }; 
+struct GridStruct { InfoStruct Info; FloatArray2DType fArray; IntArrayType shifter; BoolArrayType bouncebackMarkerArray; }; 
 
 struct MarkerStruct { bool fluid = 0; bool bounceback = 0; bool ghost = 0; bool mirror = 0; bool periodic = 0; bool givenRho = 0; bool givenUxUyUz = 0; };
 					
