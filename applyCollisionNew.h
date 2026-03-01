@@ -169,6 +169,7 @@ __host__ __device__ void applyCollision( float (&f)[27], const float &nu, const 
 	// ------------------------------RELAXATION DEFINITIONS-------------------------------
 	//------------------------------------------------------------------------------------
 	const float omega1 = omegaLES;	// shear viscosity
+	/*
 	const float omega2 = 1.f;  // bulkViscosity
 
 	const float lambda3 = 0.01f;  // Limiter treshold, section 6 Geier 2017
@@ -202,7 +203,27 @@ __host__ __device__ void applyCollision( float (&f)[27], const float &nu, const 
 	const float B =
 		(4.f * omega1 * omega2 * (9.f * omega1 - 16.f) - 4.f * omega1 * omega1 - 2.f * omega2 * omega2 * (2.f + 9.f * omega1 * (omega1 - 2.f)))
 		* n1o3 / (omega1 - omega2) / (omega2 * (2.f + 3.f * omega1) - 8.f * omega1);
-
+	*/
+	
+	const float omega2 = 1.f;
+	const float omega3 = 1.f;
+	const float omega4 = 1.f;
+	const float omega5 = 1.f;
+	const float omega6 = 1.f;
+	const float omega7 = 1.f;
+	const float omega8 = 1.f;
+	const float omega9 = 1.f;
+	const float omega10 = 1.f;
+	const float A = 0.f;
+	const float B = 0.f;
+	
+	const float omega120p102 = 1.f;
+	const float omega210p012 = 1.f;
+	const float omega201p021 = 1.f;
+	const float omega120m102 = 1.f;
+	const float omega210m012 = 1.f;
+	const float omega201m021 = 1.f;
+	const float omega111 = 1.f;
 	//------------------------------------------------------------------------------------
 	// -------------------------------------COLLISION-------------------------------------
 	//------------------------------------------------------------------------------------

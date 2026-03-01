@@ -29,7 +29,7 @@ constexpr int gridLevelCount = 3;
 
 #include "../cellFunctions.h"
 #include "../applyStreaming.h"
-#include "../applyCollision.h"
+#include "../applyCollisionNew.h"
 
 #include "../boundaryConditions/applyBounceback.h"
 #include "../boundaryConditions/applyMirror.h"
