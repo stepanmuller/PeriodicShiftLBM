@@ -1,7 +1,7 @@
 constexpr float sphereDiameterPhys = 2000.f;											// mm
 constexpr float resGlobal = 200.f; 														// mm
 constexpr float uxInlet = 0.07f; 														// also works as nominal LBM Mach number
-constexpr float reynoldsNumber = 10000.f;
+constexpr float reynoldsNumber = 1000000.f;
 constexpr float SmagorinskyConstantGlobal = 0.0f; 										// set to zero to turn off LES
 
 constexpr float sphereRadiusPhys = 0.5 * sphereDiameterPhys;							// mm
@@ -23,7 +23,7 @@ const int cellCountZ = cellCountX;
 
 constexpr int iterationCount = 20000;
 constexpr int iterationChunk = 1000;
-constexpr int gridLevelCount = 2;
+constexpr int gridLevelCount = 6;
 
 #include "../types.h"
 
@@ -192,6 +192,8 @@ int main(int argc, char **argv)
 	grids[0].shifter = IntArrayType( 27, 0 );
 	fillEquilibriumFromFunction( grids[0] );
 	
+	std::cout << "Cell count on grid " << 0 << ": " << grids[0].Info.cellCount << std::endl;
+	
 	for ( int level = 1; level < gridLevelCount; level++ )
 	{
 		grids[level].Info.gridID = grids[level-1].Info.gridID + 1;
@@ -200,10 +202,10 @@ int main(int argc, char **argv)
 		grids[level].Info.nu = (grids[level].Info.dtPhys * nuPhys) / ((grids[level].Info.res/1000.f) * (grids[level].Info.res/1000.f));
 		
 		float progress = (float)level / (float)(gridLevelCount-1);
-		progress = std::pow( progress, 0.5f );
-		const float xStart = progress * 1.25f * sphereDiameterPhys;
-		const float xEnd = (1 - progress) * domainSizePhys + progress * 2.75f * sphereDiameterPhys;
-		const float yStart = progress * 4.75f * sphereDiameterPhys;
+		progress = std::pow( progress, 0.2f );
+		const float xStart = progress * 1.4f * sphereDiameterPhys;
+		const float xEnd = (1 - progress) * domainSizePhys + progress * 2.6f * sphereDiameterPhys;
+		const float yStart = progress * 4.9f * sphereDiameterPhys;
 		
 		grids[level-1].Info.iSubgridStart = (int)((xStart - grids[level-1].Info.ox) / grids[level-1].Info.res + 0.5f);
 		grids[level-1].Info.iSubgridEnd = (int)((xEnd - grids[level-1].Info.ox) / grids[level-1].Info.res + 0.5f);
@@ -221,17 +223,19 @@ int main(int argc, char **argv)
 		grids[level].Info.cellCountZ = (grids[level-1].Info.kSubgridEnd - grids[level-1].Info.kSubgridStart) * 2;
 		grids[level].Info.cellCount = grids[level].Info.cellCountX * grids[level].Info.cellCountY * grids[level].Info.cellCountZ;
 		
+		const int cellCountLevel = grids[level].Info.cellCount;
+		std::cout << "Cell count on grid " << level << ": " << cellCountLevel << std::endl;
+		
 		grids[level].fArray.setSizes( 27, grids[level].Info.cellCount );	
 		grids[level].shifter = IntArrayType( 27, 0 );
 		fillEquilibriumFromFunction( grids[level] );
 	}
 	
 	int cellCountTotal = 0;
-	int cellUpdatesPerIteration = 0;
+	long int cellUpdatesPerIteration = 0;
 	for ( int level = 0; level < gridLevelCount; level++ )
 	{
 		const int cellCountLevel = grids[level].Info.cellCount;
-		std::cout << "Cell count on grid " << level << ": " << cellCountLevel << std::endl;
 		cellCountTotal += cellCountLevel; 
 		cellUpdatesPerIteration += cellCountLevel * std::pow(2, level);
 		cellUpdatesPerIteration -= (grids[level].Info.iSubgridEnd - grids[level].Info.iSubgridStart - 2) 

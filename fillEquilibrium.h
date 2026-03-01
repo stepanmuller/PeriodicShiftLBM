@@ -38,7 +38,6 @@ void fillEquilibriumPrescribed( GridStruct &Grid, const float &rho, const float 
 
 void fillEquilibriumFromFunction( GridStruct &Grid )
 {
-	std::cout << "Filling fArray with equilibrium per function" << std::endl;
 	auto fArrayView  = Grid.fArray.getView();
 	InfoStruct Info = Grid.Info;
 	auto cellLambda = [=] __cuda_callable__ ( const int cell ) mutable
