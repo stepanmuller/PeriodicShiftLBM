@@ -214,7 +214,7 @@ __host__ __device__ void applyCollision( float (&f)[27], const float &nu, const 
 	// Eq 27-29
 	const float Dxu =
 		-omega1 * 0.5f * rho_inv * (2.f * C_200 - C_020 - C_002)
-		- omega2 * 0.5f * rho_inv * (C_200 + C_020 + C_002 - k_000);
+		- omega2 * 0.5f * rho_inv * (C_200 + C_020 + C_002 - (-1.f + rho));
 	const float Dyv = Dxu + 1.5f * omega1 * rho_inv * (C_200 - C_020);
 	const float Dzw = Dxu + 1.5f * omega1 * rho_inv * (C_200 - C_002);
 	
@@ -225,9 +225,9 @@ __host__ __device__ void applyCollision( float (&f)[27], const float &nu, const 
 
 	// Eq 33-35
 	const float Eq33RHS = (1.f - omega1) * (C_200 - C_020) - 3.f * rho * (1.f - omega1 * 0.5f) * (ux2 * Dxu - uy2 * Dyv);
-	const float Eq34RHS = (1.f - omega1) * (C_200 - C_002) - 3.f * rho * (1.f - omega1 * 0.5f) * (ux2 * Dxu - uy2 * Dzw);
+	const float Eq34RHS = (1.f - omega1) * (C_200 - C_002) - 3.f * rho * (1.f - omega1 * 0.5f) * (ux2 * Dxu - uz2 * Dzw);
 	const float Eq35RHS = k_000 * omega2 + (1.f - omega2) * (C_200 + C_020 + C_002)
-						- 3.f * rho * (1.f - omega2 * 0.5f) * (ux2 * Dxu + uy2 * Dyv + uy2 * Dzw);
+						- 3.f * rho * (1.f - omega2 * 0.5f) * (ux2 * Dxu + uy2 * Dyv + uz2 * Dzw);
 
 	const float Cs_200 = n1o3 * (Eq33RHS + Eq34RHS + Eq35RHS);
 	const float Cs_020 = n1o3 * (-2.f * Eq33RHS + Eq34RHS + Eq35RHS);
