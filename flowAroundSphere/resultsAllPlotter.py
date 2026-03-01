@@ -1,7 +1,7 @@
 import os
 import numpy as np
 import matplotlib.pyplot as plt
-from matplotlib.ticker import MaxNLocator
+from matplotlib.ticker import MaxNLocator, AutoMinorLocator
 
 achenbach = np.reshape(np.array([46074.52813775765, 0.49815816771577437,
 	50851.19396976338, 0.48227881611045637,
@@ -119,41 +119,63 @@ achenbach = np.reshape(np.array([46074.52813775765, 0.49815816771577437,
 	5297067.136883549, 0.18383962765251471,
 	5924743.715197603, 0.18941165514400926]), (-1, 2))
 
+cliftX = np.logspace(np.log10(1000), np.log10(10000), num=100, endpoint=True, base=10)
+cliftY = 1.0357 * 10**(-2.4571 + 2.5558 * np.log10(cliftX) - 0.9295 * np.log10(cliftX)**2 + 0.1049 * np.log10(cliftX)**3)
+
+MikhailovX = np.logspace(np.log10(100), np.log10(118300), num=200, endpoint=True, base=10)
+MikhailovY1 = 1.0357 * 777 * ( 669806/875 + MikhailovX * 114976/1155 + MikhailovX**2 * 707/1380 ) / ( 646 * MikhailovX * ( 32869/952 + MikhailovX * 924/643 + MikhailovX**2 / 385718 ) )
+MikhailovY2 = 1.0357 * (3808 * ((1617933/2030) + (178861/1063)*MikhailovX + (1219/1084)*MikhailovX**2)) / (681*MikhailovX * ((77531/422) + (13529/976)*MikhailovX - (1/71154)*MikhailovX**2))
+
+MorrisonX = np.logspace(np.log10(100), np.log10(1000000), num=100, endpoint=True, base=10)
+MorrisonY = 1.0357 * (24/MorrisonX) + ((26/50)*MorrisonX) / (1 + (MorrisonX/5)**1.52) + (0.411 * (MorrisonX/263000)**-7.94) / (1 + (MorrisonX/263000)**-8) + (MorrisonX**0.8 / 461000)
+
 # ==========================================
 # 1. DATA DEFINITION
 # ==========================================
 filename = "resultsAll"
-
 supTitle = r"\textbf{Sphere drag coefficient vs Reynolds number}"
+xLabel = r"Re [1]"
+yLabel = r"$C_D$ [1]"
 
-xMin = 100
-xMax = 10000000
+xMin = 50
+xMax = 20000000
 yMin = 0
-yMax = 1
+yMax = 1.2
 
-xLabel = "Reynolds number"
+# Grouping for easy iteration
+xList = []
+yList = []
+yLegendList = []
+yColorList = []
+yStyleList = []
 
-# Case 1
-x1 = achenbach[:, 0]
-y1 = achenbach[:, 1]
-y1Legend = "Achenbach"
-y1Color = "black"
-y1Style = "--"  # Solid line with circle markers
+# achenbach 1
+xList.append(achenbach[:, 0])
+yList.append(achenbach[:, 1])
+yLegendList.append("Achenbach")
+yColorList.append("gray")
+yStyleList.append(".")
 
-# Case 2
-x2 = np.array([100, 200, 500, 1000])
-y2 = np.array([0.45, 0.55, 0.65, 0.85]) # Adjusted slightly so it doesn't overlap y1
-y2Legend = "Cumulant AllOne, 160 cells / D"
-y2Color = "black"
-y2Style = "o"  # Solid line with circle markers "--s" 
+#Mikhailov 2
+xList.append(MikhailovX)
+yList.append(MikhailovY2)
+yLegendList.append("Mikhailov 2")
+yColorList.append("gray")
+yStyleList.append("-")
 
-# Grouping for easy iteration. To add y3, just add it to these lists.
-xList = [x1, x2]
-yList = [y1, y2]
-yLegendList = [y1Legend, y2Legend]
-yColorList = [y1Color, y2Color]
-yStyleList = [y1Style, y2Style]
+#Morrison
+xList.append(MorrisonX)
+yList.append(MorrisonY)
+yLegendList.append("Morrison")
+yColorList.append("gray")
+yStyleList.append(".-")
 
+# Cumulant AllOne, D/res = 160
+xList.append(np.array([100, 200, 500, 1000, 2000, 5000, 10000, 20000, 50000, 100000, 200000, 500000, 1000000, 2000000, 5000000, 10000000]))
+yList.append(np.array([1.149, 0.829, 0.612, 0.508, 0.455, 0.451, 0.487, 0.540, 0.565, 0.579, 0.587, 0.571, 0.584, 0.581, 0.591, 0.583]))
+yLegendList.append("Cumulant AllOne, D/res = 160")
+yColorList.append("black")
+yStyleList.append("X") 
 
 # ==========================================
 # 2. PLOT STYLING (LaTeX Enabled)
@@ -189,15 +211,21 @@ ax.set_xscale('log')
 
 # Set labels and title
 ax.set_xlabel(xLabel)
-ax.set_ylabel(r"$C_D$ [1]")
+ax.set_ylabel(yLabel)
 ax.set_title(supTitle)
 
 # Visual grid and locators
-ax.grid(True, linestyle='--', alpha=0.4)
-ax.yaxis.set_major_locator(MaxNLocator(nbins=8))
+# 1. Y-axis Locators: Increase major bins slightly and enable minor ticks
+ax.yaxis.set_major_locator(MaxNLocator(nbins=10)) 
+ax.yaxis.set_minor_locator(AutoMinorLocator(5)) # Divides each major y-interval into 5 minor intervals
+# 2. Denser, highly visible grid
+# Major grid lines (solid, darker)
+ax.grid(which='major', color='black', linestyle='-', linewidth=0.8, alpha=0.6)
+# Minor grid lines (dashed, lighter, fills in the log scale and new y-axis minor ticks)
+ax.grid(which='minor', color='dimgray', linestyle='--', linewidth=0.5, alpha=0.4)
 
 # Add a legend, mimicking the style of the old square bbox
-ax.legend(loc='upper left', frameon=True, fancybox=False, edgecolor='black', framealpha=0.8, borderpad=0.5)
+ax.legend(loc='upper right', frameon=True, fancybox=False, edgecolor='black', framealpha=0.8, borderpad=0.5)
 
 # Clean layout
 plt.tight_layout()
