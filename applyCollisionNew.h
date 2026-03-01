@@ -30,12 +30,13 @@ __host__ __device__ void applyCollision( float (&f)[27], const float &nu, const 
 	//--------------------------- TRANSFORM TO CENTRAL MOMENTS ---------------------------
 	//------------------------------------------------------------------------------------
 	
-	const float ux2 = ux2;
-	const float uy2 = uy2;
-	const float uz2 = uz2;
+	const float ux2 = ux * ux;
+	const float uy2 = uy * uy;
+	const float uz2 = uz * uz;
 	const float rho_inv = 1.f / rho;
 	const float n1o3 = 1.f / 3.f;
 	const float n2o3 = 2.f / 3.f;
+	const float n4o3 = 4.f / 3.f;
 	
 	//Eq 6
 	const float k_mm0 = (f[21] + f[25]) + f[11];
@@ -106,34 +107,34 @@ __host__ __device__ void applyCollision( float (&f)[27], const float &nu, const 
 	// Eq 12
 	const float k_000 = (k_p00 + k_m00) + k_z00;
 	const float k_001 = (k_p01 + k_m01) + k_z01;
-	const float k_002 = (k_p02 + k_m02) + k_z02;
-	const float k_010 = (k_p10 + k_m10) + k_z10;
-	const float k_011 = (k_p11 + k_m11) + k_z11;
-	const float k_012 = (k_p12 + k_m12) + k_z12;
-	const float k_020 = (k_p20 + k_m20) + k_z20;
-	const float k_021 = (k_p21 + k_m21) + k_z21;
+	const float C_002 = (k_p02 + k_m02) + k_z02;
+	const float C_010 = (k_p10 + k_m10) + k_z10;
+	const float C_011 = (k_p11 + k_m11) + k_z11;
+	const float C_012 = (k_p12 + k_m12) + k_z12;
+	const float C_020 = (k_p20 + k_m20) + k_z20;
+	const float C_021 = (k_p21 + k_m21) + k_z21;
 	const float k_022 = (k_p22 + k_m22) + k_z22;
 
 	// Eq 13
-	const float k_100 = (k_p00 - k_m00) - ux * k_000;
-	const float k_101 = (k_p01 - k_m01) - ux * k_001;
-	const float k_102 = (k_p02 - k_m02) - ux * k_002;
-	const float k_110 = (k_p10 - k_m10) - ux * k_010;
-	const float k_111 = (k_p11 - k_m11) - ux * k_011;
-	const float k_112 = (k_p12 - k_m12) - ux * k_012;
-	const float k_120 = (k_p20 - k_m20) - ux * k_020;
-	const float k_121 = (k_p21 - k_m21) - ux * k_021;
+	const float C_100 = (k_p00 - k_m00) - ux * k_000;
+	const float C_101 = (k_p01 - k_m01) - ux * k_001;
+	const float C_102 = (k_p02 - k_m02) - ux * C_002;
+	const float C_110 = (k_p10 - k_m10) - ux * C_010;
+	const float C_111 = (k_p11 - k_m11) - ux * C_011;
+	const float k_112 = (k_p12 - k_m12) - ux * C_012;
+	const float C_120 = (k_p20 - k_m20) - ux * C_020;
+	const float k_121 = (k_p21 - k_m21) - ux * C_021;
 	const float k_122 = (k_p22 - k_m22) - ux * k_022;
 
 	// Eq 14
-	const float k_200 = (k_p00 + k_m00) - 2.f * ux * (k_p00 - k_m00) + ux2 * k_000;
-	const float k_201 = (k_p01 + k_m01) - 2.f * ux * (k_p01 - k_m01) + ux2 * k_001;
-	const float k_202 = (k_p02 + k_m02) - 2.f * ux * (k_p02 - k_m02) + ux2 * k_002;
-	const float k_210 = (k_p10 + k_m10) - 2.f * ux * (k_p10 - k_m10) + ux2 * k_010;
-	const float k_211 = (k_p11 + k_m11) - 2.f * ux * (k_p11 - k_m11) + ux2 * k_011;
-	const float k_212 = (k_p12 + k_m12) - 2.f * ux * (k_p12 - k_m12) + ux2 * k_012;
-	const float k_220 = (k_p20 + k_m20) - 2.f * ux * (k_p20 - k_m20) + ux2 * k_020;
-	const float k_221 = (k_p21 + k_m21) - 2.f * ux * (k_p21 - k_m21) + ux2 * k_021;
+	const float C_200 = (k_p00 + k_m00) - 2.f * ux * (k_p00 - k_m00) + ux2 * k_000;
+	const float C_201 = (k_p01 + k_m01) - 2.f * ux * (k_p01 - k_m01) + ux2 * k_001;
+	const float k_202 = (k_p02 + k_m02) - 2.f * ux * (k_p02 - k_m02) + ux2 * C_002;
+	const float C_210 = (k_p10 + k_m10) - 2.f * ux * (k_p10 - k_m10) + ux2 * C_010;
+	const float k_211 = (k_p11 + k_m11) - 2.f * ux * (k_p11 - k_m11) + ux2 * C_011;
+	const float k_212 = (k_p12 + k_m12) - 2.f * ux * (k_p12 - k_m12) + ux2 * C_012;
+	const float k_220 = (k_p20 + k_m20) - 2.f * ux * (k_p20 - k_m20) + ux2 * C_020;
+	const float k_221 = (k_p21 + k_m21) - 2.f * ux * (k_p21 - k_m21) + ux2 * C_021;
 	const float k_222 = (k_p22 + k_m22) - 2.f * ux * (k_p22 - k_m22) + ux2 * k_022;
 	
 	//------------------------------------------------------------------------------------
@@ -141,27 +142,27 @@ __host__ __device__ void applyCollision( float (&f)[27], const float &nu, const 
 	//------------------------------------------------------------------------------------
 	
 	// Eq 51 from Geier 2015
-	const float C_211 = k_211 - (k_200 * k_011 + 2.f * k_101 * k_110) * rho_inv;
-	const float C_121 = k_121 - (k_020 * k_101 + 2.f * k_110 * k_011) * rho_inv;
-	const float C_112 = k_112 - (k_002 * k_110 + 2.f * k_011 * k_101) * rho_inv;
+	const float C_211 = k_211 - (C_200 * C_011 + 2.f * C_101 * C_110) * rho_inv;
+	const float C_121 = k_121 - (C_020 * C_101 + 2.f * C_110 * C_011) * rho_inv;
+	const float C_112 = k_112 - (C_002 * C_110 + 2.f * C_011 * C_101) * rho_inv;
 
 	// Eq 52 from Geier 2015
-	const float C_220 = k_220 - (k_020 * k_200 + 2.f * k_110 * k_110) * rho_inv;
-	const float C_022 = k_022 - (k_002 * k_020 + 2.f * k_011 * k_011) * rho_inv;
-	const float C_202 = k_202 - (k_200 * k_002 + 2.f * k_101 * k_101) * rho_inv;
+	const float C_220 = k_220 - (C_020 * C_200 + 2.f * C_110 * C_110) * rho_inv;
+	const float C_022 = k_022 - (C_002 * C_020 + 2.f * C_011 * C_011) * rho_inv;
+	const float C_202 = k_202 - (C_200 * C_002 + 2.f * C_101 * C_101) * rho_inv;
 
 	// Eq 53 from Geier 2015
-	const float C_122 = k_122 - (k_020 * k_102 + k_002 * k_120 + 4.f * k_011 * k_111 + 2.f * (k_110 * k_012 + k_101 * k_021)) * rho_inv;
-	const float C_212 = k_212 - (k_002 * k_210 + k_200 * k_012 + 4.f * k_101 * k_111 + 2.f * (k_011 * k_201 + k_110 * k_102)) * rho_inv;
-	const float C_221 = k_221 - (k_200 * k_021 + k_020 * k_201 + 4.f * k_110 * k_111 + 2.f * (k_101 * k_120 + k_011 * k_210)) * rho_inv;
+	const float C_122 = k_122 - (C_020 * C_102 + C_002 * C_120 + 4.f * C_011 * C_111 + 2.f * (C_110 * C_012 + C_101 * C_021)) * rho_inv;
+	const float C_212 = k_212 - (C_002 * C_210 + C_200 * C_012 + 4.f * C_101 * C_111 + 2.f * (C_011 * C_201 + C_110 * C_102)) * rho_inv;
+	const float C_221 = k_221 - (C_200 * C_021 + C_020 * C_201 + 4.f * C_110 * C_111 + 2.f * (C_101 * C_120 + C_011 * C_210)) * rho_inv;
 
 	// Eq 54 from Geier 2015
 	const float C_222 = k_222
-					  - (4.f * k_111 * k_111 + k_200 * k_022 + k_020 * k_202 + k_002 * k_220
-						 + 4.f * (k_011 * k_211 + k_101 * k_121 + k_110 * k_112) + 2.f * (k_120 * k_102 + k_210 * k_012 + k_201 * k_021))
+					  - (4.f * C_111 * C_111 + C_200 * k_022 + C_020 * k_202 + C_002 * k_220
+						 + 4.f * (C_011 * k_211 + C_101 * k_121 + C_110 * k_112) + 2.f * (C_120 * C_102 + C_210 * C_012 + C_201 * C_021))
 							* rho_inv
-					  + (1.f6 * k_110 * k_101 * k_011 + 4.f * (k_101 * k_101 * k_020 + k_011 * k_011 * k_200 + k_110 * k_110 * k_002)
-						 + 2.f * k_200 * k_020 * k_002)
+					  + (16.f * C_110 * C_101 * C_011 + 4.f * (C_101 * C_101 * C_020 + C_011 * C_011 * C_200 + C_110 * C_110 * C_002)
+						 + 2.f * C_200 * C_020 * C_002)
 							* rho_inv * rho_inv;
 
 	//------------------------------------------------------------------------------------
@@ -173,21 +174,21 @@ __host__ __device__ void applyCollision( float (&f)[27], const float &nu, const 
 	const float lambda3 = 0.01f;  // Limiter treshold, section 6 Geier 2017
 	const float lambda4 = 0.01f;
 	const float lambda5 = 0.01f;
-	const float omega3 = 8.f * (omega1 - 2.f) * (omega2 * (3.f * omega1 - 1.f) - no5 * omega1) 							// eq 111
-					   / (8.f * (no5 - 2.f * omega1) * omega1 + omega2 * (8.f + omega1 * (9.f * omega1 - 2.f6)));
+	const float omega3 = 8.f * (omega1 - 2.f) * (omega2 * (3.f * omega1 - 1.f) - 5.f * omega1) 							// eq 111
+					   / (8.f * (5.f - 2.f * omega1) * omega1 + omega2 * (8.f + omega1 * (9.f * omega1 - 26.f)));
 	const float omega120p102 = omega3 + (1.f - omega3) * fabs(C_120 + C_102) / (rho * lambda3 + fabs(C_120 + C_102));  	// limiter eq 116
 	const float omega210p012 = omega3 + (1.f - omega3) * fabs(C_210 + C_012) / (rho * lambda3 + fabs(C_210 + C_012));  	// limiter eq 116
 	const float omega201p021 = omega3 + (1.f - omega3) * fabs(C_201 + C_021) / (rho * lambda3 + fabs(C_201 + C_021));  	// limiter eq 116
-	const float omega4 = 8.f * (omega1 - 2.f) * (omega1 + omega2 * (3.f * omega1 - no7)) 								// eq 112
-					   / (omega2 * (no56 - 4.f2 * omega1 + 9.f * omega1 * omega1) - 8.f * omega1);
+	const float omega4 = 8.f * (omega1 - 2.f) * (omega1 + omega2 * (3.f * omega1 - 7.f)) 								// eq 112
+					   / (omega2 * (56.f - 42.f * omega1 + 9.f * omega1 * omega1) - 8.f * omega1);
 	const float omega120m102 = omega4 + (1.f - omega4) * fabs(C_120 - C_102) / (rho * lambda4 + fabs(C_120 - C_102));  	// limiter eq 116
 	const float omega210m012 = omega4 + (1.f - omega4) * fabs(C_210 - C_012) / (rho * lambda4 + fabs(C_210 - C_012));  	// limiter eq 116
 	const float omega201m021 = omega4 + (1.f - omega4) * fabs(C_201 - C_021) / (rho * lambda4 + fabs(C_201 - C_021));  	// limiter eq 116
 	const float omega5 = 																								// eq 113
-		2.f4 * (omega1 - 2.f)
-		* (4.f * omega1 * omega1 + omega1 * omega2 * (1.f8 - 1.f3 * omega1) + omega2 * omega2 * (2.f + omega1 * (no6 * omega1 - 1.f1)))
-		/ (1.f6 * omega1 * omega1 * (omega1 - no6) - 2.f * omega1 * omega2 * (2.f16 + no5 * omega1 * (9.f * omega1 - 4.f6))
-		   + omega2 * omega2 * (omega1 * (3.f * omega1 - 1.f0) * (1.f5 * omega1 - 2.f8) - 4.f8));
+		24.f * (omega1 - 2.f)
+		* (4.f * omega1 * omega1 + omega1 * omega2 * (18.f - 13.f * omega1) + omega2 * omega2 * (2.f + omega1 * (6.f * omega1 - 11.f)))
+		/ (16.f * omega1 * omega1 * (omega1 - 6.f) - 2.f * omega1 * omega2 * (216.f + 5.f * omega1 * (9.f * omega1 - 46.f))
+		   + omega2 * omega2 * (omega1 * (3.f * omega1 - 10.f) * (15.f * omega1 - 28.f) - 48.f));
 	const float omega111 = omega5 + (1.f - omega5) * fabs(C_111) / (rho * lambda5 + fabs(C_111));  						// limiter eq 116
 	const float omega6 = 1.f;
 	const float omega7 = 1.f;
@@ -196,10 +197,10 @@ __host__ __device__ void applyCollision( float (&f)[27], const float &nu, const 
 	const float omega10 = 1.f;
 	
 	// Eq 114, 115
-	const float A = (4.f * omega1 * omega1 + 2.f * omega1 * omega2 * (omega1 - no6) + omega2 * omega2 * (omega1 * (1.f0 - 3.f * omega1) - 4.f))
+	const float A = (4.f * omega1 * omega1 + 2.f * omega1 * omega2 * (omega1 - 6.f) + omega2 * omega2 * (omega1 * (10.f - 3.f * omega1) - 4.f))
 				  / (omega1 - omega2) / (omega2 * (2.f + 3.f * omega1) - 8.f * omega1);
 	const float B =
-		(4.f * omega1 * omega2 * (9.f * omega1 - 1.f6) - 4.f * omega1 * omega1 - 2.f * omega2 * omega2 * (2.f + 9.f * omega1 * (omega1 - 2.f)))
+		(4.f * omega1 * omega2 * (9.f * omega1 - 16.f) - 4.f * omega1 * omega1 - 2.f * omega2 * omega2 * (2.f + 9.f * omega1 * (omega1 - 2.f)))
 		* n1o3 / (omega1 - omega2) / (omega2 * (2.f + 3.f * omega1) - 8.f * omega1);
 
 	//------------------------------------------------------------------------------------
@@ -275,71 +276,71 @@ __host__ __device__ void applyCollision( float (&f)[27], const float &nu, const 
 	//------------------------------------------------------------------------------------
 	
 	// Eq 81 from Geier 2015
-	const float ks_211 = Cs_211 + (ks_200 * ks_011 + 2.f * ks_101 * ks_110) * rho_inv;
-	const float ks_121 = Cs_121 + (ks_020 * ks_101 + 2.f * ks_110 * ks_011) * rho_inv;
-	const float ks_112 = Cs_112 + (ks_002 * ks_110 + 2.f * ks_011 * ks_101) * rho_inv;
+	const float ks_211 = Cs_211 + (Cs_200 * Cs_011 + 2.f * Cs_101 * Cs_110) * rho_inv;
+	const float ks_121 = Cs_121 + (Cs_020 * Cs_101 + 2.f * Cs_110 * Cs_011) * rho_inv;
+	const float ks_112 = Cs_112 + (Cs_002 * Cs_110 + 2.f * Cs_011 * Cs_101) * rho_inv;
 
 	// Eq 82 from Geier 2015
-	const float ks_220 = Cs_220 + (ks_020 * ks_200 + 2.f * ks_110 * ks_110) * rho_inv;
-	const float ks_022 = Cs_022 + (ks_002 * ks_020 + 2.f * ks_011 * ks_011) * rho_inv;
-	const float ks_202 = Cs_202 + (ks_200 * ks_002 + 2.f * ks_101 * ks_101) * rho_inv;
+	const float ks_220 = Cs_220 + (Cs_020 * Cs_200 + 2.f * Cs_110 * Cs_110) * rho_inv;
+	const float ks_022 = Cs_022 + (Cs_002 * Cs_020 + 2.f * Cs_011 * Cs_011) * rho_inv;
+	const float ks_202 = Cs_202 + (Cs_200 * Cs_002 + 2.f * Cs_101 * Cs_101) * rho_inv;
 
 	// Eq 83 from Geier 2015
 	const float ks_122 =
-		Cs_122 + (ks_020 * ks_102 + ks_002 * ks_120 + 4.f * ks_011 * ks_111 + 2.f * (ks_110 * ks_012 + ks_101 * ks_021)) * rho_inv;
+		Cs_122 + (Cs_020 * Cs_102 + Cs_002 * Cs_120 + 4.f * Cs_011 * Cs_111 + 2.f * (Cs_110 * Cs_012 + Cs_101 * Cs_021)) * rho_inv;
 	const float ks_212 =
-		Cs_212 + (ks_002 * ks_210 + ks_200 * ks_012 + 4.f * ks_101 * ks_111 + 2.f * (ks_011 * ks_201 + ks_110 * ks_102)) * rho_inv;
+		Cs_212 + (Cs_002 * Cs_210 + Cs_200 * Cs_012 + 4.f * Cs_101 * Cs_111 + 2.f * (Cs_011 * Cs_201 + Cs_110 * Cs_102)) * rho_inv;
 	const float ks_221 =
-		Cs_221 + (ks_200 * ks_021 + ks_020 * ks_201 + 4.f * ks_110 * ks_111 + 2.f * (ks_101 * ks_120 + ks_011 * ks_210)) * rho_inv;
+		Cs_221 + (Cs_200 * Cs_021 + Cs_020 * Cs_201 + 4.f * Cs_110 * Cs_111 + 2.f * (Cs_101 * Cs_120 + Cs_011 * Cs_210)) * rho_inv;
 
 	// Eq 84 from Geier 2015
 	const float ks_222 =
 		Cs_222
-		+ (4.f * ks_111 * ks_111 + ks_200 * ks_022 + ks_020 * ks_202 + ks_002 * ks_220
-		   + 4.f * (ks_011 * ks_211 + ks_101 * ks_121 + ks_110 * ks_112) + 2.f * (ks_120 * ks_102 + ks_210 * ks_012 + ks_201 * ks_021))
+		+ (4.f * Cs_111 * Cs_111 + Cs_200 * ks_022 + Cs_020 * ks_202 + Cs_002 * ks_220
+		   + 4.f * (Cs_011 * ks_211 + Cs_101 * ks_121 + Cs_110 * ks_112) + 2.f * (Cs_120 * Cs_102 + Cs_210 * Cs_012 + Cs_201 * Cs_021))
 			  * rho_inv
-		- (1.f6 * ks_110 * ks_101 * ks_011 + 4.f * (ks_101 * ks_101 * ks_020 + ks_011 * ks_011 * ks_200 + ks_110 * ks_110 * ks_002)
-		   + 2.f * ks_200 * ks_020 * ks_002)
+		- (16.f * Cs_110 * Cs_101 * Cs_011 + 4.f * (Cs_101 * Cs_101 * Cs_020 + Cs_011 * Cs_011 * Cs_200 + Cs_110 * Cs_110 * Cs_002)
+		   + 2.f * Cs_200 * Cs_020 * Cs_002)
 			  * rho_inv * rho_inv;
 
 	const float ks_000 = k_000;
 	
 	// Geier 2017: forcing scheme
-	const float ks_100 = -k_100;
-	const float ks_010 = -k_010;
-	const float ks_001 = -k_001;
+	const float Cs_100 = -C_100;
+	const float Cs_010 = -C_010;
+	const float Cs_001 = -k_001;
 
 	// Eq 88 from Geier 2015
-	const float ks_z00 = ks_000 * (1.f - ux2) - 2.f * ux * ks_100 - ks_200;
-	const float ks_z01 = ks_001 * (1.f - ux2) - 2.f * ux * ks_101 - ks_201;
-	const float ks_z02 = ks_002 * (1.f - ux2) - 2.f * ux * ks_102 - ks_202;
-	const float ks_z10 = ks_010 * (1.f - ux2) - 2.f * ux * ks_110 - ks_210;
-	const float ks_z11 = ks_011 * (1.f - ux2) - 2.f * ux * ks_111 - ks_211;
-	const float ks_z12 = ks_012 * (1.f - ux2) - 2.f * ux * ks_112 - ks_212;
-	const float ks_z20 = ks_020 * (1.f - ux2) - 2.f * ux * ks_120 - ks_220;
-	const float ks_z21 = ks_021 * (1.f - ux2) - 2.f * ux * ks_121 - ks_221;
+	const float ks_z00 = ks_000 * (1.f - ux2) - 2.f * ux * Cs_100 - Cs_200;
+	const float ks_z01 = Cs_001 * (1.f - ux2) - 2.f * ux * Cs_101 - Cs_201;
+	const float ks_z02 = Cs_002 * (1.f - ux2) - 2.f * ux * Cs_102 - ks_202;
+	const float ks_z10 = Cs_010 * (1.f - ux2) - 2.f * ux * Cs_110 - Cs_210;
+	const float ks_z11 = Cs_011 * (1.f - ux2) - 2.f * ux * Cs_111 - ks_211;
+	const float ks_z12 = Cs_012 * (1.f - ux2) - 2.f * ux * ks_112 - ks_212;
+	const float ks_z20 = Cs_020 * (1.f - ux2) - 2.f * ux * Cs_120 - ks_220;
+	const float ks_z21 = Cs_021 * (1.f - ux2) - 2.f * ux * ks_121 - ks_221;
 	const float ks_z22 = ks_022 * (1.f - ux2) - 2.f * ux * ks_122 - ks_222;
 
 	// Eq 89 from Geier 2015
-	const float ks_m00 = (ks_000 * (ux2 - ux) + ks_100 * (2.f * ux - 1.f) + ks_200) * 0.5f;
-	const float ks_m01 = (ks_001 * (ux2 - ux) + ks_101 * (2.f * ux - 1.f) + ks_201) * 0.5f;
-	const float ks_m02 = (ks_002 * (ux2 - ux) + ks_102 * (2.f * ux - 1.f) + ks_202) * 0.5f;
-	const float ks_m10 = (ks_010 * (ux2 - ux) + ks_110 * (2.f * ux - 1.f) + ks_210) * 0.5f;
-	const float ks_m11 = (ks_011 * (ux2 - ux) + ks_111 * (2.f * ux - 1.f) + ks_211) * 0.5f;
-	const float ks_m12 = (ks_012 * (ux2 - ux) + ks_112 * (2.f * ux - 1.f) + ks_212) * 0.5f;
-	const float ks_m20 = (ks_020 * (ux2 - ux) + ks_120 * (2.f * ux - 1.f) + ks_220) * 0.5f;
-	const float ks_m21 = (ks_021 * (ux2 - ux) + ks_121 * (2.f * ux - 1.f) + ks_221) * 0.5f;
+	const float ks_m00 = (ks_000 * (ux2 - ux) + Cs_100 * (2.f * ux - 1.f) + Cs_200) * 0.5f;
+	const float ks_m01 = (Cs_001 * (ux2 - ux) + Cs_101 * (2.f * ux - 1.f) + Cs_201) * 0.5f;
+	const float ks_m02 = (Cs_002 * (ux2 - ux) + Cs_102 * (2.f * ux - 1.f) + ks_202) * 0.5f;
+	const float ks_m10 = (Cs_010 * (ux2 - ux) + Cs_110 * (2.f * ux - 1.f) + Cs_210) * 0.5f;
+	const float ks_m11 = (Cs_011 * (ux2 - ux) + Cs_111 * (2.f * ux - 1.f) + ks_211) * 0.5f;
+	const float ks_m12 = (Cs_012 * (ux2 - ux) + ks_112 * (2.f * ux - 1.f) + ks_212) * 0.5f;
+	const float ks_m20 = (Cs_020 * (ux2 - ux) + Cs_120 * (2.f * ux - 1.f) + ks_220) * 0.5f;
+	const float ks_m21 = (Cs_021 * (ux2 - ux) + ks_121 * (2.f * ux - 1.f) + ks_221) * 0.5f;
 	const float ks_m22 = (ks_022 * (ux2 - ux) + ks_122 * (2.f * ux - 1.f) + ks_222) * 0.5f;
 
 	// Eq 90 from Geier 2015
-	const float ks_p00 = (ks_000 * (ux2 + ux) + ks_100 * (2.f * ux + 1.f) + ks_200) * 0.5f;
-	const float ks_p01 = (ks_001 * (ux2 + ux) + ks_101 * (2.f * ux + 1.f) + ks_201) * 0.5f;
-	const float ks_p02 = (ks_002 * (ux2 + ux) + ks_102 * (2.f * ux + 1.f) + ks_202) * 0.5f;
-	const float ks_p10 = (ks_010 * (ux2 + ux) + ks_110 * (2.f * ux + 1.f) + ks_210) * 0.5f;
-	const float ks_p11 = (ks_011 * (ux2 + ux) + ks_111 * (2.f * ux + 1.f) + ks_211) * 0.5f;
-	const float ks_p12 = (ks_012 * (ux2 + ux) + ks_112 * (2.f * ux + 1.f) + ks_212) * 0.5f;
-	const float ks_p20 = (ks_020 * (ux2 + ux) + ks_120 * (2.f * ux + 1.f) + ks_220) * 0.5f;
-	const float ks_p21 = (ks_021 * (ux2 + ux) + ks_121 * (2.f * ux + 1.f) + ks_221) * 0.5f;
+	const float ks_p00 = (ks_000 * (ux2 + ux) + Cs_100 * (2.f * ux + 1.f) + Cs_200) * 0.5f;
+	const float ks_p01 = (Cs_001 * (ux2 + ux) + Cs_101 * (2.f * ux + 1.f) + Cs_201) * 0.5f;
+	const float ks_p02 = (Cs_002 * (ux2 + ux) + Cs_102 * (2.f * ux + 1.f) + ks_202) * 0.5f;
+	const float ks_p10 = (Cs_010 * (ux2 + ux) + Cs_110 * (2.f * ux + 1.f) + Cs_210) * 0.5f;
+	const float ks_p11 = (Cs_011 * (ux2 + ux) + Cs_111 * (2.f * ux + 1.f) + ks_211) * 0.5f;
+	const float ks_p12 = (Cs_012 * (ux2 + ux) + ks_112 * (2.f * ux + 1.f) + ks_212) * 0.5f;
+	const float ks_p20 = (Cs_020 * (ux2 + ux) + Cs_120 * (2.f * ux + 1.f) + ks_220) * 0.5f;
+	const float ks_p21 = (Cs_021 * (ux2 + ux) + ks_121 * (2.f * ux + 1.f) + ks_221) * 0.5f;
 	const float ks_p22 = (ks_022 * (ux2 + ux) + ks_122 * (2.f * ux + 1.f) + ks_222) * 0.5f;
 
 	// Eq 91 from Geier 2015
