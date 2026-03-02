@@ -1,7 +1,7 @@
 constexpr float resGlobal = 2.f; 														// mm
 constexpr int gridLevelCount = 3;
 constexpr int iterationCount = 20000;
-constexpr int iterationChunk = 100;
+constexpr int iterationChunk = 1000;
 
 constexpr float SmagorinskyConstantGlobal = 0.1f; 										// set to zero to turn off LES
 
@@ -47,8 +47,8 @@ __cuda_callable__ void getMarkers( 	const int& iCell, const int& jCell, const in
 	{
 		if ( iCell == 0 || iCell == Info.cellCountX-1 ) Marker.ghost = 1;
 		else if ( jCell == 0 || jCell == Info.cellCountY-1 ) Marker.ghost = 1;
-		else if ( kCell == 0 ) Marker.givenUxUyUz = 1;
-		else if ( kCell == Info.cellCountZ-1 ) Marker.givenRho = 1;
+		else if ( kCell == 0 ) Marker.ghost = 1;
+		else if ( kCell == Info.cellCountZ-1 ) Marker.ghost = 1;
 		else Marker.fluid = 1;
 	}
 }
@@ -140,8 +140,8 @@ int main(int argc, char **argv)
 		grids[level-1].Info.iSubgridEnd = (int)((xEnd - grids[level-1].Info.ox) / grids[level-1].Info.res + 0.5f);
 		grids[level-1].Info.jSubgridStart = (int)((yStart - grids[level-1].Info.oy) / grids[level-1].Info.res + 0.5f);
 		grids[level-1].Info.jSubgridEnd = grids[level-1].Info.cellCountY-1;
-		grids[level-1].Info.kSubgridStart = 0;
-		grids[level-1].Info.kSubgridEnd = grids[level-1].Info.cellCountZ-1;
+		grids[level-1].Info.kSubgridStart = 2;
+		grids[level-1].Info.kSubgridEnd = grids[level-1].Info.cellCountZ-3;
 		
 		grids[level-1].Info.iSubgridStart = std::max({0, grids[level-1].Info.iSubgridStart});
 		grids[level-1].Info.iSubgridEnd = std::min({grids[level-1].Info.cellCountX-1, grids[level-1].Info.iSubgridEnd});

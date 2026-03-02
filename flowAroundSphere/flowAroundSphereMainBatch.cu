@@ -2,7 +2,7 @@ constexpr float sphereDiameterPhys = 2000.f;											// mm
 constexpr float resGlobal = 200.f; 														// mm
 constexpr float uxInlet = 0.07f; 														// also works as nominal LBM Mach number
 float reynoldsNumber = 10000.f;
-constexpr float SmagorinskyConstantGlobal = 0.0f; 										// set to zero to turn off LES
+constexpr float SmagorinskyConstantGlobal = 0.1f; 										// set to zero to turn off LES
 
 constexpr float sphereRadiusPhys = 0.5 * sphereDiameterPhys;							// mm
 constexpr float uxInletPhys = uxInlet; 													// m/s, physical velocity set to same as LBM velocity
@@ -180,9 +180,9 @@ void updateGrid( std::vector<GridStruct>& grids, int level )
 
 int main(int argc, char **argv)
 {
-	const float reynoldsArray[16] = { 100, 200, 500, 1000, 2000, 5000, 10000, 20000, 50000, 100000, 200000, 500000, 1000000, 2000000, 5000000, 10000000 };
+	const float reynoldsArray[10] = { 10000, 20000, 50000, 100000, 200000, 500000, 1000000, 2000000, 5000000, 10000000 };
 	
-	for ( int caseIndex = 0; caseIndex < 16; caseIndex++ )
+	for ( int caseIndex = 0; caseIndex < 10; caseIndex++ )
 	{
 		reynoldsNumber = reynoldsArray[caseIndex];
 		nuPhys = uxInletPhys * (sphereDiameterPhys / 1000.f) / reynoldsNumber;
