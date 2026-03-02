@@ -1,29 +1,25 @@
-// input physics
-constexpr float res = 0.35f; 											// mm
-constexpr float uzInlet = 0.05f; 										// also works as nominal LBM Mach number
+constexpr float resGlobal = 2.f; 														// mm
+constexpr int gridLevelCount = 3;
+constexpr int iterationCount = 20000;
+constexpr int iterationChunk = 100;
+
+constexpr float SmagorinskyConstantGlobal = 0.1f; 										// set to zero to turn off LES
+
+constexpr float uzInlet = 0.05f; 														// also works as nominal LBM Mach number
 constexpr float rhoOutlet = 1.0f;
+constexpr float nuPhys = 1e-6;															// m2/s water
+constexpr float rhoNominalPhys = 1000.0f;												// kg/m3 water
+constexpr float uzInletPhys = 20.f; 													// m/s
+constexpr float dtPhysGlobal = (uzInlet / uzInletPhys) * (resGlobal/1000); 				// s
 
-constexpr float nuPhys = 1e-6;											// m2/s water
-constexpr float rhoNominalPhys = 1000.0f;								// kg/m3 water
-constexpr float SmagorinskyConstantGlobal = 0.1f; 						// set to zero to turn off LES
-
-// calculated from input
-constexpr float uzInletPhys = 20.f; 									// m/s
-constexpr float dtPhys = (uzInlet / uzInletPhys) * (res/1000); 			// s
 constexpr float invSqrt3 = 0.577350269f; 
-constexpr float soundspeedPhys = invSqrt3 * (res/1000) / dtPhys; 		// m/s
-constexpr float nu = (dtPhys * nuPhys) / ((res/1000) * (res/1000));		// LBM nu
-constexpr float tau = 3.f * nu + 0.5f;		
-
-constexpr int iterationCount = 300001;
-constexpr int iterationChunk = 1000;
+constexpr float soundspeedPhys = invSqrt3 * (resGlobal/1000) / dtPhysGlobal; 			// m/s
 
 #include "../types.h"
 
 #include "../cellFunctions.h"
 #include "../applyStreaming.h"
 #include "../applyCollision.h"
-#include "../fillDefaultEquilibrium.h"
 
 #include "../boundaryConditions/applyBounceback.h"
 #include "../boundaryConditions/applyMirror.h"
@@ -32,28 +28,29 @@ constexpr int iterationChunk = 1000;
 #include "../boundaryConditions/restoreRhoUxUyUz.h"
 #include "../boundaryConditions/applyMBBC.h"
 
-#include "../exportSectionCutPlot.h"
-
 #include "../STLFunctions.h"
-
 std::string STLPath = "M40IntakeNacaSTL.STL";
 
 __cuda_callable__ void getMarkers( 	const int& iCell, const int& jCell, const int& kCell, 
-									bool& fluidMarker, bool& bouncebackMarker, bool& mirrorMarker, bool& periodicMarker, bool& givenRhoMarker, bool& givenUxUyUzMarker,
-									InfoStruct& Info )
+									MarkerStruct &Marker, const InfoStruct& Info )
 {
-    fluidMarker = 0;
-	mirrorMarker = 0;
-	givenRhoMarker = 0;
-	givenUxUyUzMarker = 0;
+	if ( Marker.bounceback ) return;
 	
-	if ( bouncebackMarker )	{ } // do nothing but skip all else
-	else if ( kCell == 0 || jCell == 0 ) givenUxUyUzMarker = 1;
-	else if ( iCell == 0 || iCell == Info.cellCountX-1 ) givenUxUyUzMarker = 1;
-	else if ( kCell == Info.cellCountZ-1 ) givenRhoMarker = 1;
-	else fluidMarker = 1;
-	
-	periodicMarker = 0;
+	if ( Info.gridID == 0 ) // if zero, we are on the coarsest grid
+	{
+		if ( kCell == 0 || jCell == 0 ) Marker.givenUxUyUz = 1;
+		else if ( iCell == 0 || iCell == Info.cellCountX-1 ) Marker.givenUxUyUz = 1;
+		else if ( kCell == Info.cellCountZ-1 ) Marker.givenRho = 1;
+		else Marker.fluid = 1;
+	}	
+	else // we are on a finer grid
+	{
+		if ( iCell == 0 || iCell == Info.cellCountX-1 ) Marker.ghost = 1;
+		else if ( jCell == 0 || jCell == Info.cellCountY-1 ) Marker.ghost = 1;
+		else if ( kCell == 0 ) Marker.givenUxUyUz = 1;
+		else if ( kCell == Info.cellCountZ-1 ) Marker.givenRho = 1;
+		else Marker.fluid = 1;
+	}
 }
 
 __cuda_callable__ void getGivenRhoUxUyUz( 	const int& iCell, const int& jCell, const int& kCell, 
@@ -63,262 +60,156 @@ __cuda_callable__ void getGivenRhoUxUyUz( 	const int& iCell, const int& jCell, c
 	ux = 0.f;
 	uy = 0.f;
 	uz = uzInlet;
-	const int cellsInRadius = (int)(17.5f / Info.res) + 1;
-	const int iMin = ((int)Info.cellCountX / 2) - cellsInRadius;
-	const int iMax = ((int)Info.cellCountX / 2) + cellsInRadius; // both included
-	const int jMin = Info.cellCountY-1 - 2*cellsInRadius;
-	const int jMax = Info.cellCountY-1; // both included
-	if ( iCell >= iMin && iCell <= iMax && jCell >= jMin && jCell <= jMax ) rho = rhoOutlet; // intake
+	const float xPhys = iCell * Info.res + Info.ox;
+	const float yPhys = jCell * Info.res + Info.oy;
+	const float r2 = xPhys * xPhys + yPhys * yPhys;
+	if ( r2 < 18.f * 18.f ) rho = rhoOutlet; // intake
 	else rho = 1.f; // lake
 }
 
-__cuda_callable__ float getSmagorinskyConstant( const int& iCell, const int& jCell, const int& kCell, const InfoStruct &Info )
+__cuda_callable__ float getSmagorinskyConstant( const int  &iCell, const int &jCell, const int &kCell, const InfoStruct &Info  )
 {
-	const float zToEnd = (Info.cellCountZ-1 - kCell) * Info.res;
-	if ( zToEnd > 1.f ) return SmagorinskyConstantGlobal;
-	else
-	{
-		return 1.f; // set Smagorinsky high to dampen vortices before reaching the outlet
-	}
+	return SmagorinskyConstantGlobal;
+}
+
+__cuda_callable__ void getInitialRhoUxUyUz( const int &iCell, const int &jCell, const int &kCell, float &rho, float &ux, float &uy, float &uz, const InfoStruct &Info )
+{
+	rho = 1.f;
+	ux = 0.f;
+	uy = 0.f;
+	uz = 0.f;
 }
 
 #include "../applyLocalCellUpdate.h"
+#include "../exportSectionCutPlot.h"
+#include "../fillEquilibrium.h"
+#include "../gridRefinementFunctions.h"
 
-float getMassFlowOut( FStruct &F, BoolArrayType &bouncebackArray, InfoStruct &Info )
+void updateGrid( std::vector<GridStruct>& grids, int level ) 
 {
-	auto fArrayView  = F.fArray.getView();
-	auto shifterView  = F.shifter.getConstView();
-	auto bouncebackArrayView = bouncebackArray.getConstView();
-	
-	const int cellsInRadius = (int)(17.5f / Info.res) + 1;
-	const int iMin = ((int)Info.cellCountX / 2) - cellsInRadius;
-	const int iMax = ((int)Info.cellCountX / 2) + cellsInRadius; // both included
-	const int jMin = Info.cellCountY-1 - 2*cellsInRadius;
-	const int jMax = Info.cellCountY-1; // both included
-	
-	const int spanX = iMax - iMin + 1;
-	const int spanY = jMax - jMin + 1;
-	
-	const int start = 0;
-	const int end = spanX * spanY;
-	
-	auto fetch = [ = ] __cuda_callable__( const int singleIndex )
-	{
-		const int iCell = iMin + singleIndex % spanX;
-		const int jCell = jMin + singleIndex / spanX;
-		const int kCell = Info.cellCountZ-1;
-		int cell;
-		getCellIndex( cell, iCell, jCell, kCell, Info );
-		bool bouncebackMarker = bouncebackArrayView( cell );
-		if ( bouncebackMarker ) return 0.f;
-		
-		int shiftedIndex[27];
-		getShiftedIndex( cell, shiftedIndex, shifterView, Info );
-		float f[27];
-		for (int direction = 0; direction < 27; direction++) f[direction] = fArrayView( direction, shiftedIndex[direction] );	
-		float uz = 0;
-		float rho, ux, uy;
-		getRhoUxUyUz(rho, ux, uy, uz, f);
-		float p;
-		convertToPhysicalUnits( rho, p, ux, uy, uz, Info );
-		return uz;
-	};
-	auto reduction = [] __cuda_callable__( const float& a, const float& b )
-	{
-		return a + b;
-	};
-	
-	float uzPhysSum = TNL::Algorithms::reduce<TNL::Devices::Cuda>( start, end, fetch, reduction, 0.f );
-	float volumetricFlow = uzPhysSum * (Info.res / 1000.f) * (Info.res / 1000.f);
-	float massFlow = volumetricFlow * 1000.f;
-	return massFlow;
-}
-
-float getIntakePower( FStruct &F, BoolArrayType &bouncebackArray, InfoStruct &Info, STLStruct &STL )
-{
-	auto fArrayView  = F.fArray.getView();
-	auto shifterView  = F.shifter.getConstView();
-	auto bouncebackArrayView = bouncebackArray.getConstView();
-	
-	const int cellsInRadius = (int)(17.5f / Info.res) + 1;
-	const int iMin = ((int)Info.cellCountX / 2) - cellsInRadius;
-	const int iMax = ((int)Info.cellCountX / 2) + cellsInRadius; // both included
-	const int jMin = Info.cellCountY-1 - 2*cellsInRadius;
-	const int jMax = Info.cellCountY-1; // both included
-	
-	const int spanX = iMax - iMin + 1;
-	const int spanY = jMax - jMin + 1;
-	
-	const int start = 0;
-	const int end = spanX * spanY;
-	
-	auto fetch = [ = ] __cuda_callable__( const int singleIndex )
-	{
-		const int iCell = iMin + singleIndex % spanX;
-		const int jCell = jMin + singleIndex / spanX;
-		const int kCell = Info.cellCountZ-1;
-		
-		const float xCell = iCell * Info.res;
-		const float yCell = jCell * Info.res;
-		const float xRelative = xCell - STL.ox;
-		const float yRelative = yCell - STL.oy;
-		int cell;
-		getCellIndex( cell, iCell, jCell, kCell, Info );
-		bool bouncebackMarker = bouncebackArrayView( cell );
-		if ( bouncebackMarker ) return 0.f;
-		
-		int shiftedIndex[27];
-		getShiftedIndex( cell, shiftedIndex, shifterView, Info );
-		float f[27];
-		for (int direction = 0; direction < 27; direction++) f[direction] = fArrayView( direction, shiftedIndex[direction] );	
-		float uz = 0;
-		float rho, ux, uy;
-		getRhoUxUyUz(rho, ux, uy, uz, f);
-		float p;
-		convertToPhysicalUnits( rho, p, ux, uy, uz, Info );
-		float volumetricFlow = uz * (Info.res / 1000.f) * (Info.res / 1000.f);
-		float volumetricPower = p * volumetricFlow;
-		float massFlow = volumetricFlow * 1000.f;
-		float kineticPowerNormal = 0.5f * massFlow * uz * std::abs( uz );
-		
-		const float radius = std::hypot( xRelative, yRelative );
-		const float uFi = (radius > 1e-6f) 
-			? (xRelative * uy - yRelative * ux) / radius 
-			: 0.0f;
-			
-		float kineticPowerRotational = - 0.5f * massFlow * uFi * std::abs( uFi );
-		float totalPower = volumetricPower + kineticPowerNormal + kineticPowerRotational;
-		return totalPower;
-	};
-	auto reduction = [] __cuda_callable__( const float& a, const float& b )
-	{
-		return a + b;
-	};
-	
-	float intakePower = TNL::Algorithms::reduce<TNL::Devices::Cuda>( start, end, fetch, reduction, 0.f );
-	return intakePower;
-}
-
-void exportRegulatorData( const std::vector<float>& massFlow, const std::vector<float>& eta, int &currentIteration ) {
-    FILE* fp = fopen("/dev/shm/regulator_history.bin", "wb");
-    if (!fp) return;
-    
-    // Header: [Number of entries recorded so far]
-    int count = currentIteration + 1;
-    fwrite(&count, sizeof(int), 1, fp);
-    
-    // Write the three arraysrhoOutlet
-    fwrite(massFlow.data(), sizeof(float), count, fp);
-    fwrite(eta.data(), sizeof(float), count, fp);
-    
-    fclose(fp);
-    // Call the python plotter (non-blocking if possible, but system() is fine for now)
-    system("python3 regulatorPlotter.py &"); 
+    applyStreaming(grids[level]);
+    applyLocalCellUpdateBB(grids[level]);
+    if (level < gridLevelCount - 1) 
+    {
+        for (int i = 0; i < 2; i++) updateGrid(grids, level + 1);
+        applyCoarseFineGridCommunication(grids[level], grids[level + 1]);
+    }
 }
 
 int main(int argc, char **argv)
 {
 	STLStructCPU STLCPU;
 	readSTL( STLCPU, STLPath );
-	
-	InfoStruct Info;
-	Info.res = res;
-	Info.rhoNominalPhys = rhoNominalPhys;
-	Info.soundspeedPhys = soundspeedPhys;
-	Info.dtPhys = dtPhys;
-	
-	std::cout << "dtPhys: " << dtPhys << " s" << std::endl;
-	
-	std::cout << "Sizing domain around the STL" << std::endl;
-	
-	Info.cellCountX = static_cast<int>( std::ceil(( STLCPU.xmax - STLCPU.xmin - 1e-9 ) / Info.res ));
-	Info.cellCountY = static_cast<int>( std::ceil(( STLCPU.ymax - STLCPU.ymin - 1e-9 ) / Info.res ));
-	Info.cellCountZ = static_cast<int>( std::ceil(( STLCPU.zmax - STLCPU.zmin - 1e-9 ) / Info.res ));
-	
-	STLCPU.ox = - STLCPU.xmin - ( 0.5f * ( ( STLCPU.xmax - STLCPU.xmin ) - Info.res * ( Info.cellCountX-1 ) ) );
-	STLCPU.oy = - STLCPU.ymin - ( 0.5f * ( ( STLCPU.ymax - STLCPU.ymin ) - Info.res * ( Info.cellCountY-1 ) ) );
-	STLCPU.oz = - STLCPU.zmin - ( 0.5f * ( ( STLCPU.zmax - STLCPU.zmin ) - Info.res * ( Info.cellCountZ-1 ) ) );
-	
-	std::cout << "	STL.ox: " << STLCPU.ox << std::endl;
-	std::cout << "	STL.oy: " << STLCPU.oy << std::endl;
-	std::cout << "	STL.oz: " << STLCPU.oz << std::endl;
-	
-	Info.cellCountY = Info.cellCountY + 1; // adding one more "wall" layer on top
-	
-	Info.cellCount = Info.cellCountX * Info.cellCountY * Info.cellCountZ;
-	std::cout << "	cellCountX: " << Info.cellCountX << std::endl;
-	std::cout << "	cellCountY: " << Info.cellCountY << std::endl;
-	std::cout << "	cellCountZ: " << Info.cellCountZ << std::endl;
-	std::cout << "	cellCount: " << Info.cellCount << std::endl;
-	
 	STLStruct STL( STLCPU );
-	
 	checkSTLEdges( STL );
 	
-	BoolArrayType bouncebackArray = BoolArrayType( Info.cellCount, 0 );
-	
+	std::vector<GridStruct> grids(gridLevelCount);
+	grids[0].Info.res = resGlobal;
+	grids[0].Info.dtPhys = dtPhysGlobal;
+	grids[0].Info.nu = (grids[0].Info.dtPhys * nuPhys) / ((grids[0].Info.res/1000) * (grids[0].Info.res/1000));
+	std::cout << "Sizing domain around the STL" << std::endl;
+	grids[0].Info.cellCountX = static_cast<int>( std::ceil(( STLCPU.xmax - STLCPU.xmin - 1e-9 ) / grids[0].Info.res ));
+	grids[0].Info.cellCountY = static_cast<int>( std::ceil(( STLCPU.ymax - STLCPU.ymin - 1e-9 ) / grids[0].Info.res ));
+	grids[0].Info.cellCountZ = static_cast<int>( std::ceil(( STLCPU.zmax - STLCPU.zmin - 1e-9 ) / grids[0].Info.res ));
+	grids[0].Info.ox = + STLCPU.xmin + ( 0.5f * ( ( STLCPU.xmax - STLCPU.xmin ) - grids[0].Info.res * ( grids[0].Info.cellCountX-1 ) ) );
+	grids[0].Info.oy = + STLCPU.ymin + ( 0.5f * ( ( STLCPU.ymax - STLCPU.ymin ) - grids[0].Info.res * ( grids[0].Info.cellCountY-1 ) ) );
+	grids[0].Info.oz = + STLCPU.zmin + ( 0.5f * ( ( STLCPU.zmax - STLCPU.zmin ) - grids[0].Info.res * ( grids[0].Info.cellCountZ-1 ) ) );
+	grids[0].Info.cellCountY = grids[0].Info.cellCountY + 1; // adding one more "wall" layer on top
+	grids[0].Info.cellCount = grids[0].Info.cellCountX * grids[0].Info.cellCountY * grids[0].Info.cellCountZ;
+	grids[0].fArray.setSizes( 27, grids[0].Info.cellCount );
+	grids[0].shifter = IntArrayType( 27, 0 );
+	fillEquilibriumFromFunction( grids[0] );
+	grids[0].bouncebackMarkerArray = BoolArrayType( grids[0].Info.cellCount, 0 );
 	const bool insideMarkerValue = 0;
-	applyMarkersInsideSTL( bouncebackArray, STL, insideMarkerValue, Info );
+	applyMarkersInsideSTL( grids[0].bouncebackMarkerArray, STL, insideMarkerValue, grids[0].Info );
+	std::cout << "Cell count on grid " << 0 << ": " << grids[0].Info.cellCount << std::endl;
 	
-	FStruct F;
-	FloatArray2DType fArray;
-	F.fArray.setSizes( 27, Info.cellCountX * Info.cellCountY * Info.cellCountZ );	
-	F.shifter = IntArrayType( 27, 0 );
+	for ( int level = 1; level < gridLevelCount; level++ )
+	{
+		grids[level].Info.gridID = grids[level-1].Info.gridID + 1;
+		grids[level].Info.res = grids[level-1].Info.res * 0.5f;
+		grids[level].Info.dtPhys = grids[level-1].Info.dtPhys * 0.5f;
+		grids[level].Info.nu = (grids[level].Info.dtPhys * nuPhys) / ((grids[level].Info.res/1000.f) * (grids[level].Info.res/1000.f));
+		
+		float progress = (float)level / (float)(gridLevelCount-1);
+		progress = std::pow( progress, 0.2f );
+		const float xStart = (1 - progress) * grids[0].Info.ox + progress * (-20.f);
+		const float xEnd = (1 - progress) * (-grids[0].Info.ox) + progress * 20.f;
+		const float yStart = (1 - progress) * grids[0].Info.oy + progress * (-40.f);
+		grids[level-1].Info.iSubgridStart = (int)((xStart - grids[level-1].Info.ox) / grids[level-1].Info.res + 0.5f);
+		grids[level-1].Info.iSubgridEnd = (int)((xEnd - grids[level-1].Info.ox) / grids[level-1].Info.res + 0.5f);
+		grids[level-1].Info.jSubgridStart = (int)((yStart - grids[level-1].Info.oy) / grids[level-1].Info.res + 0.5f);
+		grids[level-1].Info.jSubgridEnd = grids[level-1].Info.cellCountY-1;
+		grids[level-1].Info.kSubgridStart = 0;
+		grids[level-1].Info.kSubgridEnd = grids[level-1].Info.cellCountZ-1;
+		
+		grids[level-1].Info.iSubgridStart = std::max({0, grids[level-1].Info.iSubgridStart});
+		grids[level-1].Info.iSubgridEnd = std::min({grids[level-1].Info.cellCountX-1, grids[level-1].Info.iSubgridEnd});
+		grids[level-1].Info.jSubgridStart = std::max({0, grids[level-1].Info.jSubgridStart});
+		grids[level-1].Info.jSubgridEnd = std::min({grids[level-1].Info.cellCountY-1, grids[level-1].Info.jSubgridEnd});
+		grids[level-1].Info.kSubgridStart = std::max({0, grids[level-1].Info.kSubgridStart});
+		grids[level-1].Info.kSubgridEnd = std::min({grids[level-1].Info.cellCountZ-1, grids[level-1].Info.kSubgridEnd});
+		
+		grids[level].Info.ox = grids[level-1].Info.ox + grids[level-1].Info.iSubgridStart * grids[level-1].Info.res - grids[level].Info.res * 0.5f;
+		grids[level].Info.oy = grids[level-1].Info.oy + grids[level-1].Info.jSubgridStart * grids[level-1].Info.res - grids[level].Info.res * 0.5f;
+		grids[level].Info.oz = grids[level-1].Info.oz + grids[level-1].Info.kSubgridStart * grids[level-1].Info.res - grids[level].Info.res * 0.5f;
+		
+		grids[level].Info.cellCountX = (grids[level-1].Info.iSubgridEnd - grids[level-1].Info.iSubgridStart) * 2;
+		grids[level].Info.cellCountY = (grids[level-1].Info.jSubgridEnd - grids[level-1].Info.jSubgridStart) * 2;
+		grids[level].Info.cellCountZ = (grids[level-1].Info.kSubgridEnd - grids[level-1].Info.kSubgridStart) * 2;
+		grids[level].Info.cellCount = grids[level].Info.cellCountX * grids[level].Info.cellCountY * grids[level].Info.cellCountZ;
+		
+		grids[level].fArray.setSizes( 27, grids[level].Info.cellCount );	
+		grids[level].shifter = IntArrayType( 27, 0 );
+		fillEquilibriumFromFunction( grids[level] );
+		
+		grids[level].bouncebackMarkerArray = BoolArrayType( grids[level].Info.cellCount, 0 );
+		applyMarkersInsideSTL( grids[level].bouncebackMarkerArray, STL, insideMarkerValue, grids[level].Info );
+		std::cout << "Cell count on grid " << level << ": " << grids[level].Info.cellCount << std::endl;
+	}
 	
-	fillDefaultEquilibrium( F, Info, 1.0f, 0.f, 0.f, uzInlet );
+	int cellCountTotal = 0;
+	long int cellUpdatesPerIteration = 0;
+	for ( int level = 0; level < gridLevelCount; level++ )
+	{
+		const int cellCountLevel = grids[level].Info.cellCount;
+		cellCountTotal += cellCountLevel; 
+		cellUpdatesPerIteration += cellCountLevel * std::pow(2, level);
+		cellUpdatesPerIteration -= (grids[level].Info.iSubgridEnd - grids[level].Info.iSubgridStart - 2) 
+								* (grids[level].Info.jSubgridEnd - grids[level].Info.jSubgridStart - 2) 
+								* (grids[level].Info.kSubgridEnd - grids[level].Info.kSubgridStart - 2)
+								* std::pow(2, level);
+	}
+	std::cout << "Cell count total: " << cellCountTotal << std::endl;
+	std::cout << "Cell updates per iteration: " << cellUpdatesPerIteration << std::endl;
 	
 	std::cout << "Starting simulation" << std::endl;
-	
-	const int iCut = Info.cellCountX / 2;
-	
-	const int iMin = Info.cellCountX / 2 - (int)(30 / Info.res);
-	const int iMax = Info.cellCountX / 2 + (int)(30 / Info.res);
-	const int jMin = Info.cellCountY - (int)(80 / Info.res);
-	const int jMax = Info.cellCountY-1;
-	const int kMin = (int)(50 / Info.res);
-	const int kMax = Info.cellCountZ-1;
-	
-	int plotNumber = 0;
-	
-	std::vector<float> historyMassFlow( iterationCount, 0.f );
-	std::vector<float> historyIntakeEta( iterationCount, 0.f );
 	
 	TNL::Timer lapTimer;
 	lapTimer.reset();
 	lapTimer.start();
-	for (int iteration=0; iteration<iterationCount; iteration++)
+	for (int iteration=0; iteration<=iterationCount; iteration++)
 	{
-		applyStreaming( F, Info );
-		applyLocalCellUpdate( F, bouncebackArray, Info );
-		
-		float massFlow = getMassFlowOut( F, bouncebackArray, Info );
-		float intakePower = getIntakePower( F, bouncebackArray, Info, STL );
-		float lakePower = 0.5f * massFlow * uzInletPhys * uzInletPhys;
-		float intakeEta = std::max({0.f, intakePower}) / lakePower;
-		
-		historyMassFlow[iteration] = massFlow;
-		historyIntakeEta[iteration] = intakeEta;
-		
+		updateGrid( grids, 0 );		
 		if (iteration%iterationChunk == 0 && iteration!=0)
 		{
 			lapTimer.stop();
 			auto lapTime = lapTimer.getRealTime();
 			std::cout << "Finished iteration " << iteration << std::endl;
-			std::cout << "Mass flow out: " << massFlow << " kg/s" << std::endl; 
-			std::cout << "Intake eta: " << intakeEta << std::endl;
-			
-			float glups = ((float)Info.cellCount * (float)iterationChunk) / lapTime / 1000000000.f;
+			const float updateCount = (float)cellUpdatesPerIteration * (float)iterationChunk;
+			const float glups = updateCount / lapTime / 1000000000.f;
 			std::cout << "GLUPS: " << glups << std::endl;
 			
-			exportSectionCutPlotZY( F, bouncebackArray, Info, iCut, plotNumber );
+			for ( int level = gridLevelCount-2; level >= 0; level-- )
+			{
+				fillCoarseGridFromFine( grids[level], grids[level+1] );
+			}
 			
-			exportSection3DPlot( F, bouncebackArray, Info, iMin, jMin, kMin, iMax, jMax, kMax, plotNumber );
-			
-			plotNumber++;
-			
-			exportRegulatorData( historyMassFlow, historyIntakeEta, iteration );
-			
-			std::cout << std::endl;
+			for ( int level = 0; level < gridLevelCount; level++ )
+			{
+				const int iCut = grids[level].Info.cellCountX / 2;
+				exportSectionCutPlotZY( grids[level], iCut, iteration + level );
+			}
 			
 			lapTimer.reset();
 			lapTimer.start();

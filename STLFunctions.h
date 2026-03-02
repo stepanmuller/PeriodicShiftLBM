@@ -414,20 +414,9 @@ void applyMarkersInsideSTL( BoolArrayType &markerArray, STLStruct &STL, const bo
 				if (rayHit) 
 				{
 					const int writePosition = TNL::Algorithms::AtomicOperations<TNL::Devices::Cuda>::add(intersectionCounterArrayView(i, j), 1);
-					// transform the triangle into the global coordinate system of the LBM grid
-					const float ax0 = ax + STL.ox;
-					const float ay0 = ay + STL.oy;
-					const float az0 = az + STL.oz;
-					const float bx0 = bx + STL.ox;
-					const float by0 = by + STL.oy;
-					const float bz0 = bz + STL.oz;
-					const float cx0 = cx + STL.ox;
-					const float cy0 = cy + STL.oy;
-					const float cz0 = cz + STL.oz;
 					const float rayX = i * Info.res;
 					const float rayY = j * Info.res;
-					
-					const float rayZ = getRayHitZCoordinate( ax0, ay0, az0, bx0, by0, bz0, cx0, cy0, cz0, rayX, rayY );
+					const float rayZ = getRayHitZCoordinate( ax, ay, az, bx, by, bz, cx, cy, cz, rayX, rayY );
 					int k = (int)std::max( 0.0f, ceilf(rayZ / Info.res) );
 					k = std::min( k, Info.cellCountZ );
 					intersectionIndexArrayView(writePosition, i, j) = k;

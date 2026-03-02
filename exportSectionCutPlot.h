@@ -75,6 +75,83 @@ void exportSectionCutPlotXY( GridStruct &Grid, const int &kCell, const int &plot
 	system("python3 plotter.py");
 }
 
+// Version without marker array
+void exportSectionCutPlotZY( GridStruct &Grid, const int &iCell, const int &plotNumber )
+{
+	std::cout << "Exporting ZY section cut plot " << plotNumber << std::endl;
+	auto fArrayView  = Grid.fArray.getConstView();
+	auto shifterView  = Grid.shifter.getConstView();
+	InfoStruct Info = Grid.Info;
+	
+	SectionCutStruct SectionCut;
+	SectionCut.rhoArray.setSizes( Info.cellCountY, Info.cellCountZ );
+	SectionCut.uxArray.setSizes( Info.cellCountY, Info.cellCountZ );
+	SectionCut.uyArray.setSizes( Info.cellCountY, Info.cellCountZ );
+	SectionCut.uzArray.setSizes( Info.cellCountY, Info.cellCountZ );
+	SectionCut.markerArray.setSizes( Info.cellCountY, Info.cellCountZ );
+		
+	auto rhoArrayView = SectionCut.rhoArray.getView();
+	auto uxArrayView = SectionCut.uxArray.getView();
+	auto uyArrayView = SectionCut.uyArray.getView();
+	auto uzArrayView = SectionCut.uzArray.getView();
+	auto markerArrayView = SectionCut.markerArray.getView();
+
+	auto cellLambda = [=] __cuda_callable__ ( const IntPairType& doubleIndex ) mutable
+	{
+		const int kCell = doubleIndex[0];
+		const int jCell = doubleIndex[1];
+		int cell;
+		getCellIndex( cell, iCell, jCell, kCell, Info );
+		int shiftedIndex[27];
+		getShiftedIndex( cell, shiftedIndex, shifterView, Info );
+		float f[27];
+		for (int direction = 0; direction < 27; direction++) f[direction] = fArrayView( direction, shiftedIndex[direction] );	
+		float rho, ux, uy, uz;
+		getRhoUxUyUz(rho, ux, uy, uz, f);
+		MarkerStruct Marker;
+		getMarkers( iCell, jCell, kCell, Marker, Info );
+		const float marker = Marker.bounceback;
+		rhoArrayView( jCell, kCell ) = rho;
+		uxArrayView( jCell, kCell ) = ux;
+		uyArrayView( jCell, kCell ) = uy;
+		uzArrayView( jCell, kCell ) = uz;
+		markerArrayView( jCell, kCell ) = marker;
+	};
+	IntPairType start{ 0, 0 };
+	IntPairType end{ Info.cellCountZ, Info.cellCountY };
+	TNL::Algorithms::parallelFor<TNL::Devices::Cuda>(start, end, cellLambda );
+	
+	SectionCutStructCPU SectionCutCPU;
+	SectionCutCPU.rhoArray = SectionCut.rhoArray;
+	SectionCutCPU.uxArray = SectionCut.uxArray;
+	SectionCutCPU.uyArray = SectionCut.uyArray;
+	SectionCutCPU.uzArray = SectionCut.uzArray;
+	SectionCutCPU.markerArray = SectionCut.markerArray;
+	
+	FILE* fp = fopen("/dev/shm/sim_data.bin", "wb"); 	// Use /dev/shm/ for a pure RAM-based "file" on Linux
+	int header[4] = {plotNumber, (int)Info.cellCountY, (int)Info.cellCountZ, 5};
+	fwrite(header, sizeof(int), 4, fp);
+	
+	for (int jCell = 0; jCell < Info.cellCountY; jCell++)
+	{
+		for (int kCell = 0; kCell < Info.cellCountZ; kCell++)
+		{
+			float rho = SectionCutCPU.rhoArray.getElement(jCell, kCell);
+			float ux = SectionCutCPU.uxArray.getElement(jCell, kCell);
+			float uy = SectionCutCPU.uyArray.getElement(jCell, kCell);
+			float uz = SectionCutCPU.uzArray.getElement(jCell, kCell);
+			float marker = SectionCutCPU.markerArray.getElement(jCell, kCell);
+			float p = rho;
+			convertToPhysicalVelocity( ux, uy, uz, Info );
+			convertToPhysicalPressure( p, Info );
+			float data[5] = {p, ux, uy, uz, marker};
+			fwrite(data, sizeof(float), 5, fp);
+		}
+	}
+	fclose(fp);
+	system("python3 plotter.py");
+}
+
 
 /*
 void exportSectionCutPlotZY( BoolArrayType &inputMarkerArray, GridStruct &Grid, const int &iCell, const int &plotNumber )
