@@ -29,7 +29,8 @@ constexpr float soundspeedPhys = invSqrt3 * (resGlobal/1000) / dtPhysGlobal; 			
 #include "../boundaryConditions/applyMBBC.h"
 
 #include "../STLFunctions.h"
-std::string STLPath = "M40IntakeSimple.STL";
+std::string STLPathLakeBlock = "lakeBlock.STL";
+std::string STLPathIntakeChannel = "intakeChannel.STL";
 
 __cuda_callable__ void getMarkers( 	const int& iCell, const int& jCell, const int& kCell, 
 									MarkerStruct &Marker, const InfoStruct& Info )

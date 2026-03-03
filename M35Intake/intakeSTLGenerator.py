@@ -104,7 +104,7 @@ def generateIntakeSTL( parameters ):
 
 	surface_mesh = mesh.Mesh(np.zeros(triangles.shape[0], dtype=mesh.Mesh.dtype))
 	surface_mesh.vectors = triangles
-	filename = "intakeSurface.STL"
+	filename = "intakeChannel.STL"
 	surface_mesh.save(filename)
 	print(f"Surface saved as {filename}")
 
