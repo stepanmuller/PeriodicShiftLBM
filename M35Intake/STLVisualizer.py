@@ -36,7 +36,7 @@ def show_stl(file_path, triangle_indices):
     plotter = pv.Plotter()
     
     # Show the full mesh in wireframe/opacity so we can see context
-    plotter.add_mesh(mesh, color="white", opacity=0.1, style='wireframe')
+    plotter.add_mesh(mesh, color="gray", opacity=1, style='wireframe')
     
     # Show only the triangles in your list in a bold color
     plotter.add_mesh(subset_mesh, color="red", label="Selected Triangles")
@@ -44,4 +44,5 @@ def show_stl(file_path, triangle_indices):
     plotter.add_legend()
     plotter.show()
 
-show_stl(filename, triangleList)
+if __name__ == "__main__":
+	show_stl(filename, triangleList)
