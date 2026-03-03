@@ -180,9 +180,9 @@ void updateGrid( std::vector<GridStruct>& grids, int level )
 
 int main(int argc, char **argv)
 {
-	const float reynoldsArray[10] = { 10000, 20000, 50000, 100000, 200000, 500000, 1000000, 2000000, 5000000, 10000000 };
+	const float reynoldsArray[6] = { 100, 200, 500, 1000, 2000, 5000 };
 	
-	for ( int caseIndex = 0; caseIndex < 10; caseIndex++ )
+	for ( int caseIndex = 0; caseIndex < 6; caseIndex++ )
 	{
 		reynoldsNumber = reynoldsArray[caseIndex];
 		nuPhys = uxInletPhys * (sphereDiameterPhys / 1000.f) / reynoldsNumber;
