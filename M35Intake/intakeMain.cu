@@ -132,10 +132,10 @@ int main(int argc, char **argv)
 		grids[level].Info.nu = (grids[level].Info.dtPhys * nuPhys) / ((grids[level].Info.res/1000.f) * (grids[level].Info.res/1000.f));
 		
 		float progress = (float)level / (float)(gridLevelCount-1);
-		progress = std::pow( progress, 0.2f );
+		progress = std::pow( progress, 0.5f );
 		const float xStart = (1 - progress) * grids[0].Info.ox + progress * (-20.f);
 		const float xEnd = (1 - progress) * (-grids[0].Info.ox) + progress * 20.f;
-		const float yStart = (1 - progress) * grids[0].Info.oy + progress * (-40.f);
+		const float yStart = (1 - progress) * grids[0].Info.oy + progress * (-45.f);
 		grids[level-1].Info.iSubgridStart = (int)((xStart - grids[level-1].Info.ox) / grids[level-1].Info.res + 0.5f);
 		grids[level-1].Info.iSubgridEnd = (int)((xEnd - grids[level-1].Info.ox) / grids[level-1].Info.res + 0.5f);
 		grids[level-1].Info.jSubgridStart = (int)((yStart - grids[level-1].Info.oy) / grids[level-1].Info.res + 0.5f);
