@@ -4,6 +4,12 @@ void exportSectionCutPlotXY( GridStruct &Grid, const int &kCell, const int &plot
 	std::cout << "Exporting XY section cut plot " << plotNumber << std::endl;
 	auto fArrayView  = Grid.fArray.getConstView();
 	auto shifterView  = Grid.shifter.getConstView();
+	bool useBouncebackArray = false;
+	auto bouncebackMarkerArrayView = Grid.bouncebackMarkerArray.getConstView();
+	if ( Grid.bouncebackMarkerArray.getSize() > 0 )
+	{
+		useBouncebackArray = true;
+	}
 	InfoStruct Info = Grid.Info;
 	
 	SectionCutStruct SectionCut;
@@ -32,6 +38,7 @@ void exportSectionCutPlotXY( GridStruct &Grid, const int &kCell, const int &plot
 		float rho, ux, uy, uz;
 		getRhoUxUyUz(rho, ux, uy, uz, f);
 		MarkerStruct Marker;
+		if ( useBouncebackArray ) Marker.bounceback = bouncebackMarkerArrayView( cell );
 		getMarkers( iCell, jCell, kCell, Marker, Info );
 		const float marker = Marker.bounceback;
 		rhoArrayView( jCell, iCell ) = rho;
@@ -81,6 +88,12 @@ void exportSectionCutPlotZY( GridStruct &Grid, const int &iCell, const int &plot
 	std::cout << "Exporting ZY section cut plot " << plotNumber << std::endl;
 	auto fArrayView  = Grid.fArray.getConstView();
 	auto shifterView  = Grid.shifter.getConstView();
+	bool useBouncebackArray = false;
+	auto bouncebackMarkerArrayView = Grid.bouncebackMarkerArray.getConstView();
+	if ( Grid.bouncebackMarkerArray.getSize() > 0 )
+	{
+		useBouncebackArray = true;
+	}
 	InfoStruct Info = Grid.Info;
 	
 	SectionCutStruct SectionCut;
@@ -109,6 +122,7 @@ void exportSectionCutPlotZY( GridStruct &Grid, const int &iCell, const int &plot
 		float rho, ux, uy, uz;
 		getRhoUxUyUz(rho, ux, uy, uz, f);
 		MarkerStruct Marker;
+		if ( useBouncebackArray ) Marker.bounceback = bouncebackMarkerArrayView( cell );
 		getMarkers( iCell, jCell, kCell, Marker, Info );
 		const float marker = Marker.bounceback;
 		rhoArrayView( jCell, kCell ) = rho;
@@ -151,7 +165,6 @@ void exportSectionCutPlotZY( GridStruct &Grid, const int &iCell, const int &plot
 	fclose(fp);
 	system("python3 plotter.py");
 }
-
 
 /*
 void exportSectionCutPlotZY( BoolArrayType &inputMarkerArray, GridStruct &Grid, const int &iCell, const int &plotNumber )

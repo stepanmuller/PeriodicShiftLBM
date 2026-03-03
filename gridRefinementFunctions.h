@@ -289,6 +289,14 @@ void writeToCoarseGridInterface( GridStruct &GridCoarse, GridStruct &GridFine, c
 	auto shifterViewFine  = GridFine.shifter.getConstView();
 	const InfoStruct InfoFine = GridFine.Info;
 	
+	bool useBouncebackArray = false;
+	auto bouncebackMarkerArrayViewFine = GridFine.bouncebackMarkerArray.getConstView();
+	auto bouncebackMarkerArrayViewCoarse = GridCoarse.bouncebackMarkerArray.getConstView();
+	if ( GridFine.bouncebackMarkerArray.getSize() > 0 && GridCoarse.bouncebackMarkerArray.getSize() > 0 )
+	{
+		useBouncebackArray = true;
+	}
+	
 	auto cellLambda = [=] __cuda_callable__ ( const IntTripleType& tripleIndex ) mutable
 	{
 		const int iCoarse = tripleIndex[0];
@@ -296,6 +304,12 @@ void writeToCoarseGridInterface( GridStruct &GridCoarse, GridStruct &GridFine, c
 		const int kCoarse = tripleIndex[2];
 		int cellCoarse;
 		getCellIndex( cellCoarse, iCoarse, jCoarse, kCoarse, InfoCoarse );
+		
+		MarkerStruct MarkerCoarse;
+		if ( useBouncebackArray ) MarkerCoarse.bounceback = bouncebackMarkerArrayViewCoarse( cellCoarse );
+		getMarkers( iCoarse, jCoarse, kCoarse, MarkerCoarse, InfoCoarse );
+		if ( MarkerCoarse.bounceback ) return; // do not overwrite bounceback cells during grid communication
+		
 		int shiftedIndexCoarse[27];
 		getShiftedIndex( cellCoarse, shiftedIndexCoarse, shifterViewCoarse, InfoCoarse );
 		
@@ -316,9 +330,23 @@ void writeToCoarseGridInterface( GridStruct &GridCoarse, GridStruct &GridFine, c
 					const int kFine = kFineFirst + kAdd;
 					int cellFine;
 					getCellIndex( cellFine, iFine, jFine, kFine, InfoFine );
+					
+					MarkerStruct Marker;
+					if ( useBouncebackArray ) Marker.bounceback = bouncebackMarkerArrayViewFine( cellFine );
+					getMarkers( iFine, jFine, kFine, Marker, InfoFine );
+					
 					int shiftedIndexFine[27];
 					getShiftedIndex( cellFine, shiftedIndexFine, shifterViewFine, InfoFine );
-					for (int direction = 0; direction < 27; direction++) f[direction] += fArrayViewFine( direction, shiftedIndexFine[direction] );	
+					float fFine[27];
+					for (int direction = 0; direction < 27; direction++) fFine[direction] = fArrayViewFine( direction, shiftedIndexFine[direction] );
+					if ( Marker.bounceback )
+					{
+						float rho, ux, uy, uz;
+						getRhoUxUyUz( rho, ux, uy, uz, fFine );
+						ux = 0.f; uy = 0.f, uz = 0.f;
+						getFeq( rho, ux, uy, uz, fFine );
+					}	
+					for (int direction = 0; direction < 27; direction++) f[direction] += fFine[direction];	
 				}
 			}
 		}
@@ -340,6 +368,14 @@ void writeToFineGridInterface( GridStruct &GridCoarse, GridStruct &GridFine, con
 	auto shifterViewFine  = GridFine.shifter.getConstView();
 	const InfoStruct InfoFine = GridFine.Info;
 	
+	bool useBouncebackArray = false;
+	auto bouncebackMarkerArrayViewCoarse = GridCoarse.bouncebackMarkerArray.getConstView();
+	auto bouncebackMarkerArrayViewFine = GridFine.bouncebackMarkerArray.getConstView();
+	if ( GridFine.bouncebackMarkerArray.getSize() > 0 && GridCoarse.bouncebackMarkerArray.getSize() > 0 )
+	{
+		useBouncebackArray = true;
+	}
+	
 	auto cellLambda = [=] __cuda_callable__ ( const IntTripleType& tripleIndex ) mutable
 	{
 		const int iFine = tripleIndex[0];
@@ -347,6 +383,12 @@ void writeToFineGridInterface( GridStruct &GridCoarse, GridStruct &GridFine, con
 		const int kFine = tripleIndex[2];
 		int cellFine;
 		getCellIndex( cellFine, iFine, jFine, kFine, InfoFine );
+		
+		MarkerStruct MarkerFine;
+		if ( useBouncebackArray ) MarkerFine.bounceback = bouncebackMarkerArrayViewFine( cellFine );
+		getMarkers( iFine, jFine, kFine, MarkerFine, InfoFine );
+		if ( MarkerFine.bounceback ) return; // do not overwrite bounceback cells during grid communication
+		
 		int shiftedIndexFine[27];
 		getShiftedIndex( cellFine, shiftedIndexFine, shifterViewFine, InfoFine );
 		
@@ -365,10 +407,20 @@ void writeToFineGridInterface( GridStruct &GridCoarse, GridStruct &GridFine, con
 		// Interpolation center point
 		int cellCoarse;
 		getCellIndex( cellCoarse, iCoarse, jCoarse, kCoarse, InfoCoarse );
+		MarkerStruct MarkerCoarse;
+		if ( useBouncebackArray ) MarkerCoarse.bounceback = bouncebackMarkerArrayViewCoarse( cellCoarse );
+		getMarkers( iCoarse, jCoarse, kCoarse, MarkerCoarse, InfoCoarse );
 		float f[27];
 		int shiftedIndexCoarse[27];
 		getShiftedIndex( cellCoarse, shiftedIndexCoarse, shifterViewCoarse, InfoCoarse );
 		for (int direction = 0; direction < 27; direction++) f[direction] = fArrayViewCoarse( direction, shiftedIndexCoarse[direction] );
+		if ( MarkerCoarse.bounceback )
+		{
+			float rho, ux, uy, uz;
+			getRhoUxUyUz( rho, ux, uy, uz, f );
+			ux = 0.f; uy = 0.f, uz = 0.f;
+			getFeq( rho, ux, uy, uz, f );
+		}
 		
 		// Addition from interpolation neighbours
 		int iNbrPlus = iCoarse + 1;
@@ -398,19 +450,26 @@ void writeToFineGridInterface( GridStruct &GridCoarse, GridStruct &GridFine, con
 		{
 			int cellNeighbour;
 			getCellIndex( cellNeighbour, iNeighbours[nbr], jNeighbours[nbr], kNeighbours[nbr], InfoCoarse );
+			MarkerStruct MarkerNeighbour;
+			if ( useBouncebackArray ) MarkerNeighbour.bounceback = bouncebackMarkerArrayViewCoarse( cellNeighbour );
+			getMarkers( iNeighbours[nbr], jNeighbours[nbr], kNeighbours[nbr], MarkerNeighbour, InfoCoarse );
 			float fNeighbour[27];
 			int shiftedIndexNeighbour[27];
 			getShiftedIndex( cellNeighbour, shiftedIndexNeighbour, shifterViewCoarse, InfoCoarse );
 			for (int direction = 0; direction < 27; direction++) fNeighbour[direction] = fArrayViewCoarse( direction, shiftedIndexNeighbour[direction] );
+			if ( MarkerNeighbour.bounceback )
+			{
+				float rho, ux, uy, uz;
+				getRhoUxUyUz( rho, ux, uy, uz, fNeighbour );
+				ux = 0.f; uy = 0.f, uz = 0.f;
+				getFeq( rho, ux, uy, uz, fNeighbour );
+			}
 			for (int direction = 0; direction < 27; direction++) f[direction] += fNeighbour[direction] * distInv[nbr] * position[nbr];
 		}
 		
 		rescaleF( f, true );
 		
-		MarkerStruct Marker;
-		getMarkers( iFine, jFine, kFine, Marker, InfoFine );
-		
-		if ( Marker.ghost )
+		if ( MarkerFine.ghost )
 		{
 			for (int i = 0; i < 9; i++) fArrayViewFine( directionArray[i], shiftedIndexFine[directionArray[i]] ) = f[directionArray[i]];	
 		}
@@ -467,29 +526,47 @@ void applyCoarseFineGridCommunication( GridStruct &GridCoarse, GridStruct &GridF
 	// SECOND, READ FROM COARSE GRID, INTERPOLATE, RESCALE, WRITE TO FINE GRID
 	
 	// Start X
-	start = IntTripleType{ 0, 0, 0 };
-	end = IntTripleType{ 2, InfoFine.cellCountY, InfoFine.cellCountZ };
-	writeToFineGridInterface( GridCoarse, GridFine, start, end, positiveCxDistributions );
+	if ( GridCoarse.Info.iSubgridStart > 0 )
+	{
+		start = IntTripleType{ 0, 0, 0 };
+		end = IntTripleType{ 2, InfoFine.cellCountY, InfoFine.cellCountZ };
+		writeToFineGridInterface( GridCoarse, GridFine, start, end, positiveCxDistributions );
+	}
 	// End X
-	start = IntTripleType{ InfoFine.cellCountX-2, 0, 0 };
-	end = IntTripleType{ InfoFine.cellCountX, InfoFine.cellCountY, InfoFine.cellCountZ };
-	writeToFineGridInterface( GridCoarse, GridFine, start, end, negativeCxDistributions );
+	if ( GridCoarse.Info.iSubgridEnd < GridCoarse.Info.cellCountX-1 )
+	{
+		start = IntTripleType{ InfoFine.cellCountX-2, 0, 0 };
+		end = IntTripleType{ InfoFine.cellCountX, InfoFine.cellCountY, InfoFine.cellCountZ };
+		writeToFineGridInterface( GridCoarse, GridFine, start, end, negativeCxDistributions );
+	}
 	// Start Y
-	start = IntTripleType{ 0, 0, 0 };
-	end = IntTripleType{ InfoFine.cellCountX, 2, InfoFine.cellCountZ };
-	writeToFineGridInterface( GridCoarse, GridFine, start, end, positiveCyDistributions );
+	if ( GridCoarse.Info.jSubgridStart > 0 )
+	{
+		start = IntTripleType{ 0, 0, 0 };
+		end = IntTripleType{ InfoFine.cellCountX, 2, InfoFine.cellCountZ };
+		writeToFineGridInterface( GridCoarse, GridFine, start, end, positiveCyDistributions );
+	}
 	// End Y
-	start = IntTripleType{ 0, InfoFine.cellCountY-2, 0 };
-	end = IntTripleType{ InfoFine.cellCountX, InfoFine.cellCountY, InfoFine.cellCountZ };
-	writeToFineGridInterface( GridCoarse, GridFine, start, end, negativeCyDistributions );
+	if ( GridCoarse.Info.jSubgridEnd < GridCoarse.Info.cellCountY-1 )
+	{
+		start = IntTripleType{ 0, InfoFine.cellCountY-2, 0 };
+		end = IntTripleType{ InfoFine.cellCountX, InfoFine.cellCountY, InfoFine.cellCountZ };
+		writeToFineGridInterface( GridCoarse, GridFine, start, end, negativeCyDistributions );
+	}
 	// Start Z
-	start = IntTripleType{ 0, 0, 0 };
-	end = IntTripleType{ InfoFine.cellCountX, InfoFine.cellCountY, 2 };
-	writeToFineGridInterface( GridCoarse, GridFine, start, end, positiveCzDistributions );
+	if ( GridCoarse.Info.jSubgridStart > 0 )
+	{
+		start = IntTripleType{ 0, 0, 0 };
+		end = IntTripleType{ InfoFine.cellCountX, InfoFine.cellCountY, 2 };
+		writeToFineGridInterface( GridCoarse, GridFine, start, end, positiveCzDistributions );
+	}
 	// End Z
-	start = IntTripleType{ 0, 0, InfoFine.cellCountZ-2 };
-	end = IntTripleType{ InfoFine.cellCountX, InfoFine.cellCountY, InfoFine.cellCountZ };
-	writeToFineGridInterface( GridCoarse, GridFine, start, end, negativeCzDistributions );
+	if ( GridCoarse.Info.kSubgridEnd < GridCoarse.Info.cellCountZ-1 )
+	{
+		start = IntTripleType{ 0, 0, InfoFine.cellCountZ-2 };
+		end = IntTripleType{ InfoFine.cellCountX, InfoFine.cellCountY, InfoFine.cellCountZ };
+		writeToFineGridInterface( GridCoarse, GridFine, start, end, negativeCzDistributions );
+	}
 }
 
 void fillCoarseGridFromFine( GridStruct &GridCoarse, GridStruct &GridFine )

@@ -1,5 +1,5 @@
 constexpr float resGlobal = 2.f; 														// mm
-constexpr int gridLevelCount = 3;
+constexpr int gridLevelCount = 4;
 constexpr int iterationCount = 20000;
 constexpr int iterationChunk = 1000;
 
@@ -29,7 +29,7 @@ constexpr float soundspeedPhys = invSqrt3 * (resGlobal/1000) / dtPhysGlobal; 			
 #include "../boundaryConditions/applyMBBC.h"
 
 #include "../STLFunctions.h"
-std::string STLPath = "M40IntakeNacaSTL.STL";
+std::string STLPath = "M40IntakeSimple.STL";
 
 __cuda_callable__ void getMarkers( 	const int& iCell, const int& jCell, const int& kCell, 
 									MarkerStruct &Marker, const InfoStruct& Info )
@@ -47,8 +47,7 @@ __cuda_callable__ void getMarkers( 	const int& iCell, const int& jCell, const in
 	{
 		if ( iCell == 0 || iCell == Info.cellCountX-1 ) Marker.ghost = 1;
 		else if ( jCell == 0 || jCell == Info.cellCountY-1 ) Marker.ghost = 1;
-		else if ( kCell == 0 ) Marker.ghost = 1;
-		else if ( kCell == Info.cellCountZ-1 ) Marker.ghost = 1;
+		else if ( kCell == 0 || kCell == Info.cellCountZ-1 ) Marker.ghost = 1;
 		else Marker.fluid = 1;
 	}
 }
@@ -88,7 +87,7 @@ __cuda_callable__ void getInitialRhoUxUyUz( const int &iCell, const int &jCell, 
 void updateGrid( std::vector<GridStruct>& grids, int level ) 
 {
     applyStreaming(grids[level]);
-    applyLocalCellUpdateBB(grids[level]);
+    applyLocalCellUpdate( grids[level] );
     if (level < gridLevelCount - 1) 
     {
         for (int i = 0; i < 2; i++) updateGrid(grids, level + 1);
@@ -114,11 +113,12 @@ int main(int argc, char **argv)
 	grids[0].Info.ox = + STLCPU.xmin + ( 0.5f * ( ( STLCPU.xmax - STLCPU.xmin ) - grids[0].Info.res * ( grids[0].Info.cellCountX-1 ) ) );
 	grids[0].Info.oy = + STLCPU.ymin + ( 0.5f * ( ( STLCPU.ymax - STLCPU.ymin ) - grids[0].Info.res * ( grids[0].Info.cellCountY-1 ) ) );
 	grids[0].Info.oz = + STLCPU.zmin + ( 0.5f * ( ( STLCPU.zmax - STLCPU.zmin ) - grids[0].Info.res * ( grids[0].Info.cellCountZ-1 ) ) );
-	grids[0].Info.cellCountY = grids[0].Info.cellCountY + 1; // adding one more "wall" layer on top
+	grids[0].Info.cellCountY = grids[0].Info.cellCountY + 3; // adding wall layers on top
 	grids[0].Info.cellCount = grids[0].Info.cellCountX * grids[0].Info.cellCountY * grids[0].Info.cellCountZ;
 	grids[0].fArray.setSizes( 27, grids[0].Info.cellCount );
 	grids[0].shifter = IntArrayType( 27, 0 );
 	fillEquilibriumFromFunction( grids[0] );
+	std::cout << "uninitialized bouncebackMarkerArray " << grids[0].bouncebackMarkerArray.getSize() << std::endl;
 	grids[0].bouncebackMarkerArray = BoolArrayType( grids[0].Info.cellCount, 0 );
 	const bool insideMarkerValue = 0;
 	applyMarkersInsideSTL( grids[0].bouncebackMarkerArray, STL, insideMarkerValue, grids[0].Info );
@@ -139,9 +139,9 @@ int main(int argc, char **argv)
 		grids[level-1].Info.iSubgridStart = (int)((xStart - grids[level-1].Info.ox) / grids[level-1].Info.res + 0.5f);
 		grids[level-1].Info.iSubgridEnd = (int)((xEnd - grids[level-1].Info.ox) / grids[level-1].Info.res + 0.5f);
 		grids[level-1].Info.jSubgridStart = (int)((yStart - grids[level-1].Info.oy) / grids[level-1].Info.res + 0.5f);
-		grids[level-1].Info.jSubgridEnd = grids[level-1].Info.cellCountY-1;
-		grids[level-1].Info.kSubgridStart = 2;
-		grids[level-1].Info.kSubgridEnd = grids[level-1].Info.cellCountZ-3;
+		grids[level-1].Info.jSubgridEnd = grids[level-1].Info.cellCountY;
+		grids[level-1].Info.kSubgridStart = 5;
+		grids[level-1].Info.kSubgridEnd = grids[level-1].Info.cellCountZ-6;
 		
 		grids[level-1].Info.iSubgridStart = std::max({0, grids[level-1].Info.iSubgridStart});
 		grids[level-1].Info.iSubgridEnd = std::min({grids[level-1].Info.cellCountX-1, grids[level-1].Info.iSubgridEnd});
