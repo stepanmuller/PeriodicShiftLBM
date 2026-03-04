@@ -34,7 +34,7 @@ constexpr float soundspeedPhys = invSqrt3 * (resGlobal/1000) / dtPhysGlobal; 			
 
 #include "../STLFunctions.h"
 std::string STLPathLake = "lake.STL";
-std::string STLPathIntake = "intake.STL";
+std::string STLPathIntake = "nacaIntake.STL";
 
 __cuda_callable__ void getMarkers( 	const int& iCell, const int& jCell, const int& kCell, 
 									MarkerStruct &Marker, const InfoStruct& Info )
@@ -67,7 +67,7 @@ __cuda_callable__ void getGivenRhoUxUyUz( 	const int& iCell, const int& jCell, c
 	const float xPhys = iCell * Info.res + Info.ox;
 	const float yPhys = jCell * Info.res + Info.oy;
 	const float r2 = xPhys * xPhys + yPhys * yPhys;
-	if ( r2 < 18.f * 18.f ) rho = rhoOutlet; // intake
+	if ( r2 < 26.f * 26.f ) rho = rhoOutlet; // intake
 	else rho = 1.f; // lake
 }
 
@@ -343,9 +343,9 @@ int main(int argc, char **argv)
 	for (int iteration=0; iteration<=iterationCount; iteration++)
 	{
 		updateGrid( grids, 0 );
-		const int iStart = (-18.f - grids[gridLevelCount-1].Info.ox) / grids[gridLevelCount-1].Info.res;
-		const int iEnd = (18.f - grids[gridLevelCount-1].Info.ox) / grids[gridLevelCount-1].Info.res;
-		const int jStart = (-18.f - grids[gridLevelCount-1].Info.oy) / grids[gridLevelCount-1].Info.res;
+		const int iStart = (-26.f - grids[gridLevelCount-1].Info.ox) / grids[gridLevelCount-1].Info.res;
+		const int iEnd = (26.f - grids[gridLevelCount-1].Info.ox) / grids[gridLevelCount-1].Info.res;
+		const int jStart = (-26.f - grids[gridLevelCount-1].Info.oy) / grids[gridLevelCount-1].Info.res;
 		const int jEnd = grids[gridLevelCount-1].Info.cellCountY-1;
 		
 		float uzAvg, massFlow, pAvg;
