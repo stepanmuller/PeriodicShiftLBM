@@ -1,14 +1,14 @@
-constexpr int caseID = 1;
+constexpr int caseID = 2;
 
 constexpr float resGlobal = 2.f; 														// mm
 constexpr int gridLevelCount = 3;
-constexpr int iterationCount = 50000;
+constexpr int iterationCount = 200000;
 constexpr int iterationChunk = 10000;
 
 constexpr float SmagorinskyConstantGlobal = 0.1f; 										// set to zero to turn off LES
 
 constexpr float uzInlet = 0.05f; 														// also works as nominal LBM Mach number
-constexpr float hullAngle = 3.f;														// degrees
+constexpr float hullAngle = 0.f;														// degrees
 constexpr float uyInlet = (2.f * 3.14159f * hullAngle / 360.f) * uzInlet;				// this gives hull angle		
 constexpr float rhoOutlet = 1.000f;
 constexpr float nuPhys = 1e-6;															// m2/s water
@@ -100,7 +100,7 @@ void updateGrid( std::vector<GridStruct>& grids, int level )
     }
 }
 
-void getFlowReport( GridStruct &Grid, const int &iStart, const int &jStart, const int &iEnd, const int &jEnd,
+void getFlowReport( const int kCell, GridStruct &Grid, const int &iStart, const int &jStart, const int &iEnd, const int &jEnd,
 						float &uzAvgPhys, float &massFlowPhys, float &pPhys )
 {
 	InfoStruct Info = Grid.Info;
@@ -117,8 +117,6 @@ void getFlowReport( GridStruct &Grid, const int &iStart, const int &jStart, cons
 	
 	const int start = 0;
 	const int end = iSpan * jSpan;
-	
-	const int kCell = Grid.Info.cellCountZ - 3; // last layer that is not influenced by grid communication
 	
 	auto fetchCellCount = [ = ] __cuda_callable__( const int singleIndex )
 	{
@@ -281,7 +279,7 @@ int main(int argc, char **argv)
 		const float xStart = (1 - progress) * grids[0].Info.ox + progress * (-20.f);
 		const float xEnd = (1 - progress) * (-grids[0].Info.ox) + progress * 20.f;
 		const float yStart = (1 - progress) * grids[0].Info.oy + progress * (-45.f);
-		const float zEnd = (1 - progress) * (grids[0].Info.oz + grids[0].Info.cellCountZ * grids[0].Info.res) + progress * 30.f;
+		const float zEnd = (1 - progress) * (grids[0].Info.oz + grids[0].Info.cellCountZ * grids[0].Info.res) + progress * 35.f;
 		grids[level-1].Info.iSubgridStart = (int)((xStart - grids[level-1].Info.ox) / grids[level-1].Info.res + 0.5f);
 		grids[level-1].Info.iSubgridEnd = (int)((xEnd - grids[level-1].Info.ox) / grids[level-1].Info.res + 0.5f);
 		grids[level-1].Info.jSubgridStart = (int)((yStart - grids[level-1].Info.oy) / grids[level-1].Info.res + 0.5f);
@@ -351,9 +349,11 @@ int main(int argc, char **argv)
 		const int jEnd = grids[gridLevelCount-1].Info.cellCountY-1;
 		
 		float uzAvg, massFlow, pAvg;
-		getFlowReport( grids[gridLevelCount-1], iStart, jStart, iEnd, jEnd, uzAvg, massFlow, pAvg );
+		getFlowReport( grids[gridLevelCount-1].Info.cellCountZ-3, grids[gridLevelCount-1], iStart, jStart, iEnd, jEnd, uzAvg, massFlow, pAvg );
+		float uzAvgInlet, massFlowInlet, pAvgInlet;
+		getFlowReport( 0, grids[0], 0, 0, grids[0].Info.cellCountX, grids[0].Info.cellCountY, uzAvgInlet, massFlowInlet, pAvgInlet );
 		float lakePower = 0.5f * massFlow * uzInletPhys * uzInletPhys;
-		float intakePower = 0.5f * massFlow * uzAvg * uzAvg + massFlow * pAvg / rhoNominalPhys;
+		float intakePower = 0.5f * massFlow * uzAvg * uzAvg + massFlow * (pAvg - pAvgInlet) / rhoNominalPhys;
 		float eta = intakePower / lakePower;
 		
 		historyMassFlow[iteration] = massFlow;

@@ -109,8 +109,8 @@ def generateIntakeSTL( parameters ):
 	print(f"Surface saved as {filename}")
 
 r = 14.25
-c = 15
-b = 20
+c = 20
+b = 30
 w = 20
 By = 5
 Ny = -15
