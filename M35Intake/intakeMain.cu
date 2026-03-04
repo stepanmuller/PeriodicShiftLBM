@@ -1,7 +1,7 @@
-constexpr int caseID = 9;
+constexpr int caseID = 1;
 
 constexpr float resGlobal = 2.f; 														// mm
-constexpr int gridLevelCount = 2;
+constexpr int gridLevelCount = 4;
 constexpr int iterationCount = 200000;
 constexpr int iterationChunk = 10000;
 
@@ -360,9 +360,9 @@ int main(int argc, char **argv)
 		float uzAvgInlet, massFlowInlet, pAvgInlet;
 		flowReportZ = -80.f;
 		getIJKCellIndexFromXYZ( iTemp, jTemp, flowReportK, xTemp, yTemp, flowReportZ, grids[gridLevelCount-1].Info);
-		getFlowReport( 0, grids[0], 0, 0, grids[gridLevelCount-1].Info.cellCountX, grids[gridLevelCount-1].Info.cellCountY, uzAvgInlet, massFlowInlet, pAvgInlet );
+		getFlowReport( flowReportK, grids[gridLevelCount-1], 0, 0, grids[gridLevelCount-1].Info.cellCountX, grids[gridLevelCount-1].Info.cellCountY, uzAvgInlet, massFlowInlet, pAvgInlet );
 
-		float lakePower = 0.5f * massFlow * uzInletPhys * uzInletPhys;
+		float lakePower = 0.5f * massFlow * uzAvgInlet * uzAvgInlet;
 		float intakePower = 0.5f * massFlow * uzAvg * uzAvg + massFlow * (pAvg - pAvgInlet) / rhoNominalPhys;
 		float eta = intakePower / lakePower;
 		
