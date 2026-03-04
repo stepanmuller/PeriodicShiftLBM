@@ -1,12 +1,12 @@
 constexpr float resGlobal = 2.f; 														// mm
-constexpr int gridLevelCount = 4;
+constexpr int gridLevelCount = 3;
 constexpr int iterationCount = 100000;
 constexpr int iterationChunk = 1000;
 
 constexpr float SmagorinskyConstantGlobal = 0.1f; 										// set to zero to turn off LES
 
 constexpr float uzInlet = 0.05f; 														// also works as nominal LBM Mach number
-constexpr float rhoOutlet = 1.003f;
+constexpr float rhoOutlet = 1.001f;
 constexpr float nuPhys = 1e-6;															// m2/s water
 constexpr float rhoNominalPhys = 1000.0f;												// kg/m3 water
 constexpr float uzInletPhys = 20.f; 													// m/s

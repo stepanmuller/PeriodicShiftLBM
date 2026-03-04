@@ -26,20 +26,20 @@ def generateIntakeSTL( parameters ):
 
 	A = np.array([0, -27, -80])
 	B = np.array([0, By, 30-c])
-	C = np.array([0, 15, 30-c])
-	D = np.array([0, 15, 30])
+	C = np.array([0, 14.25, 30-c])
+	D = np.array([0, 14.25, 30])
 	E = np.array([-w, -27, -80])
 	F = np.array([-w, By, 30-c])
-	G = np.array([-29.28, 15, 30-c])
-	H = np.array([-29.28, 15, 30])
+	G = np.array([-29.28, 14.25, 30-c])
+	H = np.array([-29.28, 14.25, 30])
 	I = np.array([-w, -27-b, -80])
 	J = np.array([-w, Ny, 30-c])
-	K = np.array([-29.28, -15, 30-c])
-	L = np.array([-29.28, -15, 30])
+	K = np.array([-29.28, -14.25, 30-c])
+	L = np.array([-29.28, -14.25, 30])
 	M = np.array([0, -27-b, -80])
 	N = np.array([0, Ny, 30-c])
-	O = np.array([0, -15, 30-c])
-	P = np.array([0, -15, 30])
+	O = np.array([0, -14.25, 30-c])
+	P = np.array([0, -14.25, 30])
 
 	controlPointMatrix = np.array([
 	[A, B, C, D],
@@ -108,10 +108,11 @@ def generateIntakeSTL( parameters ):
 	surface_mesh.save(filename)
 	print(f"Surface saved as {filename}")
 
-c = 40
-b = 15
+r = 14.25
+c = 15
+b = 20
 w = 20
-By = 0
-Ny = -20
+By = 5
+Ny = -15
 parameters = [c, b, w, By, Ny]
 generateIntakeSTL(parameters)

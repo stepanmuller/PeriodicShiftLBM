@@ -74,7 +74,7 @@ divider2 = make_axes_locatable(ax2)
 caxp = divider2.append_axes("bottom", size="5%", pad=0.4)  # moved below
 cbarp = fig.colorbar(imgp, cax=caxp, orientation="horizontal")
 cbarp.set_label("Static pressure [Pa]", labelpad=5)
-imgp.set_clim( -40000, 40000 )
+imgp.set_clim( 0, 100000 )
 
 # 4. Save results
 os.makedirs("results", exist_ok=True)
