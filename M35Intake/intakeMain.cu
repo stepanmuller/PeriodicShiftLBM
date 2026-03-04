@@ -281,12 +281,13 @@ int main(int argc, char **argv)
 		const float xStart = (1 - progress) * grids[0].Info.ox + progress * (-20.f);
 		const float xEnd = (1 - progress) * (-grids[0].Info.ox) + progress * 20.f;
 		const float yStart = (1 - progress) * grids[0].Info.oy + progress * (-45.f);
+		const float zEnd = (1 - progress) * (grids[0].Info.oz + grids[0].Info.cellCountZ * grids[0].Info.res) + progress * 30.f;
 		grids[level-1].Info.iSubgridStart = (int)((xStart - grids[level-1].Info.ox) / grids[level-1].Info.res + 0.5f);
 		grids[level-1].Info.iSubgridEnd = (int)((xEnd - grids[level-1].Info.ox) / grids[level-1].Info.res + 0.5f);
 		grids[level-1].Info.jSubgridStart = (int)((yStart - grids[level-1].Info.oy) / grids[level-1].Info.res + 0.5f);
 		grids[level-1].Info.jSubgridEnd = grids[level-1].Info.cellCountY;
 		grids[level-1].Info.kSubgridStart = 8;
-		grids[level-1].Info.kSubgridEnd = grids[level-1].Info.cellCountZ-8;
+		grids[level-1].Info.kSubgridEnd = (int)((zEnd - grids[level-1].Info.oz) / grids[level-1].Info.res + 0.5f);
 		
 		grids[level-1].Info.iSubgridStart = std::max({0, grids[level-1].Info.iSubgridStart});
 		grids[level-1].Info.iSubgridEnd = std::min({grids[level-1].Info.cellCountX-1, grids[level-1].Info.iSubgridEnd});
