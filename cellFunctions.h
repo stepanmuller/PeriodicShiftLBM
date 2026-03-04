@@ -200,6 +200,13 @@ __cuda_callable__ void convertToPhysicalVelocity( float &ux, float &uy, float &u
 	uz = uz * (Info.res/1000.f) / Info.dtPhys;
 }
 
+__cuda_callable__ void convertToPhysicalPressure( float &rho )
+{
+	// converts LBM rho to physical pressure, overwrites the variable (LBM rho -> physical p)
+	const float p = (rho - 1.f) * rhoNominalPhys * soundspeedPhys * soundspeedPhys;
+	rho = p;
+}
+
 __cuda_callable__ void convertToPhysicalPressure( float &rho, const InfoStruct &Info )
 {
 	// converts LBM rho to physical pressure, overwrites the variable (LBM rho -> physical p)

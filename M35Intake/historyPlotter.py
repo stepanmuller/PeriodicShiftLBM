@@ -43,37 +43,54 @@ def plot_history(file_number):
     try:
         with open("/dev/shm/historyData.bin", "rb") as f:
             count = np.fromfile(f, dtype=np.int32, count=1)[0]
-            # Assuming the binary file now only contains the Drag Coefficient data
-            drag_coeff = np.fromfile(f, dtype=np.float32, count=count)
-    except Exception:
+            # Read mass flow first, then ETA
+            mass_flow = np.fromfile(f, dtype=np.float32, count=count)
+            eta = np.fromfile(f, dtype=np.float32, count=count)
+    except Exception as e:
+        print(f"Error reading binary data: {e}")
         return
 
-    # Single subplot, maintaining the 16:9 aspect ratio
-    fig, ax = plt.subplots(1, 1, figsize=(16, 9))
+    # Two subplots stacked vertically, sharing the x-axis
+    fig, axs = plt.subplots(2, 1, figsize=(16, 9), sharex=True)
     iterations = np.arange(count)
     bbox_props = dict(boxstyle="square,pad=0.3", fc="white", ec="black", lw=1, alpha=0.8)
 
-    # --- Drag Coefficient Plot ---
-    ax.plot(iterations, drag_coeff, color='black', linewidth=1.2, alpha=0.7)
-    ax.set_ylabel(r"$m_p$ [$kg/s$]")
-    ax.set_xlabel(r"Iteration")
-    ax.set_title(r"\textbf{Mass Flow History}")
-    ax.grid(True, linestyle='--', alpha=0.4)
-    ax.yaxis.set_major_locator(MaxNLocator(nbins=8))
-    
-    set_smart_ylim(ax, drag_coeff)
-    
-    label_cd = add_average_diagnostics(ax, iterations, drag_coeff)
-    ax.text(0.98, 0.95, f'\\textbf{{Avg $m_p$: {label_cd}}}', 
-            transform=ax.transAxes, ha='right', va='top', bbox=bbox_props)
+    # Set the main figure title
+    fig.suptitle(r"\textbf{Mass Flow, Intake Efficiency History}", fontsize=20)
 
-    plt.tight_layout()
+    # --- Mass Flow Plot (Top) ---
+    ax_mf = axs[0]
+    ax_mf.plot(iterations, mass_flow, color='black', linewidth=1.2, alpha=0.7)
+    ax_mf.set_ylabel(r"$m_p$ [kg/s]")
+    ax_mf.grid(True, linestyle='--', alpha=0.4)
+    ax_mf.yaxis.set_major_locator(MaxNLocator(nbins=8))
+    
+    set_smart_ylim(ax_mf, mass_flow)
+    label_mf = add_average_diagnostics(ax_mf, iterations, mass_flow)
+    ax_mf.text(0.98, 0.95, f'\\textbf{{Avg $m_p$: {label_mf}}}', 
+               transform=ax_mf.transAxes, ha='right', va='top', bbox=bbox_props)
+
+    # --- Intake Efficiency (ETA) Plot (Bottom) ---
+    ax_eta = axs[1]
+    ax_eta.plot(iterations, eta, color='black', linewidth=1.2, alpha=0.7)
+    ax_eta.set_ylabel(r"$\eta$ [1]")
+    ax_eta.set_xlabel(r"Iteration")
+    ax_eta.grid(True, linestyle='--', alpha=0.4)
+    ax_eta.yaxis.set_major_locator(MaxNLocator(nbins=8))
+    
+    set_smart_ylim(ax_eta, eta)
+    label_eta = add_average_diagnostics(ax_eta, iterations, eta)
+    ax_eta.text(0.98, 0.95, rf'\textbf{{Avg $\eta$: {label_eta}}}', 
+                transform=ax_eta.transAxes, ha='right', va='top', bbox=bbox_props)
+
+    # Adjust layout to accommodate the suptitle nicely
+    plt.tight_layout(rect=[0, 0, 1, 0.96])
+    
     os.makedirs("results/History", exist_ok=True)
     filename = str(file_number) + "History.png"
-    plt.savefig("results/History/" + filename, dpi=300)
+    plt.savefig(os.path.join("results/History", filename), dpi=300)
     plt.close()
 
 if __name__ == "__main__":
-    # Get the argument from the command line, defaulting to 0 if none is provided
     file_num = int(sys.argv[1]) if len(sys.argv) > 1 else 0
     plot_history(file_num)

@@ -571,54 +571,10 @@ void applyCoarseFineGridCommunication( GridStruct &GridCoarse, GridStruct &GridF
 
 void fillCoarseGridFromFine( GridStruct &GridCoarse, GridStruct &GridFine )
 {
-	auto fArrayViewCoarse = GridCoarse.fArray.getView();
-	auto shifterViewCoarse = GridCoarse.shifter.getConstView();
 	const InfoStruct InfoCoarse = GridCoarse.Info;
-	auto fArrayViewFine  = GridFine.fArray.getView();
-	auto shifterViewFine  = GridFine.shifter.getConstView();
-	const InfoStruct InfoFine = GridFine.Info;
 	
 	IntTripleType start = IntTripleType{ InfoCoarse.iSubgridStart+1, InfoCoarse.jSubgridStart+1, InfoCoarse.kSubgridStart+1 };
 	IntTripleType end = IntTripleType{ InfoCoarse.iSubgridEnd-1, InfoCoarse.jSubgridEnd-1, InfoCoarse.kSubgridEnd-1 };
 	
-	auto cellLambda = [=] __cuda_callable__ ( const IntTripleType& tripleIndex ) mutable
-	{
-		const int iCoarse = tripleIndex[0];
-		const int jCoarse = tripleIndex[1];
-		const int kCoarse = tripleIndex[2];
-		int cellCoarse;
-		getCellIndex( cellCoarse, iCoarse, jCoarse, kCoarse, InfoCoarse );
-		int shiftedIndexCoarse[27];
-		getShiftedIndex( cellCoarse, shiftedIndexCoarse, shifterViewCoarse, InfoCoarse );
-		
-		const int iFineFirst = (iCoarse - InfoCoarse.iSubgridStart) * 2;
-		const int jFineFirst = (jCoarse - InfoCoarse.jSubgridStart) * 2;
-		const int kFineFirst = (kCoarse - InfoCoarse.kSubgridStart) * 2;
-		
-		float f[27] = {0};
-		
-		for ( int kAdd = 0; kAdd <= 1; kAdd++ )
-		{
-			for ( int jAdd = 0; jAdd <= 1; jAdd++ )
-			{
-				for ( int iAdd = 0; iAdd <= 1; iAdd++ )
-				{
-					const int iFine = iFineFirst + iAdd;
-					const int jFine = jFineFirst + jAdd;
-					const int kFine = kFineFirst + kAdd;
-					int cellFine;
-					getCellIndex( cellFine, iFine, jFine, kFine, InfoFine );
-					int shiftedIndexFine[27];
-					getShiftedIndex( cellFine, shiftedIndexFine, shifterViewFine, InfoFine );
-					for (int direction = 0; direction < 27; direction++) f[direction] += fArrayViewFine( direction, shiftedIndexFine[direction] );	
-				}
-			}
-		}
-		for (int direction = 0; direction < 27; direction++) f[direction] = f[direction] * 0.125f;
-		
-		rescaleF( f, false );
-		
-		for (int direction = 0; direction < 27; direction++) fArrayViewCoarse( direction, shiftedIndexCoarse[direction] ) = f[direction];
-	};
-	TNL::Algorithms::parallelFor<TNL::Devices::Cuda>(start, end, cellLambda );
+	writeToCoarseGridInterface( GridCoarse, GridFine, start, end );
 }

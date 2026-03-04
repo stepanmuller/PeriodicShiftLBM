@@ -2,7 +2,7 @@ import numpy as np
 from stl import mesh
 
 def generateIntakeSTL( parameters ):
-	c, b, w, By, Ny = parameters
+	r, c, b, w, By, Ny = parameters
 	tResolution = 20
 	sResolution = 100
 	
@@ -26,20 +26,20 @@ def generateIntakeSTL( parameters ):
 
 	A = np.array([0, -27, -80])
 	B = np.array([0, By, 30-c])
-	C = np.array([0, 14.25, 30-c])
-	D = np.array([0, 14.25, 30])
+	C = np.array([0, r, 30-c])
+	D = np.array([0, r, 30])
 	E = np.array([-w, -27, -80])
-	F = np.array([-w, By, 30-c])
-	G = np.array([-29.28, 14.25, 30-c])
-	H = np.array([-29.28, 14.25, 30])
+	F = np.array([-1.952*r, By, 30-c])
+	G = np.array([-1.952*r, r, 30-c])
+	H = np.array([-1.952*r, r, 30])
 	I = np.array([-w, -27-b, -80])
-	J = np.array([-w, Ny, 30-c])
-	K = np.array([-29.28, -14.25, 30-c])
-	L = np.array([-29.28, -14.25, 30])
+	J = np.array([-1.952*r, Ny, 30-c])
+	K = np.array([-1.952*r, -r, 30-c])
+	L = np.array([-1.952*r, -r, 30])
 	M = np.array([0, -27-b, -80])
 	N = np.array([0, Ny, 30-c])
-	O = np.array([0, -14.25, 30-c])
-	P = np.array([0, -14.25, 30])
+	O = np.array([0, -r, 30-c])
+	P = np.array([0, -r, 30])
 
 	controlPointMatrix = np.array([
 	[A, B, C, D],
@@ -49,8 +49,8 @@ def generateIntakeSTL( parameters ):
 
 	weightMatrix = np.array([
 	[1, 1, 1, 1],
-	[3, 3, 0.35, 0.35],
-	[3, 3, 0.35, 0.35],
+	[3, 0.35, 0.35, 0.35],
+	[3, 0.35, 0.35, 0.35],
 	[1, 1, 1, 1]
 	])
 
@@ -114,5 +114,5 @@ b = 20
 w = 20
 By = 5
 Ny = -15
-parameters = [c, b, w, By, Ny]
+parameters = [r, c, b, w, By, Ny]
 generateIntakeSTL(parameters)

@@ -1,12 +1,16 @@
+constexpr int caseID = 1;
+
 constexpr float resGlobal = 2.f; 														// mm
 constexpr int gridLevelCount = 3;
-constexpr int iterationCount = 100000;
-constexpr int iterationChunk = 1000;
+constexpr int iterationCount = 50000;
+constexpr int iterationChunk = 10000;
 
 constexpr float SmagorinskyConstantGlobal = 0.1f; 										// set to zero to turn off LES
 
 constexpr float uzInlet = 0.05f; 														// also works as nominal LBM Mach number
-constexpr float rhoOutlet = 1.001f;
+constexpr float hullAngle = 3.f;														// degrees
+constexpr float uyInlet = (2.f * 3.14159f * hullAngle / 360.f) * uzInlet;				// this gives hull angle		
+constexpr float rhoOutlet = 1.000f;
 constexpr float nuPhys = 1e-6;															// m2/s water
 constexpr float rhoNominalPhys = 1000.0f;												// kg/m3 water
 constexpr float uzInletPhys = 20.f; 													// m/s
@@ -58,7 +62,7 @@ __cuda_callable__ void getGivenRhoUxUyUz( 	const int& iCell, const int& jCell, c
 											InfoStruct& Info )
 {
 	ux = 0.f;
-	uy = 0.f;
+	uy = uyInlet;
 	uz = uzInlet;
 	const float xPhys = iCell * Info.res + Info.ox;
 	const float yPhys = jCell * Info.res + Info.oy;
@@ -96,7 +100,8 @@ void updateGrid( std::vector<GridStruct>& grids, int level )
     }
 }
 
-float getMassFlowPhys( GridStruct &Grid, const int &iStart, const int &jStart, const int &iEnd, const int &jEnd )
+void getFlowReport( GridStruct &Grid, const int &iStart, const int &jStart, const int &iEnd, const int &jEnd,
+						float &uzAvgPhys, float &massFlowPhys )
 {
 	InfoStruct Info = Grid.Info;
 	auto fArrayView  = Grid.fArray.getView();
@@ -115,7 +120,25 @@ float getMassFlowPhys( GridStruct &Grid, const int &iStart, const int &jStart, c
 	
 	const int kCell = Grid.Info.cellCountZ - 3; // last layer that is not influenced by grid communication
 	
-	auto fetch = [ = ] __cuda_callable__( const int singleIndex )
+	auto fetchCellCount = [ = ] __cuda_callable__( const int singleIndex )
+	{
+		const int iCell = singleIndex % iSpan + iStart;
+		const int jCell = singleIndex / iSpan + jStart;
+		
+		int cell;
+		getCellIndex( cell, iCell, jCell, kCell, Info );
+		MarkerStruct Marker;
+		if ( useBouncebackArray ) Marker.bounceback = bouncebackMarkerArrayView( cell );
+		getMarkers( iCell, jCell, kCell, Marker, Info );
+		if ( Marker.bounceback ) return 0;
+		else return 1;
+	};
+	auto reductionCellCount = [] __cuda_callable__( const int& a, const int& b )
+	{
+		return a + b;
+	};
+	
+	auto fetchUz = [ = ] __cuda_callable__( const int singleIndex )
 	{
 		const int iCell = singleIndex % iSpan + iStart;
 		const int jCell = singleIndex / iSpan + jStart;
@@ -131,33 +154,43 @@ float getMassFlowPhys( GridStruct &Grid, const int &iStart, const int &jStart, c
 		getShiftedIndex( cell, shiftedIndex, shifterView, Info );
 		float f[27];
 		for (int direction = 0; direction < 27; direction++) f[direction] = fArrayView( direction, shiftedIndex[direction] );	
-		float uz = 0;
-		float rho, ux, uy;
+		float rho, ux, uy, uz;
 		getRhoUxUyUz(rho, ux, uy, uz, f);
-		float p = rho;
-		convertToPhysicalVelocity( ux, uy, uz, Info );
-		convertToPhysicalPressure( p, Info );
 		return uz;
 	};
-	auto reduction = [] __cuda_callable__( const float& a, const float& b )
+	auto reductionUz = [] __cuda_callable__( const float& a, const float& b )
 	{
 		return a + b;
 	};
 	
-	float uzPhysSum = TNL::Algorithms::reduce<TNL::Devices::Cuda>( start, end, fetch, reduction, 0.f );
-	float volumetricFlow = uzPhysSum * (Info.res / 1000.f) * (Info.res / 1000.f);
+	const int cellCount = TNL::Algorithms::reduce<TNL::Devices::Cuda>( start, end, fetchCellCount, reductionCellCount, 0 );
+	float uzSum = TNL::Algorithms::reduce<TNL::Devices::Cuda>( start, end, fetchUz, reductionUz, 0.f );
+		
+	float uzAvg = uzSum / (float)cellCount;
+	float ux, uy = 0;
+	convertToPhysicalVelocity( ux, uy, uzAvg, Info );
+	convertToPhysicalVelocity( ux, uy, uzSum, Info );
+	
+	float volumetricFlow = uzSum * (Info.res / 1000.f) * (Info.res / 1000.f);
 	float massFlow = volumetricFlow * 1000.f;
-	return massFlow;
+	
+	uzAvgPhys = uzAvg;
+	massFlowPhys = massFlow;
 }
 
-void exportHistoryData( const std::vector<float>& historyMassFlow, const int &currentIteration ) {
+void exportHistoryData( const std::vector<float>& historyMassFlow, const std::vector<float>& historyEta, const int &currentIteration, int fileNumber ) {
     FILE* fp = fopen("/dev/shm/historyData.bin", "wb");
     if (!fp) return;
+    
     int count = currentIteration + 1;
     fwrite(&count, sizeof(int), 1, fp);
     fwrite(historyMassFlow.data(), sizeof(float), count, fp);
+    fwrite(historyEta.data(), sizeof(float), count, fp); // Append the ETA array
     fclose(fp);
-    system("python3 historyPlotter.py &"); 
+    
+    // Construct the command string to pass the number as an argument
+    std::string cmd = "python3 historyPlotter.py " + std::to_string(fileNumber) + " &";
+    system(cmd.c_str());
 }
 
 int main(int argc, char **argv)
@@ -222,8 +255,8 @@ int main(int argc, char **argv)
 		grids[level-1].Info.iSubgridEnd = (int)((xEnd - grids[level-1].Info.ox) / grids[level-1].Info.res + 0.5f);
 		grids[level-1].Info.jSubgridStart = (int)((yStart - grids[level-1].Info.oy) / grids[level-1].Info.res + 0.5f);
 		grids[level-1].Info.jSubgridEnd = grids[level-1].Info.cellCountY;
-		grids[level-1].Info.kSubgridStart = 5;
-		grids[level-1].Info.kSubgridEnd = grids[level-1].Info.cellCountZ-6;
+		grids[level-1].Info.kSubgridStart = 10;
+		grids[level-1].Info.kSubgridEnd = grids[level-1].Info.cellCountZ-10;
 		
 		grids[level-1].Info.iSubgridStart = std::max({0, grids[level-1].Info.iSubgridStart});
 		grids[level-1].Info.iSubgridEnd = std::min({grids[level-1].Info.cellCountX-1, grids[level-1].Info.iSubgridEnd});
@@ -271,6 +304,7 @@ int main(int argc, char **argv)
 	std::cout << "Cell updates per iteration: " << cellUpdatesPerIteration << std::endl;
 	
 	std::vector<float> historyMassFlow( iterationCount, 0.f );
+	std::vector<float> historyEta( iterationCount, 0.f );
 	
 	std::cout << "Starting simulation" << std::endl;
 	
@@ -284,8 +318,18 @@ int main(int argc, char **argv)
 		const int iEnd = (18.f - grids[gridLevelCount-1].Info.ox) / grids[gridLevelCount-1].Info.res;
 		const int jStart = (-18.f - grids[gridLevelCount-1].Info.oy) / grids[gridLevelCount-1].Info.res;
 		const int jEnd = grids[gridLevelCount-1].Info.cellCountY-1;
-		const float massFlow = getMassFlowPhys( grids[gridLevelCount-1], iStart, jStart, iEnd, jEnd );
+		
+		float uzAvg, massFlow;
+		getFlowReport( grids[gridLevelCount-1], iStart, jStart, iEnd, jEnd, uzAvg, massFlow );
+		float pPhys = rhoOutlet;
+		convertToPhysicalPressure( pPhys );
+		float lakePower = 0.5f * massFlow * uzInletPhys * uzInletPhys;
+		float intakePower = 0.5f * massFlow * uzAvg * uzAvg + massFlow * pPhys / rhoNominalPhys;
+		float eta = intakePower / lakePower;
+		
 		historyMassFlow[iteration] = massFlow;
+		historyEta[iteration] = eta;
+		
 		if (iteration%iterationChunk == 0 && iteration!=0)
 		{
 			lapTimer.stop();
@@ -294,7 +338,7 @@ int main(int argc, char **argv)
 			const float updateCount = (float)cellUpdatesPerIteration * (float)iterationChunk;
 			const float glups = updateCount / lapTime / 1000000000.f;
 			std::cout << "GLUPS: " << glups << std::endl;
-			
+
 			for ( int level = gridLevelCount-2; level >= 0; level-- )
 			{
 				fillCoarseGridFromFine( grids[level], grids[level+1] );
@@ -306,7 +350,7 @@ int main(int argc, char **argv)
 				exportSectionCutPlotZY( grids[level], iCut, iteration + level );
 			}
 			
-			exportHistoryData( historyMassFlow, iteration );
+			exportHistoryData( historyMassFlow, historyEta, iteration, caseID );
 			
 			lapTimer.reset();
 			lapTimer.start();
