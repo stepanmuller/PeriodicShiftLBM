@@ -87,10 +87,10 @@ def generateIntakeSTL( parameters ):
 		pt1 = surfaceMatrix[j, i]
 		pt2 = surfaceMatrix[j+1, i]
 		pt3 = pt1.copy()
-		pt3[-1] = 200
+		pt3[-1] = 100
 		pt4 = pt2.copy()
-		pt4[-1] = 200
-		pt5 = np.array([0, 0, 200])
+		pt4[-1] = 100
+		pt5 = np.array([0, 0, 100])
 		triangleList.append([pt1, pt2, pt3])
 		triangleList.append([pt2, pt3, pt4])
 		triangleList.append([pt3, pt4, pt5])

@@ -356,6 +356,7 @@ void applyMarkersInsideSTL( BoolArrayType &markerArray, STLStruct &STL, const bo
 	int intersectionCountMax = TNL::Algorithms::reduce<TNL::Devices::Cuda>( start, end, fetch, reduction, 0 );
 	std::cout << "	intersectionCountMax: " << intersectionCountMax << std::endl; 
 	
+	if ( intersectionCountMax < 1 ) intersectionCountMax = 1;
 	// extracting the intersection indexes
 	IntArray3DType intersectionIndexArray;
 	intersectionIndexArray.setSizes( intersectionCountMax, Info.cellCountX, Info.cellCountY );

@@ -1,7 +1,7 @@
-constexpr int caseID = 2;
+constexpr int caseID = 9;
 
 constexpr float resGlobal = 2.f; 														// mm
-constexpr int gridLevelCount = 3;
+constexpr int gridLevelCount = 2;
 constexpr int iterationCount = 200000;
 constexpr int iterationChunk = 10000;
 
@@ -52,7 +52,9 @@ __cuda_callable__ void getMarkers( 	const int& iCell, const int& jCell, const in
 	{
 		if ( iCell == 0 || iCell == Info.cellCountX-1 ) Marker.ghost = 1;
 		else if ( jCell == 0 || jCell == Info.cellCountY-1 ) Marker.ghost = 1;
-		else if ( kCell == 0 || kCell == Info.cellCountZ-1 ) Marker.ghost = 1;
+		//else if ( kCell == 0 || kCell == Info.cellCountZ-1 ) Marker.ghost = 1;
+		else if ( kCell == 0 ) Marker.givenUxUyUz = 1;
+		else if ( kCell == Info.cellCountZ-1 ) Marker.givenRho = 1;
 		else Marker.fluid = 1;
 	}
 }
@@ -276,23 +278,22 @@ int main(int argc, char **argv)
 		
 		float progress = (float)level / (float)(gridLevelCount-1);
 		progress = std::pow( progress, 0.5f );
-		const float xStart = (1 - progress) * grids[0].Info.ox + progress * (-20.f);
-		const float xEnd = (1 - progress) * (-grids[0].Info.ox) + progress * 20.f;
+		const float xStart = (1 - progress) * grids[0].Info.ox + progress * (-30.f);
+		const float xEnd = (1 - progress) * (-grids[0].Info.ox) + progress * 30.f;
 		const float yStart = (1 - progress) * grids[0].Info.oy + progress * (-45.f);
-		const float zEnd = (1 - progress) * (grids[0].Info.oz + grids[0].Info.cellCountZ * grids[0].Info.res) + progress * 35.f;
 		grids[level-1].Info.iSubgridStart = (int)((xStart - grids[level-1].Info.ox) / grids[level-1].Info.res + 0.5f);
 		grids[level-1].Info.iSubgridEnd = (int)((xEnd - grids[level-1].Info.ox) / grids[level-1].Info.res + 0.5f);
 		grids[level-1].Info.jSubgridStart = (int)((yStart - grids[level-1].Info.oy) / grids[level-1].Info.res + 0.5f);
 		grids[level-1].Info.jSubgridEnd = grids[level-1].Info.cellCountY;
-		grids[level-1].Info.kSubgridStart = 8;
-		grids[level-1].Info.kSubgridEnd = (int)((zEnd - grids[level-1].Info.oz) / grids[level-1].Info.res + 0.5f);
+		grids[level-1].Info.kSubgridStart = 0;
+		grids[level-1].Info.kSubgridEnd = grids[level-1].Info.cellCountZ;
 		
 		grids[level-1].Info.iSubgridStart = std::max({0, grids[level-1].Info.iSubgridStart});
-		grids[level-1].Info.iSubgridEnd = std::min({grids[level-1].Info.cellCountX-1, grids[level-1].Info.iSubgridEnd});
+		grids[level-1].Info.iSubgridEnd = std::min({grids[level-1].Info.cellCountX, grids[level-1].Info.iSubgridEnd});
 		grids[level-1].Info.jSubgridStart = std::max({0, grids[level-1].Info.jSubgridStart});
-		grids[level-1].Info.jSubgridEnd = std::min({grids[level-1].Info.cellCountY-1, grids[level-1].Info.jSubgridEnd});
+		grids[level-1].Info.jSubgridEnd = std::min({grids[level-1].Info.cellCountY, grids[level-1].Info.jSubgridEnd});
 		grids[level-1].Info.kSubgridStart = std::max({0, grids[level-1].Info.kSubgridStart});
-		grids[level-1].Info.kSubgridEnd = std::min({grids[level-1].Info.cellCountZ-1, grids[level-1].Info.kSubgridEnd});
+		grids[level-1].Info.kSubgridEnd = std::min({grids[level-1].Info.cellCountZ, grids[level-1].Info.kSubgridEnd});
 		
 		grids[level].Info.ox = grids[level-1].Info.ox + grids[level-1].Info.iSubgridStart * grids[level-1].Info.res - grids[level].Info.res * 0.5f;
 		grids[level].Info.oy = grids[level-1].Info.oy + grids[level-1].Info.jSubgridStart * grids[level-1].Info.res - grids[level].Info.res * 0.5f;
@@ -349,9 +350,18 @@ int main(int argc, char **argv)
 		const int jEnd = grids[gridLevelCount-1].Info.cellCountY-1;
 		
 		float uzAvg, massFlow, pAvg;
-		getFlowReport( grids[gridLevelCount-1].Info.cellCountZ-3, grids[gridLevelCount-1], iStart, jStart, iEnd, jEnd, uzAvg, massFlow, pAvg );
+		int iTemp, jTemp, flowReportK;
+		const float xTemp = 0.f; 
+		const float yTemp = 0.f;
+		float flowReportZ = 30.f;
+		getIJKCellIndexFromXYZ( iTemp, jTemp, flowReportK, xTemp, yTemp, flowReportZ, grids[gridLevelCount-1].Info);
+		getFlowReport( flowReportK, grids[gridLevelCount-1], iStart, jStart, iEnd, jEnd, uzAvg, massFlow, pAvg );
+		
 		float uzAvgInlet, massFlowInlet, pAvgInlet;
-		getFlowReport( 0, grids[0], 0, 0, grids[0].Info.cellCountX, grids[0].Info.cellCountY, uzAvgInlet, massFlowInlet, pAvgInlet );
+		flowReportZ = -80.f;
+		getIJKCellIndexFromXYZ( iTemp, jTemp, flowReportK, xTemp, yTemp, flowReportZ, grids[gridLevelCount-1].Info);
+		getFlowReport( 0, grids[0], 0, 0, grids[gridLevelCount-1].Info.cellCountX, grids[gridLevelCount-1].Info.cellCountY, uzAvgInlet, massFlowInlet, pAvgInlet );
+
 		float lakePower = 0.5f * massFlow * uzInletPhys * uzInletPhys;
 		float intakePower = 0.5f * massFlow * uzAvg * uzAvg + massFlow * (pAvg - pAvgInlet) / rhoNominalPhys;
 		float eta = intakePower / lakePower;
@@ -367,7 +377,7 @@ int main(int argc, char **argv)
 			const float updateCount = (float)cellUpdatesPerIteration * (float)iterationChunk;
 			const float glups = updateCount / lapTime / 1000000000.f;
 			std::cout << "GLUPS: " << glups << std::endl;
-
+	
 			for ( int level = gridLevelCount-2; level >= 0; level-- )
 			{
 				fillCoarseGridFromFine( grids[level], grids[level+1] );
