@@ -104,4 +104,4 @@ struct STLStruct { 	FloatArrayType axArray; FloatArrayType ayArray; FloatArrayTy
 						oz = STLCPU.oz;
 						triangleCount = STLCPU.triangleCount;
 					}
-				};	
+				};

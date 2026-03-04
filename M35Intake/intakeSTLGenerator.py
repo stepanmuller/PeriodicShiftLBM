@@ -92,7 +92,7 @@ def generateIntakeSTL( parameters ):
 		pt4[-1] = 60
 		pt5 = np.array([0, 0, 60])
 		triangleList.append([pt1, pt2, pt3])
-		triangleList.append([pt1, pt3, pt4])
+		triangleList.append([pt2, pt3, pt4])
 		triangleList.append([pt3, pt4, pt5])
 				
 	triangles = np.array(triangleList)
@@ -104,7 +104,7 @@ def generateIntakeSTL( parameters ):
 
 	surface_mesh = mesh.Mesh(np.zeros(triangles.shape[0], dtype=mesh.Mesh.dtype))
 	surface_mesh.vectors = triangles
-	filename = "intakeChannel.STL"
+	filename = "intake.STL"
 	surface_mesh.save(filename)
 	print(f"Surface saved as {filename}")
 

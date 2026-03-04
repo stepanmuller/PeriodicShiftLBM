@@ -1,12 +1,12 @@
 constexpr float resGlobal = 2.f; 														// mm
 constexpr int gridLevelCount = 4;
-constexpr int iterationCount = 20000;
+constexpr int iterationCount = 100000;
 constexpr int iterationChunk = 1000;
 
 constexpr float SmagorinskyConstantGlobal = 0.1f; 										// set to zero to turn off LES
 
 constexpr float uzInlet = 0.05f; 														// also works as nominal LBM Mach number
-constexpr float rhoOutlet = 1.0f;
+constexpr float rhoOutlet = 1.003f;
 constexpr float nuPhys = 1e-6;															// m2/s water
 constexpr float rhoNominalPhys = 1000.0f;												// kg/m3 water
 constexpr float uzInletPhys = 20.f; 													// m/s
@@ -29,8 +29,8 @@ constexpr float soundspeedPhys = invSqrt3 * (resGlobal/1000) / dtPhysGlobal; 			
 #include "../boundaryConditions/applyMBBC.h"
 
 #include "../STLFunctions.h"
-std::string STLPathLakeBlock = "lakeBlock.STL";
-std::string STLPathIntakeChannel = "intakeChannel.STL";
+std::string STLPathLake = "lake.STL";
+std::string STLPathIntake = "intake.STL";
 
 __cuda_callable__ void getMarkers( 	const int& iCell, const int& jCell, const int& kCell, 
 									MarkerStruct &Marker, const InfoStruct& Info )
@@ -96,33 +96,114 @@ void updateGrid( std::vector<GridStruct>& grids, int level )
     }
 }
 
+float getMassFlowPhys( GridStruct &Grid, const int &iStart, const int &jStart, const int &iEnd, const int &jEnd )
+{
+	InfoStruct Info = Grid.Info;
+	auto fArrayView  = Grid.fArray.getView();
+	auto shifterView  = Grid.shifter.getConstView();
+	bool useBouncebackArray = false;
+	auto bouncebackMarkerArrayView = Grid.bouncebackMarkerArray.getConstView();
+	if ( Grid.bouncebackMarkerArray.getSize() > 0 )
+	{
+		useBouncebackArray = true;
+	}
+	const int iSpan = iEnd - iStart;
+	const int jSpan = jEnd - jStart;
+	
+	const int start = 0;
+	const int end = iSpan * jSpan;
+	
+	const int kCell = Grid.Info.cellCountZ - 3; // last layer that is not influenced by grid communication
+	
+	auto fetch = [ = ] __cuda_callable__( const int singleIndex )
+	{
+		const int iCell = singleIndex % iSpan + iStart;
+		const int jCell = singleIndex / iSpan + jStart;
+		
+		int cell;
+		getCellIndex( cell, iCell, jCell, kCell, Info );
+		MarkerStruct Marker;
+		if ( useBouncebackArray ) Marker.bounceback = bouncebackMarkerArrayView( cell );
+		getMarkers( iCell, jCell, kCell, Marker, Info );
+		if ( Marker.bounceback ) return 0.f;
+		
+		int shiftedIndex[27];
+		getShiftedIndex( cell, shiftedIndex, shifterView, Info );
+		float f[27];
+		for (int direction = 0; direction < 27; direction++) f[direction] = fArrayView( direction, shiftedIndex[direction] );	
+		float uz = 0;
+		float rho, ux, uy;
+		getRhoUxUyUz(rho, ux, uy, uz, f);
+		float p = rho;
+		convertToPhysicalVelocity( ux, uy, uz, Info );
+		convertToPhysicalPressure( p, Info );
+		return uz;
+	};
+	auto reduction = [] __cuda_callable__( const float& a, const float& b )
+	{
+		return a + b;
+	};
+	
+	float uzPhysSum = TNL::Algorithms::reduce<TNL::Devices::Cuda>( start, end, fetch, reduction, 0.f );
+	float volumetricFlow = uzPhysSum * (Info.res / 1000.f) * (Info.res / 1000.f);
+	float massFlow = volumetricFlow * 1000.f;
+	return massFlow;
+}
+
+void exportHistoryData( const std::vector<float>& historyMassFlow, const int &currentIteration ) {
+    FILE* fp = fopen("/dev/shm/historyData.bin", "wb");
+    if (!fp) return;
+    int count = currentIteration + 1;
+    fwrite(&count, sizeof(int), 1, fp);
+    fwrite(historyMassFlow.data(), sizeof(float), count, fp);
+    fclose(fp);
+    system("python3 historyPlotter.py &"); 
+}
+
 int main(int argc, char **argv)
 {
-	STLStructCPU STLCPU;
-	readSTL( STLCPU, STLPath );
-	STLStruct STL( STLCPU );
-	checkSTLEdges( STL );
+	STLStructCPU STLCPULake;
+	readSTL( STLCPULake, STLPathLake );
+	STLStruct STLLake( STLCPULake );
+	checkSTLEdges( STLLake );
+	STLStructCPU STLCPUIntake;
+	readSTL( STLCPUIntake, STLPathIntake );
+	STLStruct STLIntake( STLCPUIntake );
+	checkSTLEdges( STLIntake );
+	
+	const float STLxminGlobal = std::min({ STLLake.xmin, STLIntake.xmin });
+	const float STLxmaxGlobal = std::max({ STLLake.xmax, STLIntake.xmax });
+	const float STLyminGlobal = std::min({ STLLake.ymin, STLIntake.ymin });
+	const float STLymaxGlobal = std::max({ STLLake.ymax, STLIntake.ymax });
+	const float STLzminGlobal = std::min({ STLLake.zmin, STLIntake.zmin });
+	const float STLzmaxGlobal = std::max({ STLLake.zmax, STLIntake.zmax });
 	
 	std::vector<GridStruct> grids(gridLevelCount);
 	grids[0].Info.res = resGlobal;
 	grids[0].Info.dtPhys = dtPhysGlobal;
 	grids[0].Info.nu = (grids[0].Info.dtPhys * nuPhys) / ((grids[0].Info.res/1000) * (grids[0].Info.res/1000));
 	std::cout << "Sizing domain around the STL" << std::endl;
-	grids[0].Info.cellCountX = static_cast<int>( std::ceil(( STLCPU.xmax - STLCPU.xmin - 1e-9 ) / grids[0].Info.res ));
-	grids[0].Info.cellCountY = static_cast<int>( std::ceil(( STLCPU.ymax - STLCPU.ymin - 1e-9 ) / grids[0].Info.res ));
-	grids[0].Info.cellCountZ = static_cast<int>( std::ceil(( STLCPU.zmax - STLCPU.zmin - 1e-9 ) / grids[0].Info.res ));
-	grids[0].Info.ox = + STLCPU.xmin + ( 0.5f * ( ( STLCPU.xmax - STLCPU.xmin ) - grids[0].Info.res * ( grids[0].Info.cellCountX-1 ) ) );
-	grids[0].Info.oy = + STLCPU.ymin + ( 0.5f * ( ( STLCPU.ymax - STLCPU.ymin ) - grids[0].Info.res * ( grids[0].Info.cellCountY-1 ) ) );
-	grids[0].Info.oz = + STLCPU.zmin + ( 0.5f * ( ( STLCPU.zmax - STLCPU.zmin ) - grids[0].Info.res * ( grids[0].Info.cellCountZ-1 ) ) );
+	grids[0].Info.cellCountX = static_cast<int>( std::ceil(( STLxmaxGlobal - STLxminGlobal - 1e-9 ) / grids[0].Info.res ));
+	grids[0].Info.cellCountY = static_cast<int>( std::ceil(( STLymaxGlobal - STLyminGlobal - 1e-9 ) / grids[0].Info.res ));
+	grids[0].Info.cellCountZ = static_cast<int>( std::ceil(( STLzmaxGlobal - STLzminGlobal - 1e-9 ) / grids[0].Info.res ));
+	grids[0].Info.ox = + STLxminGlobal + ( 0.5f * ( ( STLxmaxGlobal - STLxminGlobal ) - grids[0].Info.res * ( grids[0].Info.cellCountX-1 ) ) );
+	grids[0].Info.oy = + STLyminGlobal + ( 0.5f * ( ( STLymaxGlobal - STLyminGlobal ) - grids[0].Info.res * ( grids[0].Info.cellCountY-1 ) ) );
+	grids[0].Info.oz = + STLzminGlobal + ( 0.5f * ( ( STLzmaxGlobal - STLzminGlobal ) - grids[0].Info.res * ( grids[0].Info.cellCountZ-1 ) ) );
 	grids[0].Info.cellCountY = grids[0].Info.cellCountY + 3; // adding wall layers on top
 	grids[0].Info.cellCount = grids[0].Info.cellCountX * grids[0].Info.cellCountY * grids[0].Info.cellCountZ;
 	grids[0].fArray.setSizes( 27, grids[0].Info.cellCount );
 	grids[0].shifter = IntArrayType( 27, 0 );
 	fillEquilibriumFromFunction( grids[0] );
-	std::cout << "uninitialized bouncebackMarkerArray " << grids[0].bouncebackMarkerArray.getSize() << std::endl;
 	grids[0].bouncebackMarkerArray = BoolArrayType( grids[0].Info.cellCount, 0 );
 	const bool insideMarkerValue = 0;
-	applyMarkersInsideSTL( grids[0].bouncebackMarkerArray, STL, insideMarkerValue, grids[0].Info );
+	for ( int scope = 0; scope < 1; scope++ )
+	{
+		BoolArrayType bouncebackLake = BoolArrayType( grids[0].Info.cellCount, 0 );
+		BoolArrayType bouncebackIntake = BoolArrayType( grids[0].Info.cellCount, 0 );
+		applyMarkersInsideSTL( bouncebackLake, STLLake, insideMarkerValue, grids[0].Info );
+		applyMarkersInsideSTL( bouncebackIntake, STLIntake, insideMarkerValue, grids[0].Info );
+		multiplyBoolArrays( bouncebackLake, bouncebackIntake, grids[0].bouncebackMarkerArray );
+	}
 	std::cout << "Cell count on grid " << 0 << ": " << grids[0].Info.cellCount << std::endl;
 	
 	for ( int level = 1; level < gridLevelCount; level++ )
@@ -165,7 +246,12 @@ int main(int argc, char **argv)
 		fillEquilibriumFromFunction( grids[level] );
 		
 		grids[level].bouncebackMarkerArray = BoolArrayType( grids[level].Info.cellCount, 0 );
-		applyMarkersInsideSTL( grids[level].bouncebackMarkerArray, STL, insideMarkerValue, grids[level].Info );
+		BoolArrayType bouncebackLake = BoolArrayType( grids[level].Info.cellCount, 0 );
+		BoolArrayType bouncebackIntake = BoolArrayType( grids[level].Info.cellCount, 0 );
+		applyMarkersInsideSTL( bouncebackLake, STLLake, insideMarkerValue, grids[level].Info );
+		applyMarkersInsideSTL( bouncebackIntake, STLIntake, insideMarkerValue, grids[level].Info );
+		multiplyBoolArrays( bouncebackLake, bouncebackIntake, grids[level].bouncebackMarkerArray );
+		
 		std::cout << "Cell count on grid " << level << ": " << grids[level].Info.cellCount << std::endl;
 	}
 	
@@ -184,6 +270,8 @@ int main(int argc, char **argv)
 	std::cout << "Cell count total: " << cellCountTotal << std::endl;
 	std::cout << "Cell updates per iteration: " << cellUpdatesPerIteration << std::endl;
 	
+	std::vector<float> historyMassFlow( iterationCount, 0.f );
+	
 	std::cout << "Starting simulation" << std::endl;
 	
 	TNL::Timer lapTimer;
@@ -191,7 +279,13 @@ int main(int argc, char **argv)
 	lapTimer.start();
 	for (int iteration=0; iteration<=iterationCount; iteration++)
 	{
-		updateGrid( grids, 0 );		
+		updateGrid( grids, 0 );
+		const int iStart = (-18.f - grids[gridLevelCount-1].Info.ox) / grids[gridLevelCount-1].Info.res;
+		const int iEnd = (18.f - grids[gridLevelCount-1].Info.ox) / grids[gridLevelCount-1].Info.res;
+		const int jStart = (-18.f - grids[gridLevelCount-1].Info.oy) / grids[gridLevelCount-1].Info.res;
+		const int jEnd = grids[gridLevelCount-1].Info.cellCountY-1;
+		const float massFlow = getMassFlowPhys( grids[gridLevelCount-1], iStart, jStart, iEnd, jEnd );
+		historyMassFlow[iteration] = massFlow;
 		if (iteration%iterationChunk == 0 && iteration!=0)
 		{
 			lapTimer.stop();
@@ -211,6 +305,8 @@ int main(int argc, char **argv)
 				const int iCut = grids[level].Info.cellCountX / 2;
 				exportSectionCutPlotZY( grids[level], iCut, iteration + level );
 			}
+			
+			exportHistoryData( historyMassFlow, iteration );
 			
 			lapTimer.reset();
 			lapTimer.start();
