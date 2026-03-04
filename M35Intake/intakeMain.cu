@@ -285,8 +285,8 @@ int main(int argc, char **argv)
 		grids[level-1].Info.iSubgridEnd = (int)((xEnd - grids[level-1].Info.ox) / grids[level-1].Info.res + 0.5f);
 		grids[level-1].Info.jSubgridStart = (int)((yStart - grids[level-1].Info.oy) / grids[level-1].Info.res + 0.5f);
 		grids[level-1].Info.jSubgridEnd = grids[level-1].Info.cellCountY;
-		grids[level-1].Info.kSubgridStart = 10;
-		grids[level-1].Info.kSubgridEnd = grids[level-1].Info.cellCountZ-10;
+		grids[level-1].Info.kSubgridStart = 8;
+		grids[level-1].Info.kSubgridEnd = grids[level-1].Info.cellCountZ-8;
 		
 		grids[level-1].Info.iSubgridStart = std::max({0, grids[level-1].Info.iSubgridStart});
 		grids[level-1].Info.iSubgridEnd = std::min({grids[level-1].Info.cellCountX-1, grids[level-1].Info.iSubgridEnd});
