@@ -1,7 +1,7 @@
 constexpr int caseID = 1;
 
-constexpr float resGlobal = 2.f; 														// mm
-constexpr int gridLevelCount = 4;
+constexpr float resGlobal = 1.6f; 														// mm
+constexpr int gridLevelCount = 3;
 constexpr int iterationCount = 200000;
 constexpr int iterationChunk = 10000;
 
@@ -385,8 +385,17 @@ int main(int argc, char **argv)
 			
 			for ( int level = 0; level < gridLevelCount; level++ )
 			{
-				const int iCut = grids[level].Info.cellCountX / 2;
-				exportSectionCutPlotZY( grids[level], iCut, iteration + level );
+				int iCut, jCut, kCut;
+				const float xCut = 0.f; 
+				const float yCut = -30.f;
+				const float zCut = 30.f;
+				getIJKCellIndexFromXYZ( iCut, jCut, kCut, xCut, yCut, zCut, grids[level].Info);
+				exportSectionCutPlotXY( grids[level], kCut, iteration + level );
+				system("python3 plotter.py");
+				exportSectionCutPlotZY( grids[level], iCut, iteration + level + 10 );
+				system("python3 plotter.py");
+				exportSectionCutPlotZX( grids[level], jCut, iteration + level + 20 );
+				system("python3 plotter.py");
 			}
 			
 			exportHistoryData( historyMassFlow, historyEta, iteration, caseID );

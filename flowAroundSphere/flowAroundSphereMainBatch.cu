@@ -283,6 +283,7 @@ int main(int argc, char **argv)
 		{
 			const int kCut = grids[level].Info.cellCountZ / 2;
 			exportSectionCutPlotXY( grids[level], kCut, reynoldsNumber + level );
+			system("python3 plotter.py");
 		}
 		
 		exportHistoryData( historyDragCoefficient, iterationCount, reynoldsNumber );
