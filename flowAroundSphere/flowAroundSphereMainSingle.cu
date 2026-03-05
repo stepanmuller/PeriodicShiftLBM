@@ -93,7 +93,7 @@ __cuda_callable__ void getInitialRhoUxUyUz( const int &iCell, const int &jCell, 
 }
 
 #include "../applyLocalCellUpdate.h"
-#include "../exportSectionCutPlot.h"
+#include "../plotter/exportSectionCutPlot.h"
 #include "../fillEquilibrium.h"
 #include "../gridRefinementFunctions.h"
 

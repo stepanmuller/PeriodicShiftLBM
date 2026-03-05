@@ -1,9 +1,9 @@
 constexpr int caseID = 1;
 
-constexpr float resGlobal = 1.6f; 														// mm
-constexpr int gridLevelCount = 3;
+constexpr float resGlobal = 1.4f; 														// mm
+constexpr int gridLevelCount = 2;
 constexpr int iterationCount = 200000;
-constexpr int iterationChunk = 10000;
+constexpr int iterationChunk = 100;
 
 constexpr float SmagorinskyConstantGlobal = 0.1f; 										// set to zero to turn off LES
 
@@ -87,7 +87,7 @@ __cuda_callable__ void getInitialRhoUxUyUz( const int &iCell, const int &jCell, 
 }
 
 #include "../applyLocalCellUpdate.h"
-#include "../exportSectionCutPlot.h"
+#include "../plotter/exportSectionCutPlot.h"
 #include "../fillEquilibrium.h"
 #include "../gridRefinementFunctions.h"
 
@@ -391,11 +391,11 @@ int main(int argc, char **argv)
 				const float zCut = 30.f;
 				getIJKCellIndexFromXYZ( iCut, jCut, kCut, xCut, yCut, zCut, grids[level].Info);
 				exportSectionCutPlotXY( grids[level], kCut, iteration + level );
-				system("python3 plotter.py");
+				system("python3 ../plotter/plotter.py");
 				exportSectionCutPlotZY( grids[level], iCut, iteration + level + 10 );
-				system("python3 plotter.py");
+				system("python3 ../plotter/plotter.py");
 				exportSectionCutPlotZX( grids[level], jCut, iteration + level + 20 );
-				system("python3 plotter.py");
+				system("python3 ../plotter/plotter.py");
 			}
 			
 			exportHistoryData( historyMassFlow, historyEta, iteration, caseID );
