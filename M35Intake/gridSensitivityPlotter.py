@@ -24,8 +24,8 @@ yColorList = []
 yStyleList = []
 
 # achenbach 1
-xList.append(np.array([1, 0.5, 0.4, 0.25]))
-yList.append(np.array([1.427, 2.870, 3.426, 4.126]))
+xList.append(np.array([1, 0.7, 0.6, 0.5, 0.4, 0.25]))
+yList.append(np.array([1.427, 1.946, 3.038, 2.870, 3.426, 4.126]))
 yLegendList.append("NACA")
 yColorList.append("black")
 yStyleList.append(".")

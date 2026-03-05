@@ -1,9 +1,9 @@
 constexpr int caseID = 1;
 
-constexpr float resGlobal = 1.4f; 														// mm
+constexpr float resGlobal = 1.2f; 														// mm
 constexpr int gridLevelCount = 2;
 constexpr int iterationCount = 200000;
-constexpr int iterationChunk = 100;
+constexpr int iterationChunk = 10000;
 
 constexpr float SmagorinskyConstantGlobal = 0.1f; 										// set to zero to turn off LES
 
@@ -246,13 +246,13 @@ int main(int argc, char **argv)
 	grids[0].Info.dtPhys = dtPhysGlobal;
 	grids[0].Info.nu = (grids[0].Info.dtPhys * nuPhys) / ((grids[0].Info.res/1000) * (grids[0].Info.res/1000));
 	std::cout << "Sizing domain around the STL" << std::endl;
-	grids[0].Info.cellCountX = static_cast<int>( std::ceil(( STLxmaxGlobal - STLxminGlobal - 1e-9 ) / grids[0].Info.res ));
-	grids[0].Info.cellCountY = static_cast<int>( std::ceil(( STLymaxGlobal - STLyminGlobal - 1e-9 ) / grids[0].Info.res ));
-	grids[0].Info.cellCountZ = static_cast<int>( std::ceil(( STLzmaxGlobal - STLzminGlobal - 1e-9 ) / grids[0].Info.res ));
-	grids[0].Info.ox = + STLxminGlobal + ( 0.5f * ( ( STLxmaxGlobal - STLxminGlobal ) - grids[0].Info.res * ( grids[0].Info.cellCountX-1 ) ) );
-	grids[0].Info.oy = + STLyminGlobal + ( 0.5f * ( ( STLymaxGlobal - STLyminGlobal ) - grids[0].Info.res * ( grids[0].Info.cellCountY-1 ) ) );
-	grids[0].Info.oz = + STLzminGlobal + ( 0.5f * ( ( STLzmaxGlobal - STLzminGlobal ) - grids[0].Info.res * ( grids[0].Info.cellCountZ-1 ) ) );
-	grids[0].Info.cellCountY = grids[0].Info.cellCountY + 3; // adding wall layers on top
+	grids[0].Info.cellCountX = (int)( (STLxmaxGlobal - STLxminGlobal) / grids[0].Info.res );
+	grids[0].Info.cellCountY = (int)( (STLymaxGlobal - STLyminGlobal) / grids[0].Info.res );
+	grids[0].Info.cellCountZ = (int)( (STLzmaxGlobal - STLzminGlobal) / grids[0].Info.res );
+	grids[0].Info.ox = STLxminGlobal + 0.5f * ( (STLxmaxGlobal - STLxminGlobal) - grids[0].Info.res * grids[0].Info.cellCountX ) + 0.5f * grids[0].Info.res;
+	grids[0].Info.oy = STLyminGlobal + 0.5f * ( (STLymaxGlobal - STLyminGlobal) - grids[0].Info.res * grids[0].Info.cellCountY ) + 0.5f * grids[0].Info.res;
+	grids[0].Info.oz = STLzminGlobal + 0.5f * ( (STLzmaxGlobal - STLzminGlobal) - grids[0].Info.res * grids[0].Info.cellCountZ ) + 0.5f * grids[0].Info.res;
+	grids[0].Info.cellCountY = grids[0].Info.cellCountY + 2; // adding wall layers on top
 	grids[0].Info.cellCount = grids[0].Info.cellCountX * grids[0].Info.cellCountY * grids[0].Info.cellCountZ;
 	grids[0].fArray.setSizes( 27, grids[0].Info.cellCount );
 	grids[0].shifter = IntArrayType( 27, 0 );
@@ -278,22 +278,18 @@ int main(int argc, char **argv)
 		
 		float progress = (float)level / (float)(gridLevelCount-1);
 		progress = std::pow( progress, 0.5f );
+		
 		const float xStart = (1 - progress) * grids[0].Info.ox + progress * (-30.f);
 		const float xEnd = (1 - progress) * (-grids[0].Info.ox) + progress * 30.f;
-		const float yStart = (1 - progress) * grids[0].Info.oy + progress * (-45.f);
 		grids[level-1].Info.iSubgridStart = (int)((xStart - grids[level-1].Info.ox) / grids[level-1].Info.res + 0.5f);
-		grids[level-1].Info.iSubgridEnd = (int)((xEnd - grids[level-1].Info.ox) / grids[level-1].Info.res + 0.5f);
+		grids[level-1].Info.iSubgridEnd = (int)((xEnd - grids[level-1].Info.ox) / grids[level-1].Info.res + 0.5f) + 1;
+		
+		const float yStart = (1 - progress) * grids[0].Info.oy + progress * (-45.f);
 		grids[level-1].Info.jSubgridStart = (int)((yStart - grids[level-1].Info.oy) / grids[level-1].Info.res + 0.5f);
-		grids[level-1].Info.jSubgridEnd = grids[level-1].Info.cellCountY;
+		grids[level-1].Info.jSubgridEnd = (int)((STLymaxGlobal - grids[level-1].Info.oy) / grids[level-1].Info.res + 0.5f) + 1;
+		
 		grids[level-1].Info.kSubgridStart = 0;
 		grids[level-1].Info.kSubgridEnd = grids[level-1].Info.cellCountZ;
-		
-		grids[level-1].Info.iSubgridStart = std::max({0, grids[level-1].Info.iSubgridStart});
-		grids[level-1].Info.iSubgridEnd = std::min({grids[level-1].Info.cellCountX, grids[level-1].Info.iSubgridEnd});
-		grids[level-1].Info.jSubgridStart = std::max({0, grids[level-1].Info.jSubgridStart});
-		grids[level-1].Info.jSubgridEnd = std::min({grids[level-1].Info.cellCountY, grids[level-1].Info.jSubgridEnd});
-		grids[level-1].Info.kSubgridStart = std::max({0, grids[level-1].Info.kSubgridStart});
-		grids[level-1].Info.kSubgridEnd = std::min({grids[level-1].Info.cellCountZ, grids[level-1].Info.kSubgridEnd});
 		
 		grids[level].Info.ox = grids[level-1].Info.ox + grids[level-1].Info.iSubgridStart * grids[level-1].Info.res - grids[level].Info.res * 0.5f;
 		grids[level].Info.oy = grids[level-1].Info.oy + grids[level-1].Info.jSubgridStart * grids[level-1].Info.res - grids[level].Info.res * 0.5f;

@@ -289,14 +289,6 @@ void writeToCoarseGridInterface( GridStruct &GridCoarse, GridStruct &GridFine, c
 	auto shifterViewFine  = GridFine.shifter.getConstView();
 	const InfoStruct InfoFine = GridFine.Info;
 	
-	bool useBouncebackArray = false;
-	auto bouncebackMarkerArrayViewFine = GridFine.bouncebackMarkerArray.getConstView();
-	auto bouncebackMarkerArrayViewCoarse = GridCoarse.bouncebackMarkerArray.getConstView();
-	if ( GridFine.bouncebackMarkerArray.getSize() > 0 && GridCoarse.bouncebackMarkerArray.getSize() > 0 )
-	{
-		useBouncebackArray = true;
-	}
-	
 	auto cellLambda = [=] __cuda_callable__ ( const IntTripleType& tripleIndex ) mutable
 	{
 		const int iCoarse = tripleIndex[0];
@@ -304,11 +296,6 @@ void writeToCoarseGridInterface( GridStruct &GridCoarse, GridStruct &GridFine, c
 		const int kCoarse = tripleIndex[2];
 		int cellCoarse;
 		getCellIndex( cellCoarse, iCoarse, jCoarse, kCoarse, InfoCoarse );
-		
-		MarkerStruct MarkerCoarse;
-		if ( useBouncebackArray ) MarkerCoarse.bounceback = bouncebackMarkerArrayViewCoarse( cellCoarse );
-		getMarkers( iCoarse, jCoarse, kCoarse, MarkerCoarse, InfoCoarse );
-		if ( MarkerCoarse.bounceback ) return; // do not overwrite bounceback cells during grid communication
 		
 		int shiftedIndexCoarse[27];
 		getShiftedIndex( cellCoarse, shiftedIndexCoarse, shifterViewCoarse, InfoCoarse );
@@ -357,13 +344,8 @@ void writeToFineGridInterface( GridStruct &GridCoarse, GridStruct &GridFine, con
 	auto shifterViewFine  = GridFine.shifter.getConstView();
 	const InfoStruct InfoFine = GridFine.Info;
 	
-	bool useBouncebackArray = false;
-	auto bouncebackMarkerArrayViewCoarse = GridCoarse.bouncebackMarkerArray.getConstView();
+	bool useBouncebackArray = ( GridFine.bouncebackMarkerArray.getSize() > 0 );
 	auto bouncebackMarkerArrayViewFine = GridFine.bouncebackMarkerArray.getConstView();
-	if ( GridFine.bouncebackMarkerArray.getSize() > 0 && GridCoarse.bouncebackMarkerArray.getSize() > 0 )
-	{
-		useBouncebackArray = true;
-	}
 	
 	auto cellLambda = [=] __cuda_callable__ ( const IntTripleType& tripleIndex ) mutable
 	{
@@ -372,11 +354,6 @@ void writeToFineGridInterface( GridStruct &GridCoarse, GridStruct &GridFine, con
 		const int kFine = tripleIndex[2];
 		int cellFine;
 		getCellIndex( cellFine, iFine, jFine, kFine, InfoFine );
-		
-		MarkerStruct MarkerFine;
-		if ( useBouncebackArray ) MarkerFine.bounceback = bouncebackMarkerArrayViewFine( cellFine );
-		getMarkers( iFine, jFine, kFine, MarkerFine, InfoFine );
-		if ( MarkerFine.bounceback ) return; // do not overwrite bounceback cells during grid communication
 		
 		int shiftedIndexFine[27];
 		getShiftedIndex( cellFine, shiftedIndexFine, shifterViewFine, InfoFine );
@@ -438,6 +415,9 @@ void writeToFineGridInterface( GridStruct &GridCoarse, GridStruct &GridFine, con
 		
 		rescaleF( f, true );
 		
+		MarkerStruct MarkerFine;
+		if ( useBouncebackArray ) MarkerFine.bounceback = bouncebackMarkerArrayViewFine( cellFine );
+		getMarkers( iFine, jFine, kFine, MarkerFine, InfoFine );
 		if ( MarkerFine.ghost )
 		{
 			for (int i = 0; i < 9; i++) fArrayViewFine( directionArray[i], shiftedIndexFine[directionArray[i]] ) = f[directionArray[i]];	

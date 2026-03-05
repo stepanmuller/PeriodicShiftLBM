@@ -31,7 +31,18 @@ ax2 = fig.add_subplot(gs[2])
 
 is_solid = mask > 0.5 
 
-def setup_plot(ax, data_array, label, vmin=None, vmax=None):
+def setup_plot(ax, data_array, label):
+	# Get only the fluid data (ignore solid mask for scale calculation)
+    fluid_data = data_array[mask <= 0.5]
+    
+    # Calculate 5th and 95th percentiles (removes 5% smallest and 5% largest)
+    vmin = np.nanpercentile(fluid_data, 5)
+    vmax = np.nanpercentile(fluid_data, 95)
+    
+    # If the range is zero (constant field), default to data min/max
+    if vmin == vmax:
+        vmin, vmax = np.min(fluid_data), np.max(fluid_data)
+        
     masked_data = ma.array(data_array, mask=is_solid)
     img = ax.imshow(masked_data, origin="lower", cmap="viridis", aspect="equal")
     img.cmap.set_bad(color="black")
