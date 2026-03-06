@@ -3,6 +3,7 @@ import numpy as np
 from matplotlib import pyplot as plt
 import copy
 from stl import mesh
+from STLVisualizer import show_stl
 	
 def getCamberlinePointAndNormal(t, controlPoints, w):
 	A = controlPoints[0]
@@ -29,7 +30,7 @@ def getThicknessMultiplier(s):
 
 def getProfile( parameters ):
 	
-	h, a, b, l, w, s, thickness = parameters
+	h, a, b, l, w, thickness, s = parameters
 	controlPoints = np.array([ [0, 0], [a, b], [l, h] ])
 	
 	resolution = 300
@@ -66,7 +67,11 @@ def getProfile( parameters ):
 
 		# Now, because weight of the bezier middle point might be high, and thickness is mapped from zero at the start, points are not evenly spaced -> rearrange t
 		tArray = np.interp(np.linspace(0, 1, resolution), profileCurvilinearDistance, tArray)
-		
+	
+	# Correction for exact start and end match
+	profilePointsTop[0] = profilePointsBottom[0]
+	profilePointsTop[-1] = profilePointsBottom[-1]
+	
 	return profilePointsTop, profilePointsBottom
 	
 def visualizeProfile(curve_top, curve_bottom):
@@ -83,17 +88,17 @@ if __name__ == "__main__":
 		a = 10
 		b = 3
 		l = 15
-		w = 2
-		s = 15
+		w = 10
 		t = 1
+		s = 15
 	else:
-		nothing, h, a, b, l, w, s, t = sys.argv
-	parameters = [h, a, b, l, w, s, t]
+		h, a, b, l, w, t, s = map(float, sys.argv[1:8])
+	parameters = [h, a, b, l, w, t, s]
 	profilePointsTop, profilePointsBottom = getProfile( parameters )
 	if inputCount < 7:
 		visualizeProfile( profilePointsTop, profilePointsBottom )
 		
-	width = 1 * h
+	width = 10 * h
 	triangleList = []
 	# Main surface top
 	for i in range(len(profilePointsTop)-1):
@@ -104,27 +109,45 @@ if __name__ == "__main__":
 		pt2 = [width, zy0[1], zy0[0]]
 		pt3 = [width, zy1[1], zy1[0]]
 		triangleList.append([pt0, pt1, pt2])
+		triangleList.append([pt1, pt2, pt3])	
+	# Main surface bottom
+	for i in range(len(profilePointsBottom)-1):
+		zy0 = profilePointsBottom[i]
+		zy1 = profilePointsBottom[i+1]
+		pt0 = [0, zy0[1], zy0[0]]
+		pt1 = [0, zy1[1], zy1[0]]
+		pt2 = [width, zy0[1], zy0[0]]
+		pt3 = [width, zy1[1], zy1[0]]
+		triangleList.append([pt0, pt1, pt2])
 		triangleList.append([pt1, pt2, pt3])
-			
-	for j in range(len(surfaceMatrix)-1):
-		i = 0
-		pt1 = surfaceMatrix[j, i]
-		pt2 = surfaceMatrix[j+1, i]
-		pt3 = np.array([0, -27-b/2, -80])
-		triangleList.append([pt1, pt2, pt3])
-
-	for j in range(len(surfaceMatrix)-1):
-		i = len(surfaceMatrix[j])-1
-		pt1 = surfaceMatrix[j, i]
-		pt2 = surfaceMatrix[j+1, i]
-		pt3 = pt1.copy()
-		pt3[-1] = 100
-		pt4 = pt2.copy()
-		pt4[-1] = 100
-		pt5 = np.array([0, 0, 100])
-		triangleList.append([pt1, pt2, pt3])
-		triangleList.append([pt2, pt3, pt4])
-		triangleList.append([pt3, pt4, pt5])
+	# Closing the side
+	for i in range(len(profilePointsTop)-2):
+		if i > 0:
+			zy0 = profilePointsTop[i]
+			zy1 = profilePointsTop[i+1]
+			zy2 = profilePointsBottom[i]
+			zy3 = profilePointsBottom[i+1]
+			pt0 = [width, zy0[1], zy0[0]]
+			pt1 = [width, zy1[1], zy1[0]]
+			pt2 = [width, zy2[1], zy2[0]]
+			pt3 = [width, zy3[1], zy3[0]]
+			triangleList.append([pt0, pt1, pt2])
+			triangleList.append([pt1, pt2, pt3])
+	# Final front and rear side triangles
+	zy0 = profilePointsTop[0]
+	zy1 = profilePointsTop[1]
+	zy2 = profilePointsBottom[1]
+	pt0 = [width, zy0[1], zy0[0]]
+	pt1 = [width, zy1[1], zy1[0]]
+	pt2 = [width, zy2[1], zy2[0]]
+	triangleList.append([pt0, pt1, pt2])
+	zy0 = profilePointsTop[-1]
+	zy1 = profilePointsTop[-2]
+	zy2 = profilePointsBottom[-2]
+	pt0 = [width, zy0[1], zy0[0]]
+	pt1 = [width, zy1[1], zy1[0]]
+	pt2 = [width, zy2[1], zy2[0]]
+	triangleList.append([pt0, pt1, pt2])
 				
 	triangles = np.array(triangleList)
 
@@ -135,8 +158,9 @@ if __name__ == "__main__":
 
 	surface_mesh = mesh.Mesh(np.zeros(triangles.shape[0], dtype=mesh.Mesh.dtype))
 	surface_mesh.vectors = triangles
-	filename = "intake.STL"
+	filename = "vane.STL"
 	surface_mesh.save(filename)
 	print(f"Surface saved as {filename}")
 	
-
+	if inputCount < 7:
+		show_stl( filename, [0] )

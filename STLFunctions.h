@@ -518,12 +518,26 @@ void multiplyBoolArrays( BoolArrayType &markerArray1, BoolArrayType &markerArray
 {
 	std::cout << "Multiplying bool arrays" << std::endl;
 	const int size = resultArray.getSize();
-	auto markerArrayView1 = markerArray1.getConstView();
-	auto markerArrayView2 = markerArray2.getConstView();
+	auto markerArrayView1 = markerArray1.getView();
+	auto markerArrayView2 = markerArray2.getView();
 	auto resultArrayView = resultArray.getView();
     auto cellLambda = [ = ] __cuda_callable__( const int cell ) mutable
     {
 		resultArrayView( cell ) = markerArrayView1( cell ) && markerArrayView2( cell );
+	};
+	TNL::Algorithms::parallelFor<TNL::Devices::Cuda>( 0, size, cellLambda );
+}
+
+void sumBoolArrays( BoolArrayType &markerArray1, BoolArrayType &markerArray2, BoolArrayType &resultArray )
+{
+	std::cout << "Multiplying bool arrays" << std::endl;
+	const int size = resultArray.getSize();
+	auto markerArrayView1 = markerArray1.getView();
+	auto markerArrayView2 = markerArray2.getView();
+	auto resultArrayView = resultArray.getView();
+    auto cellLambda = [ = ] __cuda_callable__( const int cell ) mutable
+    {
+		resultArrayView( cell ) = markerArrayView1( cell ) || markerArrayView2( cell );
 	};
 	TNL::Algorithms::parallelFor<TNL::Devices::Cuda>( 0, size, cellLambda );
 }
