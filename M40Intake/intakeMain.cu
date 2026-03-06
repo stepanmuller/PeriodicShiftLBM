@@ -1,9 +1,9 @@
 constexpr int caseID = 1;
 
-constexpr float resGlobal = 1.2f; 														// mm
-constexpr int gridLevelCount = 2;
+constexpr float resGlobal = 0.84f; 														// mm
+constexpr int gridLevelCount = 3;
 constexpr int iterationCount = 200000;
-constexpr int iterationChunk = 10000;
+constexpr int iterationChunk = 100;
 
 constexpr float SmagorinskyConstantGlobal = 0.1f; 										// set to zero to turn off LES
 
@@ -34,7 +34,7 @@ constexpr float soundspeedPhys = invSqrt3 * (resGlobal/1000) / dtPhysGlobal; 			
 
 #include "../STLFunctions.h"
 std::string STLPathLake = "lake.STL";
-std::string STLPathIntake = "nacaIntake.STL";
+std::string STLPathIntake = "intake.STL";
 
 __cuda_callable__ void getMarkers( 	const int& iCell, const int& jCell, const int& kCell, 
 									MarkerStruct &Marker, const InfoStruct& Info )
@@ -279,8 +279,8 @@ int main(int argc, char **argv)
 		float progress = (float)level / (float)(gridLevelCount-1);
 		progress = std::pow( progress, 0.5f );
 		
-		const float xStart = (1 - progress) * grids[0].Info.ox + progress * (-30.f);
-		const float xEnd = (1 - progress) * (-grids[0].Info.ox) + progress * 30.f;
+		const float xStart = (1 - progress) * grids[0].Info.ox + progress * (-20.f);
+		const float xEnd = (1 - progress) * (-grids[0].Info.ox) + progress * 20.f;
 		grids[level-1].Info.iSubgridStart = (int)((xStart - grids[level-1].Info.ox) / grids[level-1].Info.res + 0.5f);
 		grids[level-1].Info.iSubgridEnd = (int)((xEnd - grids[level-1].Info.ox) / grids[level-1].Info.res + 0.5f) + 1;
 		
@@ -354,7 +354,7 @@ int main(int argc, char **argv)
 		getFlowReport( flowReportK, grids[gridLevelCount-1], iStart, jStart, iEnd, jEnd, uzAvg, massFlow, pAvg );
 		
 		float uzAvgInlet, massFlowInlet, pAvgInlet;
-		flowReportZ = -80.f;
+		flowReportZ = -100.f;
 		getIJKCellIndexFromXYZ( iTemp, jTemp, flowReportK, xTemp, yTemp, flowReportZ, grids[gridLevelCount-1].Info);
 		getFlowReport( flowReportK, grids[gridLevelCount-1], 0, 0, grids[gridLevelCount-1].Info.cellCountX, grids[gridLevelCount-1].Info.cellCountY, uzAvgInlet, massFlowInlet, pAvgInlet );
 
@@ -393,6 +393,9 @@ int main(int argc, char **argv)
 				exportSectionCutPlotZX( grids[level], jCut, iteration + level + 20 );
 				system("python3 ../plotter/plotter.py");
 			}
+			
+			//export3DPlot( grids[gridLevelCount-1], iteration + 30 );
+			//system("python3 plotter3D.py");
 			
 			exportHistoryData( historyMassFlow, historyEta, iteration, caseID );
 			

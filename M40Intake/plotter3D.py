@@ -12,8 +12,8 @@ MAX_LEN = 1000           # Length of streamlines (increased to ensure they span 
 OPACITY = 1.0            
 
 # View Controls (Applies AFTER auto-centering)
-VIEW_AZIMUTH = 60.0     # Rotate camera left/right (Degrees)
-VIEW_ELEVATION = 10.0    # Rotate camera up/down (Degrees)
+VIEW_AZIMUTH = 225.0     # Rotate camera left/right (Degrees)
+VIEW_ELEVATION = 0.0    # Rotate camera up/down (Degrees)
 ZOOM_FACTOR = 1.5        # 1.0 = Fit to screen. 1.2 = Zoom in 20%. 0.8 = Zoom out.
 
 # 1. Read Binary Data
@@ -40,7 +40,6 @@ grid["mag"] = np.linalg.norm(vectors, axis=1)
 fluid = grid.threshold(value=[0.0, 0.5], scalars="mask")
 
 # 5. Generate Streamlines
-# source_radius checks points within the bounding box of the fluid
 streams = fluid.streamlines(
     vectors="velocity", 
     n_points=N_STREAMLINES, 
@@ -48,8 +47,13 @@ streams = fluid.streamlines(
     integration_direction="both"
 )
 
+# --- NEW: Calculate Percentiles for Color Limits ---
+# We pull the magnitude data specifically from the fluid points
+mag_data = fluid["mag"]
+vmin = np.nanpercentile(mag_data, 5)
+vmax = np.nanpercentile(mag_data, 95)
+
 # 6. Plotting
-# off_screen=True prevents the window from popping up
 pl = pv.Plotter(off_screen=True, window_size=[1920, 1080])
 
 pl.add_mesh(
@@ -59,7 +63,8 @@ pl.add_mesh(
     line_width=LINE_WIDTH, 
     opacity=OPACITY,
     lighting=True,
-    show_scalar_bar=False
+    show_scalar_bar=False,
+    clim=[vmin, vmax]  # <--- Apply the calculated limits here
 )
 
 # Custom Colorbar
@@ -71,10 +76,12 @@ pl.add_scalar_bar(
     n_labels=5,
     fmt="%.1f",
     font_family="arial",
-    position_x=0.85,  # Position on right side
+    # --- UPDATED: Size and Position ---
+    position_x=0.25,     # Moved slightly left to accommodate extra width
     position_y=0.05,
-    width=0.1,
-    height=0.7
+    width=0.5,        
+    height=0.1,
+    vertical=False       # Keeps it vertical; set False if you want it horizontal at the bottom
 )
 
 pl.remove_bounds_axes()
@@ -97,8 +104,8 @@ pl.camera.elevation += VIEW_ELEVATION
 pl.camera.zoom(ZOOM_FACTOR)
 
 # 7. Save Result
-os.makedirs("results/3D", exist_ok=True)
-save_path = os.path.join("results/3D", f"{plotNumber}.png")
+os.makedirs("results", exist_ok=True)
+save_path = os.path.join("results/", f"{plotNumber}.png")
 pl.screenshot(save_path)
 print(f"3D plot saved to {save_path}")
 
