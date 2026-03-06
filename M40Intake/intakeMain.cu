@@ -2,8 +2,8 @@ constexpr int caseID = 1;
 
 constexpr float resGlobal = 0.84f; 														// mm
 constexpr int gridLevelCount = 3;
-constexpr int iterationCount = 200000;
-constexpr int iterationChunk = 100;
+constexpr int iterationCount = 1000000;
+constexpr int iterationChunk = 10000;
 
 constexpr float SmagorinskyConstantGlobal = 0.1f; 										// set to zero to turn off LES
 
@@ -34,7 +34,7 @@ constexpr float soundspeedPhys = invSqrt3 * (resGlobal/1000) / dtPhysGlobal; 			
 
 #include "../STLFunctions.h"
 std::string STLPathLake = "lake.STL";
-std::string STLPathIntake = "intakeRepair.STL";
+std::string STLPathIntake = "intake.STL";
 
 __cuda_callable__ void getMarkers( 	const int& iCell, const int& jCell, const int& kCell, 
 									MarkerStruct &Marker, const InfoStruct& Info )
