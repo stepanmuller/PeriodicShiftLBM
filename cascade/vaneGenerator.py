@@ -88,7 +88,7 @@ if __name__ == "__main__":
 		a = 10
 		b = 3
 		l = 15
-		w = 10
+		w = 2
 		t = 1
 		s = 15
 	else:
@@ -98,61 +98,61 @@ if __name__ == "__main__":
 	if inputCount < 7:
 		visualizeProfile( profilePointsTop, profilePointsBottom )
 		
-	width = 10 * h
+	width = h
 	triangleList = []
 	# Main surface top
 	for i in range(len(profilePointsTop)-1):
-		zy0 = profilePointsTop[i]
-		zy1 = profilePointsTop[i+1]
-		pt0 = [0, zy0[1], zy0[0]]
-		pt1 = [0, zy1[1], zy1[0]]
-		pt2 = [width, zy0[1], zy0[0]]
-		pt3 = [width, zy1[1], zy1[0]]
+		xy0 = profilePointsTop[i]
+		xy1 = profilePointsTop[i+1]
+		pt0 = [xy0[0], xy0[1], 0]
+		pt1 = [xy1[0], xy1[1], 0]
+		pt2 = [xy0[0], xy0[1], width]
+		pt3 = [xy1[0], xy1[1], width]
 		triangleList.append([pt0, pt1, pt2])
 		triangleList.append([pt1, pt2, pt3])	
 	# Main surface bottom
 	for i in range(len(profilePointsBottom)-1):
-		zy0 = profilePointsBottom[i]
-		zy1 = profilePointsBottom[i+1]
-		pt0 = [0, zy0[1], zy0[0]]
-		pt1 = [0, zy1[1], zy1[0]]
-		pt2 = [width, zy0[1], zy0[0]]
-		pt3 = [width, zy1[1], zy1[0]]
+		xy0 = profilePointsBottom[i]
+		xy1 = profilePointsBottom[i+1]
+		pt0 = [xy0[0], xy0[1], 0]
+		pt1 = [xy1[0], xy1[1], 0]
+		pt2 = [xy0[0], xy0[1], width]
+		pt3 = [xy1[0], xy1[1], width]
 		triangleList.append([pt0, pt1, pt2])
 		triangleList.append([pt1, pt2, pt3])
 	# Closing the side
 	for i in range(len(profilePointsTop)-2):
 		if i > 0:
-			zy0 = profilePointsTop[i]
-			zy1 = profilePointsTop[i+1]
-			zy2 = profilePointsBottom[i]
-			zy3 = profilePointsBottom[i+1]
-			pt0 = [width, zy0[1], zy0[0]]
-			pt1 = [width, zy1[1], zy1[0]]
-			pt2 = [width, zy2[1], zy2[0]]
-			pt3 = [width, zy3[1], zy3[0]]
+			xy0 = profilePointsTop[i]
+			xy1 = profilePointsTop[i+1]
+			xy2 = profilePointsBottom[i]
+			xy3 = profilePointsBottom[i+1]
+			pt0 = [xy0[0], xy0[1], width]
+			pt1 = [xy1[0], xy1[1], width]
+			pt2 = [xy2[0], xy2[1], width]
+			pt3 = [xy3[0], xy3[1], width]
 			triangleList.append([pt0, pt1, pt2])
 			triangleList.append([pt1, pt2, pt3])
 	# Final front and rear side triangles
-	zy0 = profilePointsTop[0]
-	zy1 = profilePointsTop[1]
-	zy2 = profilePointsBottom[1]
-	pt0 = [width, zy0[1], zy0[0]]
-	pt1 = [width, zy1[1], zy1[0]]
-	pt2 = [width, zy2[1], zy2[0]]
+	xy0 = profilePointsTop[0]
+	xy1 = profilePointsTop[1]
+	xy2 = profilePointsBottom[1]
+	pt0 = [xy0[0], xy0[1], width]
+	pt1 = [xy1[0], xy1[1], width]
+	pt2 = [xy2[0], xy2[1], width]
 	triangleList.append([pt0, pt1, pt2])
-	zy0 = profilePointsTop[-1]
-	zy1 = profilePointsTop[-2]
-	zy2 = profilePointsBottom[-2]
-	pt0 = [width, zy0[1], zy0[0]]
-	pt1 = [width, zy1[1], zy1[0]]
-	pt2 = [width, zy2[1], zy2[0]]
+	xy0 = profilePointsTop[-1]
+	xy1 = profilePointsTop[-2]
+	xy2 = profilePointsBottom[-2]
+	pt0 = [xy0[0], xy0[1], width]
+	pt1 = [xy1[0], xy1[1], width]
+	pt2 = [xy2[0], xy2[1], width]
 	triangleList.append([pt0, pt1, pt2])
 				
 	triangles = np.array(triangleList)
 
 	trianglesMirror = triangles.copy()
-	trianglesMirror[:, :, 0] = - trianglesMirror[:, :, 0]
+	trianglesMirror[:, :, -1] = - trianglesMirror[:, :, -1]
 
 	triangles = np.concatenate([triangles, trianglesMirror], axis=0)
 

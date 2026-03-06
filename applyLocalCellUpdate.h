@@ -46,8 +46,10 @@ void applyLocalCellUpdate( GridStruct &Grid )
 			else
 			{
 				int outerNormalX, outerNormalY, outerNormalZ;
-				getOuterNormal( iCell, jCell, kCell, outerNormalX, outerNormalY, outerNormalZ, Info );  
-				if ( Marker.periodic ) outerNormalZ = 0;
+				getOuterNormal( iCell, jCell, kCell, outerNormalX, outerNormalY, outerNormalZ, Info ); 
+				if ( Marker.periodicX ) outerNormalX = 0;
+				if ( Marker.periodicY ) outerNormalY = 0;
+				if ( Marker.periodicZ ) outerNormalZ = 0;
 				getGivenRhoUxUyUz( iCell, jCell, kCell, rho, ux, uy, uz, Info );
 				if ( Marker.mirror )
 				{

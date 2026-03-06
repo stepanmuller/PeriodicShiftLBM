@@ -23,7 +23,9 @@ void applyStreaming( GridStruct& Grid )
 		shift -= Info.cellCountX * cyArrayView[direction];
 		shift -= Info.cellCountY * Info.cellCountX * czArrayView[direction];
 		if ( shift < 0 ) shift += Info.cellCount;
-		else if ( shift >= Info.cellCount ) shift -= Info.cellCount;
+		if ( shift < 0 ) shift += Info.cellCount; // one more time to allow cellCountZ = 1
+		if ( shift >= Info.cellCount ) shift -= Info.cellCount;
+		if ( shift >= Info.cellCount ) shift -= Info.cellCount; // one more time to allow cellCountZ = 1
 		shifterView[direction] = shift;
 	};
 	TNL::Algorithms::parallelFor<TNL::Devices::Cuda>( 0, 27, directionLambda );

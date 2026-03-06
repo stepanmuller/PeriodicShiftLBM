@@ -67,7 +67,7 @@ struct InfoStruct { float gridID = 0; float res = 1.f; int cellCountX; int cellC
 								
 struct GridStruct { InfoStruct Info; FloatArray2DType fArray; IntArrayType shifter; BoolArrayType bouncebackMarkerArray; }; 
 
-struct MarkerStruct { bool fluid = 0; bool bounceback = 0; bool ghost = 0; bool mirror = 0; bool periodic = 0; bool givenRho = 0; bool givenUxUyUz = 0; };
+struct MarkerStruct { bool fluid = 0; bool bounceback = 0; bool ghost = 0; bool mirror = 0; bool periodicX = 0; bool periodicY = 0; bool periodicZ = 0; bool givenRho = 0; bool givenUxUyUz = 0; };
 					
 struct STLStructCPU { 	FloatArrayTypeCPU axArray; FloatArrayTypeCPU ayArray; FloatArrayTypeCPU azArray; 
 						FloatArrayTypeCPU bxArray; FloatArrayTypeCPU byArray; FloatArrayTypeCPU bzArray; 
