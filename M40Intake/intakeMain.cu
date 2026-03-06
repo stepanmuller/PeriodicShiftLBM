@@ -286,7 +286,8 @@ int main(int argc, char **argv)
 		
 		const float yStart = (1 - progress) * grids[0].Info.oy + progress * (-45.f);
 		grids[level-1].Info.jSubgridStart = (int)((yStart - grids[level-1].Info.oy) / grids[level-1].Info.res + 0.5f);
-		grids[level-1].Info.jSubgridEnd = (int)((STLymaxGlobal - grids[level-1].Info.oy) / grids[level-1].Info.res + 0.5f) + 1;
+		grids[level-1].Info.jSubgridEnd = (int)((STLymaxGlobal - grids[level-1].Info.oy) / grids[level-1].Info.res + 0.5f) + 3;
+		grids[level-1].Info.jSubgridEnd = std::min({ grids[level-1].Info.jSubgridEnd, grids[level-1].Info.cellCountY });
 		
 		grids[level-1].Info.kSubgridStart = 0;
 		grids[level-1].Info.kSubgridEnd = grids[level-1].Info.cellCountZ;

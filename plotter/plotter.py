@@ -35,9 +35,9 @@ def setup_plot(ax, data_array, label):
 	# Get only the fluid data (ignore solid mask for scale calculation)
     fluid_data = data_array[mask <= 0.5]
     
-    # Calculate 5th and 95th percentiles (removes 5% smallest and 5% largest)
-    vmin = np.nanpercentile(fluid_data, 5)
-    vmax = np.nanpercentile(fluid_data, 95)
+    # Calculate 5th and 95th percentiles (removes 2% smallest and 2% largest)
+    vmin = np.nanpercentile(fluid_data, 2)
+    vmax = np.nanpercentile(fluid_data, 98)
     
     # If the range is zero (constant field), default to data min/max
     if vmin == vmax:
@@ -45,6 +45,9 @@ def setup_plot(ax, data_array, label):
         
     masked_data = ma.array(data_array, mask=is_solid)
     img = ax.imshow(masked_data, origin="lower", cmap="viridis", aspect="equal")
+    # REMOVE THE FRAME (SPINES)
+    for spine in ax.spines.values():
+        spine.set_visible(False)
     img.cmap.set_bad(color="black")
     if vmin is not None: img.set_clim(vmin, vmax)
     
