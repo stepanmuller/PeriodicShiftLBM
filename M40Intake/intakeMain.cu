@@ -34,7 +34,7 @@ constexpr float soundspeedPhys = invSqrt3 * (resGlobal/1000) / dtPhysGlobal; 			
 
 #include "../STLFunctions.h"
 std::string STLPathLake = "lake.STL";
-std::string STLPathIntake = "intake.STL";
+std::string STLPathIntake = "intakeRepair.STL";
 
 __cuda_callable__ void getMarkers( 	const int& iCell, const int& jCell, const int& kCell, 
 									MarkerStruct &Marker, const InfoStruct& Info )
