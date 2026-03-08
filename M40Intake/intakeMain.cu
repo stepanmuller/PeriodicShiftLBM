@@ -78,7 +78,7 @@ __cuda_callable__ float getSmagorinskyConstant( const int  &iCell, const int &jC
 	return SmagorinskyConstantGlobal;
 }
 
-__cuda_callable__ void getInitialRhoUxUyUz( const int &iCell, const int &jCell, const int &kCell, float &rho, float &ux, float &uy, float &uz, const InfoStruct &Info )
+__cuda_callable__ void getInitialRhoUxUyUz( const int &iCell, const int &jCell, const int &kCell, float &rho, float &ux, float &uy, float &uz, const MarkerStruct &Marker, const InfoStruct &Info )
 {
 	rho = 1.f;
 	ux = 0.f;
