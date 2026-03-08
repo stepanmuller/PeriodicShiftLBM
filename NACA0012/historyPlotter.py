@@ -43,7 +43,7 @@ def plot_history(file_number):
     try:
         with open("/dev/shm/historyData.bin", "rb") as f:
             count = np.fromfile(f, dtype=np.int32, count=1)[0]
-            # Assuming the binary file now only contains the Drag Coefficient data
+            # Assuming the binary file now only contains the Lift Coefficient data
             drag_coeff = np.fromfile(f, dtype=np.float32, count=count)
     except Exception:
         return
@@ -53,18 +53,18 @@ def plot_history(file_number):
     iterations = np.arange(count)
     bbox_props = dict(boxstyle="square,pad=0.3", fc="white", ec="black", lw=1, alpha=0.8)
 
-    # --- Drag Coefficient Plot ---
+    # --- Lift Coefficient Plot ---
     ax.plot(iterations, drag_coeff, color='black', linewidth=1.2, alpha=0.7)
-    ax.set_ylabel(r"$C_D$ [1]")
+    ax.set_ylabel(r"$C_L$ [1]")
     ax.set_xlabel(r"Iteration")
-    ax.set_title(r"\textbf{Drag Coefficient History}")
+    ax.set_title(r"\textbf{Lift Coefficient History}")
     ax.grid(True, linestyle='--', alpha=0.4)
     ax.yaxis.set_major_locator(MaxNLocator(nbins=8))
     
     set_smart_ylim(ax, drag_coeff)
     
     label_cd = add_average_diagnostics(ax, iterations, drag_coeff)
-    ax.text(0.98, 0.95, f'\\textbf{{Avg $C_D$: {label_cd}}}', 
+    ax.text(0.98, 0.95, f'\\textbf{{Avg $C_L$: {label_cd}}}', 
             transform=ax.transAxes, ha='right', va='top', bbox=bbox_props)
 
     plt.tight_layout()

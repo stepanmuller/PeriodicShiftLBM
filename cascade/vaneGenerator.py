@@ -81,19 +81,7 @@ def visualizeProfile(curve_top, curve_bottom):
 	ax.set_aspect("equal")
 	plt.show()
 
-if __name__ == "__main__":
-	inputCount = len(sys.argv)
-	if inputCount < 7:
-		h = 10
-		a = 10
-		b = 3
-		l = 15
-		w = 2
-		t = 1
-		s = 15
-	else:
-		h, a, b, l, w, t, s = map(float, sys.argv[1:8])
-	parameters = [h, a, b, l, w, t, s]
+def generateVane(parameters):
 	profilePointsTop, profilePointsBottom = getProfile( parameters )
 	if inputCount < 7:
 		visualizeProfile( profilePointsTop, profilePointsBottom )
@@ -160,7 +148,21 @@ if __name__ == "__main__":
 	surface_mesh.vectors = triangles
 	filename = "vane.STL"
 	surface_mesh.save(filename)
-	print(f"Surface saved as {filename}")
-	
+	print(f"Vane saved as {filename}")
+
+if __name__ == "__main__":
+	inputCount = len(sys.argv)
 	if inputCount < 7:
-		show_stl( filename, [0] )
+		h = 10
+		a = 10
+		b = 3
+		l = 15
+		w = 2
+		t = 1
+		s = 15
+	else:
+		h, a, b, l, w, t, s = map(float, sys.argv[1:8])
+	parameters = [h, a, b, l, w, t, s]
+	generateVane(parameters)
+	if inputCount < 7:
+		show_stl( "vane.STL", [0] )

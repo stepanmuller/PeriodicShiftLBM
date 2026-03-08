@@ -1,8 +1,5 @@
-constexpr int caseID = 4;
-
-constexpr float resGlobal = 0.05f; 														// mm
-constexpr int iterationCount = 10000000;
-constexpr int iterationChunk = 100000;
+constexpr float resGlobal = 0.1f; 														// mm
+constexpr int iterationCount = 100000;
 
 constexpr float SmagorinskyConstantGlobal = 0.1f; 										// set to zero to turn off LES
 
@@ -114,21 +111,6 @@ float getAvgInletPressure( GridStruct &Grid )
 	return pAvg;
 }
 
-void exportHistoryData( const std::vector<float>& historyMassFlow, const std::vector<float>& historyEta, const int &currentIteration, int fileNumber ) {
-    FILE* fp = fopen("/dev/shm/historyData.bin", "wb");
-    if (!fp) return;
-    
-    int count = currentIteration + 1;
-    fwrite(&count, sizeof(int), 1, fp);
-    fwrite(historyMassFlow.data(), sizeof(float), count, fp);
-    fwrite(historyEta.data(), sizeof(float), count, fp); // Append the ETA array
-    fclose(fp);
-    
-    // Construct the command string to pass the number as an argument
-    std::string cmd = "python3 historyPlotter.py " + std::to_string(fileNumber) + " &";
-    system(cmd.c_str());
-}
-
 void exportHistoryData( const std::vector<float>& historyVector, const int &currentIteration, int fileNumber ) {
     FILE* fp = fopen("/dev/shm/historyData.bin", "wb");
     if (!fp) return;
@@ -141,20 +123,33 @@ void exportHistoryData( const std::vector<float>& historyVector, const int &curr
     system(cmd.c_str());
 }
 
+void writeCaseResult( const std::vector<float>& historyVector, const int caseID ) {
+	const int averagingIntervalStart = 8 * iterationCount / 10;
+	float sum = 0.f;
+	int counter = 0;
+	for ( int i = averagingIntervalStart; i < iterationCount; i++ )
+	{
+		sum += historyVector[i];
+		counter++;
+	}
+	const float result = sum / (float)counter;
+    std::ofstream outFile("optimizerResults.txt", std::ios::app);
+    outFile << caseID << "; " << result << "\n";
+    outFile.close();
+}
+
 int main(int argc, char **argv)
 {
-	const float h = 10.f;
-	const float a = 10.f;
-	const float b = 2.f;
-	const float l = 25.f;
-	const float w = 1.f;
-	const float t = 0.5f;
-	const float s = 10.f;
-	
-	std::stringstream ss;
-	ss << "python3 vaneGenerator.py " << h << " " << a << " " << b << " " << l << " " << w << " " << t << " " << s;
-	std::system(ss.str().c_str());
-	
+	int caseID = 0;
+	float h = 10.f;
+	float s = 10.f;
+    if (argc > 1) 
+    {
+		caseID = std::stoi(argv[1]);
+		h = std::stoi(argv[2]);
+		s = std::stoi(argv[3]);
+	}
+
 	STLStructCPU STLCPUVane;
 	readSTL( STLCPUVane, STLPathVane );
 	STLStruct STLVane( STLCPUVane );
@@ -166,7 +161,6 @@ int main(int argc, char **argv)
 	Grid.Info.dtPhys = dtPhysGlobal;
 	Grid.Info.nu = (Grid.Info.dtPhys * nuPhys) / ((Grid.Info.res/1000) * (Grid.Info.res/1000));
 	
-	std::cout << "Sizing domain" << std::endl;
 	Grid.Info.cellCountX = (int)( (1*s) / Grid.Info.res );
 	Grid.Info.cellCountY = (int)( (4.f * h) / Grid.Info.res );
 	Grid.Info.cellCountZ = 1;
@@ -198,29 +192,23 @@ int main(int argc, char **argv)
 		applyStreaming( Grid );
 		applyBCPeriodicX( Grid );
 		applyLocalCellUpdate( Grid );
-		
 		historyVector[iteration] = getAvgInletPressure( Grid );
-		
-		if (iteration%iterationChunk == 0 && iteration!=0)
-		{
-			lapTimer.stop();
-			auto lapTime = lapTimer.getRealTime();
-			std::cout << "Finished iteration " << iteration << std::endl;
-			const float updateCount = (float)Grid.Info.cellCount * (float)iterationChunk;
-			const float glups = updateCount / lapTime / 1000000000.f;
-			std::cout << "GLUPS: " << glups << std::endl;
-			
-			int kCut = 0;
-			const int plotNumber = 0;
-			exportSectionCutPlotXY( Grid, kCut, plotNumber );
-			system("python3 ../plotter/plotter.py");
-			
-			exportHistoryData( historyVector, iteration, caseID );
-			
-			lapTimer.reset();
-			lapTimer.start();
-		}
 	}
-	std::cout << "Finshed successfuly" << std::endl;	
+	lapTimer.stop();
+	auto lapTime = lapTimer.getRealTime();
+	std::cout << "Finished iteration " << iterationCount << std::endl;
+	const float updateCount = (float)Grid.Info.cellCount * (float)iterationCount;
+	const float glups = updateCount / lapTime / 1000000000.f;
+	std::cout << "GLUPS: " << glups << std::endl;
+	
+	int kCut = 0;
+	exportSectionCutPlotXY( Grid, kCut, caseID );
+	system("python3 ../plotter/plotter.py");
+	
+	exportHistoryData( historyVector, iterationCount, caseID );
+	
+	writeCaseResult( historyVector, caseID );
+	
+	std::cout << "Finshed case " << caseID << std::endl;	
 	return EXIT_SUCCESS;
 }

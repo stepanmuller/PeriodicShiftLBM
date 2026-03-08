@@ -390,11 +390,11 @@ void writeToFineGridInterface( GridStruct &GridCoarse, GridStruct &GridFine, con
 		float distInvY = 0.5f;
 		float distInvZ = 0.5f;
 		if ( iNbrPlus >= InfoCoarse.cellCountX ) { iNbrPlus = iCoarse; distInvX = 1.f; }
-		else if ( iNbrMinus < 0 ) { iNbrMinus = 0; distInvX = 1.f; }
+		if ( iNbrMinus < 0 ) { iNbrMinus = 0; distInvX = 1.f; }
 		if ( jNbrPlus >= InfoCoarse.cellCountY ) { jNbrPlus = jCoarse; distInvY = 1.f; }
-		else if ( jNbrMinus < 0 ) { jNbrMinus = 0; distInvY = 1.f; }
+		if ( jNbrMinus < 0 ) { jNbrMinus = 0; distInvY = 1.f; }
 		if ( kNbrPlus >= InfoCoarse.cellCountZ ) { kNbrPlus = kCoarse; distInvZ = 1.f; }
-		else if ( kNbrMinus < 0 ) { kNbrMinus = 0; distInvZ = 1.f; }
+		if ( kNbrMinus < 0 ) { kNbrMinus = 0; distInvZ = 1.f; }
 		
 		int iNeighbours[6] = { iNbrPlus, iNbrMinus, iCoarse, iCoarse, iCoarse, iCoarse };
 		int jNeighbours[6] = { jCoarse, jCoarse, jNbrPlus, jNbrMinus, jCoarse, jCoarse };
@@ -446,34 +446,50 @@ void applyCoarseFineGridCommunication( GridStruct &GridCoarse, GridStruct &GridF
 	IntTripleType end;
 	
 	// FIRST, READ FROM FINE GRID, TAKE AVERAGE, RESCALE, WRITE TO COARSE GRID
-	
 	// Start X
-	start = IntTripleType{ InfoCoarse.iSubgridStart+1, InfoCoarse.jSubgridStart+1, InfoCoarse.kSubgridStart+1 };
-	end = IntTripleType{ InfoCoarse.iSubgridStart+2, InfoCoarse.jSubgridEnd-1, InfoCoarse.kSubgridEnd-1 };
-	writeToCoarseGridInterface( GridCoarse, GridFine, start, end );
+	if ( GridCoarse.Info.iSubgridStart > 0 )
+	{
+		start = IntTripleType{ InfoCoarse.iSubgridStart+1, InfoCoarse.jSubgridStart+1, InfoCoarse.kSubgridStart+1 };
+		end = IntTripleType{ InfoCoarse.iSubgridStart+2, InfoCoarse.jSubgridEnd-1, InfoCoarse.kSubgridEnd-1 };
+		writeToCoarseGridInterface( GridCoarse, GridFine, start, end );
+	}
 	// End X
-	start = IntTripleType{ InfoCoarse.iSubgridEnd-2, InfoCoarse.jSubgridStart+1, InfoCoarse.kSubgridStart+1 };
-	end = IntTripleType{ InfoCoarse.iSubgridEnd-1, InfoCoarse.jSubgridEnd-1, InfoCoarse.kSubgridEnd-1 };
-	writeToCoarseGridInterface( GridCoarse, GridFine, start, end );
+	if ( GridCoarse.Info.iSubgridEnd < GridCoarse.Info.cellCountX-1 )
+	{
+		start = IntTripleType{ InfoCoarse.iSubgridEnd-2, InfoCoarse.jSubgridStart+1, InfoCoarse.kSubgridStart+1 };
+		end = IntTripleType{ InfoCoarse.iSubgridEnd-1, InfoCoarse.jSubgridEnd-1, InfoCoarse.kSubgridEnd-1 };
+		writeToCoarseGridInterface( GridCoarse, GridFine, start, end );
+	}
 	// Start Y
-	start = IntTripleType{ InfoCoarse.iSubgridStart+1, InfoCoarse.jSubgridStart+1, InfoCoarse.kSubgridStart+1 };
-	end = IntTripleType{ InfoCoarse.iSubgridEnd-1, InfoCoarse.jSubgridStart+2, InfoCoarse.kSubgridEnd-1 };
-	writeToCoarseGridInterface( GridCoarse, GridFine, start, end );
+	if ( GridCoarse.Info.jSubgridStart > 0 )
+	{
+		start = IntTripleType{ InfoCoarse.iSubgridStart+1, InfoCoarse.jSubgridStart+1, InfoCoarse.kSubgridStart+1 };
+		end = IntTripleType{ InfoCoarse.iSubgridEnd-1, InfoCoarse.jSubgridStart+2, InfoCoarse.kSubgridEnd-1 };
+		writeToCoarseGridInterface( GridCoarse, GridFine, start, end );
+	}
 	// End Y
-	start = IntTripleType{ InfoCoarse.iSubgridStart+1, InfoCoarse.jSubgridEnd-2, InfoCoarse.kSubgridStart+1 };
-	end = IntTripleType{ InfoCoarse.iSubgridEnd-1, InfoCoarse.jSubgridEnd-1, InfoCoarse.kSubgridEnd-1 };
-	writeToCoarseGridInterface( GridCoarse, GridFine, start, end );
+	if ( GridCoarse.Info.jSubgridEnd < GridCoarse.Info.cellCountY-1 )
+	{
+		start = IntTripleType{ InfoCoarse.iSubgridStart+1, InfoCoarse.jSubgridEnd-2, InfoCoarse.kSubgridStart+1 };
+		end = IntTripleType{ InfoCoarse.iSubgridEnd-1, InfoCoarse.jSubgridEnd-1, InfoCoarse.kSubgridEnd-1 };
+		writeToCoarseGridInterface( GridCoarse, GridFine, start, end );
+	}
 	// Start Z
-	start = IntTripleType{ InfoCoarse.iSubgridStart+1, InfoCoarse.jSubgridStart+1, InfoCoarse.kSubgridStart+1 };
-	end = IntTripleType{ InfoCoarse.iSubgridEnd-1, InfoCoarse.jSubgridEnd-1, InfoCoarse.kSubgridStart+2 };
-	writeToCoarseGridInterface( GridCoarse, GridFine, start, end );
+	if ( GridCoarse.Info.kSubgridStart > 0 )
+	{
+		start = IntTripleType{ InfoCoarse.iSubgridStart+1, InfoCoarse.jSubgridStart+1, InfoCoarse.kSubgridStart+1 };
+		end = IntTripleType{ InfoCoarse.iSubgridEnd-1, InfoCoarse.jSubgridEnd-1, InfoCoarse.kSubgridStart+2 };
+		writeToCoarseGridInterface( GridCoarse, GridFine, start, end );
+	}
 	// End Z
-	start = IntTripleType{ InfoCoarse.iSubgridStart+1, InfoCoarse.jSubgridStart+1, InfoCoarse.kSubgridEnd-2 };
-	end = IntTripleType{ InfoCoarse.iSubgridEnd-1, InfoCoarse.jSubgridEnd-1, InfoCoarse.kSubgridEnd-1 };
-	writeToCoarseGridInterface( GridCoarse, GridFine, start, end );
+	if ( GridCoarse.Info.kSubgridEnd < GridCoarse.Info.cellCountZ-1 )
+	{
+		start = IntTripleType{ InfoCoarse.iSubgridStart+1, InfoCoarse.jSubgridStart+1, InfoCoarse.kSubgridEnd-2 };
+		end = IntTripleType{ InfoCoarse.iSubgridEnd-1, InfoCoarse.jSubgridEnd-1, InfoCoarse.kSubgridEnd-1 };
+		writeToCoarseGridInterface( GridCoarse, GridFine, start, end );
+	}
 	
 	// SECOND, READ FROM COARSE GRID, INTERPOLATE, RESCALE, WRITE TO FINE GRID
-	
 	// Start X
 	if ( GridCoarse.Info.iSubgridStart > 0 )
 	{

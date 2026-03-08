@@ -1,9 +1,10 @@
-constexpr int caseID = 0;
+constexpr int caseID = 3;
+constexpr float angleOfAttack = 10.f;													// deg
 
 constexpr float chordLengthPhys = 1000.f;												// mm
-constexpr float resGlobal = 10.f; 														// mm
+constexpr float resGlobal = 1.4f; 														// mm
 constexpr float uxInlet = 0.05f; 														// also works as nominal LBM Mach number
-constexpr float reynoldsNumber = 6000000.f;
+constexpr float reynoldsNumber = 2000000.f;
 constexpr float SmagorinskyConstantGlobal = 0.1f; 										// set to zero to turn off LES
 
 constexpr float nuPhys = 1.50e-5;														// m2/s air
@@ -19,9 +20,9 @@ const int cellCountX = static_cast<int>(std::ceil(domainSizePhys / resGlobal));
 const int cellCountY = cellCountX;
 const int cellCountZ = 1;
 
-constexpr int iterationCount = 20000;
-constexpr int iterationChunk = 1000;
-constexpr int gridLevelCount = 2;
+constexpr int iterationCount = 500000;
+constexpr int iterationChunk = 10000;
+constexpr int gridLevelCount = 3;
 
 #include "../types.h"
 
@@ -72,7 +73,8 @@ __cuda_callable__ void getGivenRhoUxUyUz( 	const int& iCell, const int& jCell, c
 
 __cuda_callable__ float getSmagorinskyConstant( const int  &iCell, const int &jCell, const int &kCell, const InfoStruct &Info  )
 {
-	const float x = Info.ox + iCell * Info.res;
+	if ( Info.gridID != 0 ) return SmagorinskyConstantGlobal;
+	const float x = iCell * Info.res;
 	if ( x > domainSizePhys * 0.8f ) return 100.f;
 	else return SmagorinskyConstantGlobal;
 }
@@ -160,6 +162,9 @@ int main(int argc, char **argv)
 	STLStruct STLNACA( STLCPUNACA );
 	checkSTLEdges( STLNACA );
 	
+	float radians = - angleOfAttack * (M_PI / 180.0f);
+	rotateSTLAlongZ( STLNACA, radians );
+	
 	std::vector<GridStruct> grids(gridLevelCount);
 	// Coarse grid: Grid0
 	grids[0].Info.res = resGlobal;
@@ -197,7 +202,7 @@ int main(int argc, char **argv)
 		grids[level-1].Info.iSubgridStart = (int)((xStart - grids[level-1].Info.ox) / grids[level-1].Info.res + 0.5f);
 		grids[level-1].Info.iSubgridEnd = (int)((xEnd - grids[level-1].Info.ox) / grids[level-1].Info.res + 0.5f) + 1;
 		
-		const float yStart = (1 - progress) * grids[0].Info.oy - progress * 0.5f * chordLengthPhys;
+		const float yStart = (1 - progress) * grids[0].Info.oy - progress * 0.3f * chordLengthPhys;
 		const float yEnd = - yStart;
 		grids[level-1].Info.jSubgridStart = (int)((yStart - grids[level-1].Info.oy) / grids[level-1].Info.res + 0.5f);
 		grids[level-1].Info.jSubgridEnd = (int)((yEnd - grids[level-1].Info.oy) / grids[level-1].Info.res + 0.5f) + 1;
