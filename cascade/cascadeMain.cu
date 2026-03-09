@@ -1,9 +1,9 @@
-constexpr float resGlobal = 0.1f; 														// mm
-constexpr int iterationCount = 100000;
+constexpr float resGlobal = 0.02f; 														// mm
+constexpr int iterationCount = 1000000;
 
 constexpr float SmagorinskyConstantGlobal = 0.1f; 										// set to zero to turn off LES
 
-constexpr float uxInlet = 0.05f; 														// also works as nominal LBM Mach number
+constexpr float uxInlet = 0.01f; 														// also works as nominal LBM Mach number
 constexpr float uInletAngle = 10.f;														// degrees
 constexpr float uyInlet = (2.f * 3.14159f * uInletAngle / 360.f) * uxInlet;				// this gives incoming stream angle		
 constexpr float rhoOutlet = 1.f;
@@ -124,7 +124,7 @@ void exportHistoryData( const std::vector<float>& historyVector, const int &curr
 }
 
 void writeCaseResult( const std::vector<float>& historyVector, const int caseID ) {
-	const int averagingIntervalStart = 8 * iterationCount / 10;
+	const int averagingIntervalStart = 5 * iterationCount / 10;
 	float sum = 0.f;
 	int counter = 0;
 	for ( int i = averagingIntervalStart; i < iterationCount; i++ )
@@ -146,8 +146,8 @@ int main(int argc, char **argv)
     if (argc > 1) 
     {
 		caseID = std::stoi(argv[1]);
-		h = std::stoi(argv[2]);
-		s = std::stoi(argv[3]);
+		h = std::stof(argv[2]);
+		s = std::stof(argv[3]);
 	}
 
 	STLStructCPU STLCPUVane;
@@ -161,7 +161,7 @@ int main(int argc, char **argv)
 	Grid.Info.dtPhys = dtPhysGlobal;
 	Grid.Info.nu = (Grid.Info.dtPhys * nuPhys) / ((Grid.Info.res/1000) * (Grid.Info.res/1000));
 	
-	Grid.Info.cellCountX = (int)( (1*s) / Grid.Info.res );
+	Grid.Info.cellCountX = (int)( (5*s) / Grid.Info.res );
 	Grid.Info.cellCountY = (int)( (4.f * h) / Grid.Info.res );
 	Grid.Info.cellCountZ = 1;
 	Grid.Info.cellCount = Grid.Info.cellCountX * Grid.Info.cellCountY * Grid.Info.cellCountZ;

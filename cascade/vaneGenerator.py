@@ -83,9 +83,7 @@ def visualizeProfile(curve_top, curve_bottom):
 
 def generateVane(parameters):
 	profilePointsTop, profilePointsBottom = getProfile( parameters )
-	if inputCount < 7:
-		visualizeProfile( profilePointsTop, profilePointsBottom )
-		
+	h, a, b, l, w, thickness, s = parameters
 	width = h
 	triangleList = []
 	# Main surface top

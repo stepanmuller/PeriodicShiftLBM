@@ -24,7 +24,7 @@ ladson = np.array([
 # 1. DATA DEFINITION
 # ==========================================
 filename = "resultsAll"
-supTitle = r"\textbf{NACA 0012 Lift coefficient vs Angle of attack at $Re = 6 \times 10^6$}"
+supTitle = r"\textbf{NACA 0012 Lift coefficient vs Angle of attack at $Re = 2 \times 10^6$}"
 xLabel = r"$\alpha$ [deg]"
 yLabel = r"$C_L$ [1]"
 
@@ -52,6 +52,13 @@ xList.append(np.array([10]))
 yList.append(np.array([0.848]))
 yLegendList.append("Cumulant AllOne, c/res = 2000, LES Sm = 0.1")
 yColorList.append("purple")
+yStyleList.append("X") 
+
+# Cumulant AllOne, D/res = 2000, LES Sm 0.1
+xList.append(np.array([10]))
+yList.append(np.array([0.905]))
+yLegendList.append("Cumulant AllOne, c/res = 2857, LES Sm = 0.1")
+yColorList.append("teal")
 yStyleList.append("X") 
 
 # ==========================================
