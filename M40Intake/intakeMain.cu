@@ -1,6 +1,6 @@
 constexpr int caseID = 1;
 
-constexpr float resGlobal = 0.84f; 														// mm
+constexpr float resGlobal = 1.0f; 														// mm
 constexpr int gridLevelCount = 3;
 constexpr int iterationCount = 1000000;
 constexpr int iterationChunk = 10000;
