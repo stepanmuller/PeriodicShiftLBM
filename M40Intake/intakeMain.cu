@@ -1,13 +1,13 @@
 constexpr int caseID = 1;
 
-constexpr float resGlobal = 1.0f; 														// mm
+constexpr float resGlobal = 0.86f; 														// mm
 constexpr int gridLevelCount = 3;
 constexpr int iterationCount = 1000000;
 constexpr int iterationChunk = 10000;
 
 constexpr float SmagorinskyConstantGlobal = 0.1f; 										// set to zero to turn off LES
 
-constexpr float uzInlet = 0.05f; 														// also works as nominal LBM Mach number
+constexpr float uzInlet = 0.02f; 														// also works as nominal LBM Mach number
 constexpr float hullAngle = 0.f;														// degrees
 constexpr float uyInlet = (2.f * 3.14159f * hullAngle / 360.f) * uzInlet;				// this gives hull angle		
 constexpr float rhoOutlet = 1.000f;
@@ -33,8 +33,8 @@ constexpr float soundspeedPhys = invSqrt3 * (resGlobal/1000) / dtPhysGlobal; 			
 #include "../boundaryConditions/applyMBBC.h"
 
 #include "../STLFunctions.h"
-std::string STLPathLake = "lake.STL";
-std::string STLPathIntake = "intake.STL";
+std::string STLPathLake = "intakeCascaded.STL";
+std::string STLPathIntake = "intakeCascaded.STL";
 
 __cuda_callable__ void getMarkers( 	const int& iCell, const int& jCell, const int& kCell, 
 									MarkerStruct &Marker, const InfoStruct& Info )
