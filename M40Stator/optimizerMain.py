@@ -11,9 +11,9 @@ maximumIterations = 1000
 parameterNames = [ "gamma0", "c0", "beta0", "btoc0", "lnw0", "gamma1", "c1", "beta1", "btoc1", "lnw1", "gamma2", "c2", "beta2", "btoc2", "lnw2" ]
 parameterDefaults = 
 [	
-45, 20, 16, 0.5, 0, 
-67, 20, 3, 0.5, 0, 
-74, 20, 1, 0.5, 0
+-26, 20, -26, 0.5, 0, 
+-19, 20, -19, 0.5, 0, 
+-15, 20, -15, 0.5, 0
 ]
 parameterEnables = 
 [
@@ -22,14 +22,14 @@ True, True, True, False, False,
 True, True, True, False, False
 ]
 parameterMins = [
-0, 3.5, 0, 0.1, -3, 
-0, 5.5, 0, 0.1, -3, 
-0, 7.5, 0, 0.1, -3, 
+-90, 3.5, -90, 0.1, -3, 
+-90, 5.5, -90, 0.1, -3, 
+-90, 7.5, -90, 0.1, -3, 
 ]
 parameterMaxs = [
-90, 21, 90, 0.9, 3, 
-90, 33, 90, 0.9, 3, 
-90, 45, 90, 0.9, 3, 
+0, 21, 0, 0.9, 3, 
+0, 33, 0, 0.9, 3, 
+0, 45, 0, 0.9, 3, 
 ]
 
 parametersFile = "optimizerParameters.txt"
@@ -51,7 +51,7 @@ def launchCase(caseID, parameters):
 	parameterMatrix = np.array(parameterMatrixList).T
 	generateBlade(parameterMatrix)
 
-	command = ["./rotorMain", str(caseID)]
+	command = ["./statorMain", str(caseID)]
 	subprocess.run(
 		command, 
 		check=True, 
