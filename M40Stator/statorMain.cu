@@ -1,5 +1,5 @@
-constexpr float resGlobal = 0.2f; 														// mm
-constexpr int iterationCount = 100000;
+constexpr float resGlobal = 0.15f; 														// mm
+constexpr int iterationCount = 150000;
 
 constexpr float SmagorinskyConstantGlobal = 0.1f; 										// set to zero to turn off LES
 constexpr float SmagorinskyZoneLength = 10.f;
@@ -138,7 +138,7 @@ float getVtDeviation( GridStruct &Grid, const float &r )
 	
 	float vtSum = TNL::Algorithms::reduce<TNL::Devices::Cuda>( start, end, fetchVt, reductionVt, 0.f );
 	float vtAvg = vtSum / (float)end;
-	const float vtTarget = (1.f / (r / 1000.f)) * C;
+	const float vtTarget = 0.f; //(1.f / (r / 1000.f)) * C;
 	const float vtDeviation = abs( vtTarget - vtAvg );
 	return vtDeviation;
 }

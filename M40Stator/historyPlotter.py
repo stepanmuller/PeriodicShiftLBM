@@ -68,9 +68,9 @@ def plot_history(file_number):
             transform=ax.transAxes, ha='right', va='top', bbox=bbox_props)
 
     plt.tight_layout()
-    os.makedirs("results", exist_ok=True)
+    os.makedirs("results/history", exist_ok=True)
     filename = str(file_number) + "History.png"
-    plt.savefig("results/" + filename, dpi=300)
+    plt.savefig("results/history/" + filename, dpi=300)
     plt.close()
 
 if __name__ == "__main__":
