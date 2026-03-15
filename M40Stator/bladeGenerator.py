@@ -89,7 +89,7 @@ def visualizeProfile( profile ):
 def transformProfileTo3D( profile, R ):
 	Uz = profile[:, 0]
 	Us = profile[:, 1]
-	Ux = - R * np.sin( Us / R )
+	Ux = R * np.sin( Us / R )
 	Uy = R * np.cos( Us / R )
 	profile3D = np.array((Ux, Uy, Uz)).T
 	return profile3D

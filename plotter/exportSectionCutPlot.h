@@ -186,3 +186,117 @@ void export3DPlot( GridStruct &Grid, const int &plotNumber )
 	}
 	fclose(fp);
 }
+
+void exportSectionCutPlotToiletPaperZ( GridStruct &Grid, const float &r, const int &plotNumber )
+{
+	std::cout << "Exporting Toilet Paper Z section cut plot " << plotNumber << " at radius " << r << " mm" << std::endl;
+
+	InfoStruct Info = Grid.Info;
+	const float PI = 3.14159265359f;
+
+	// Dimensions: Horizontal is Z-axis, Vertical is the unrolled circumference (S)
+	int cellCountHorizontal = Info.cellCountZ;
+	int cellCountVertical = (int)( (2.0f * PI * r) / Info.res );
+
+	auto fArrayView = Grid.fArray.getConstView();
+	auto shifterView = Grid.shifter.getConstView();
+	bool useBouncebackArray = ( Grid.bouncebackMarkerArray.getSize() > 0 );
+	auto bouncebackMarkerArrayView = Grid.bouncebackMarkerArray.getConstView();
+
+	SectionCutStruct SectionCut;
+	SectionCut.rhoArray.setSizes( cellCountVertical, cellCountHorizontal );
+	SectionCut.uxArray.setSizes( cellCountVertical, cellCountHorizontal );
+	SectionCut.uyArray.setSizes( cellCountVertical, cellCountHorizontal );
+	SectionCut.uzArray.setSizes( cellCountVertical, cellCountHorizontal );
+	SectionCut.markerArray.setSizes( cellCountVertical, cellCountHorizontal );
+
+	auto rhoArrayView = SectionCut.rhoArray.getView();
+	auto uxArrayView = SectionCut.uxArray.getView();
+	auto uyArrayView = SectionCut.uyArray.getView();
+	auto uzArrayView = SectionCut.uzArray.getView();
+	auto markerArrayView = SectionCut.markerArray.getView();
+
+	auto cellLambda = [=] __cuda_callable__ ( const IntPairType& doubleIndex ) mutable
+	{
+		const int indexVertical = doubleIndex[1]; // Vertical (Circumference)
+		const int indexHorizontal = doubleIndex[0]; // Horizontal (Z-axis)
+
+		// 1. Calculate the angle theta based on the unrolled distance S
+		float s = (float)indexVertical * Info.res;
+		float theta = s / r;
+
+		// 2. Map polar to Cartesian
+		const float x = r * cosf(theta);
+		const float y = r * sinf(theta);
+		const float zTemp = 0.f;
+		
+		int iCell, jCell, kCell;
+		getIJKCellIndexFromXYZ( iCell, jCell, kCell, x, y, zTemp, Info);
+		kCell = indexHorizontal;
+
+		int cell;
+		getCellIndex( cell, iCell, jCell, kCell, Info );
+		
+		int shiftedIndex[27];
+		getShiftedIndex( cell, shiftedIndex, shifterView, Info );
+		
+		float f[27];
+		for (int direction = 0; direction < 27; direction++) f[direction] = fArrayView( direction, shiftedIndex[direction] );	
+		
+		float rho, ux, uy, uz;
+		getRhoUxUyUz(rho, ux, uy, uz, f);
+		
+		MarkerStruct Marker;
+		if ( useBouncebackArray ) Marker.bounceback = bouncebackMarkerArrayView( cell );
+		getMarkers( iCell, jCell, kCell, Marker, Info );
+
+		rhoArrayView( indexVertical, indexHorizontal ) = rho;
+		uxArrayView( indexVertical, indexHorizontal ) = ux;
+		uyArrayView( indexVertical, indexHorizontal ) = uy;
+		uzArrayView( indexVertical, indexHorizontal ) = uz;
+		markerArrayView( indexVertical, indexHorizontal ) = Marker.bounceback;
+	};
+
+	IntPairType start{ 0, 0 };
+	IntPairType end{ cellCountHorizontal, cellCountVertical };
+	TNL::Algorithms::parallelFor<TNL::Devices::Cuda>(start, end, cellLambda );
+
+	// Copy to CPU and save to binary file
+	SectionCutStructCPU SectionCutCPU;
+	SectionCutCPU.rhoArray = SectionCut.rhoArray;
+	SectionCutCPU.uxArray = SectionCut.uxArray;
+	SectionCutCPU.uyArray = SectionCut.uyArray;
+	SectionCutCPU.uzArray = SectionCut.uzArray;
+	SectionCutCPU.markerArray = SectionCut.markerArray;
+
+	FILE* fp = fopen("/dev/shm/sim_data.bin", "wb");
+	int header[4] = {plotNumber, cellCountVertical, cellCountHorizontal, 5};
+	fwrite(header, sizeof(int), 4, fp);
+
+	for (int indexVertical = 0; indexVertical < cellCountVertical; indexVertical++)
+	{
+		for (int indexHorizontal = 0; indexHorizontal < cellCountHorizontal; indexHorizontal++)
+		{
+			float rho = SectionCutCPU.rhoArray.getElement(indexVertical, indexHorizontal);
+			float ux = SectionCutCPU.uxArray.getElement(indexVertical, indexHorizontal);
+			float uy = SectionCutCPU.uyArray.getElement(indexVertical, indexHorizontal);
+			float uz = SectionCutCPU.uzArray.getElement(indexVertical, indexHorizontal);
+			float marker = SectionCutCPU.markerArray.getElement(indexVertical, indexHorizontal);
+			
+			float p = rho;
+			convertToPhysicalVelocity( ux, uy, uz, Info );
+			convertToPhysicalPressure( p, Info );
+
+			// Velocity Mapping: 
+			// In the "unrolled" plot, Horizontal velocity is Uz.
+			// Vertical velocity is the tangential velocity (u_theta).
+			float theta = ((float)indexVertical * Info.res) / r;
+			float uTangential = -ux * sinf(theta) + uy * cosf(theta);
+			float uRadial = ux * cosf(theta) + uy * sinf(theta);
+
+			float data[5] = {p, uz, uTangential, uRadial, marker};
+			fwrite(data, sizeof(float), 5, fp);
+		}
+	}
+	fclose(fp);
+}

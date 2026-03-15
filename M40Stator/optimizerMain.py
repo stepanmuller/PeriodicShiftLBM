@@ -9,14 +9,12 @@ from bladeGenerator import *
 maximumIterations = 1000
 
 parameterNames = [ "gamma0", "c0", "beta0", "btoc0", "lnw0", "gamma1", "c1", "beta1", "btoc1", "lnw1", "gamma2", "c2", "beta2", "btoc2", "lnw2" ]
-parameterDefaults = 
-[	
+parameterDefaults = [	
 -26, 20, -26, 0.5, 0, 
 -19, 20, -19, 0.5, 0, 
 -15, 20, -15, 0.5, 0
 ]
-parameterEnables = 
-[
+parameterEnables = [
 True, True, True, False, False, 
 True, True, True, False, False, 
 True, True, True, False, False

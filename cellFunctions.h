@@ -36,6 +36,13 @@ __cuda_callable__ void getIJKCellIndexFromXYZ( int& iCell, int& jCell, int& kCel
     kCell = (int)(( z - Info.oz ) / Info.res + 0.5f);
 }
 
+__cuda_callable__ void getXYZFromIJKCellIndex( const int& iCell, const int& jCell, const int& kCell, float &x, float &y, float &z, const InfoStruct &Info)
+{
+    x = iCell * Info.res + Info.ox;
+    y = jCell * Info.res + Info.oy;
+    z = kCell * Info.res + Info.oz;
+}
+
 __cuda_callable__ void getShiftedIndex( const int& cell, int (&shiftedIndex)[27], IntArrayConstViewType shifterView, const InfoStruct &Info )
 {
     for ( int direction = 0; direction < 27; direction++ ) 
