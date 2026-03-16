@@ -1,5 +1,5 @@
-constexpr float resGlobal = 0.15f; 														// mm
-constexpr int iterationCount = 150000;
+constexpr float resGlobal = 0.1f; 														// mm
+constexpr int iterationCount = 200000;
 
 constexpr float SmagorinskyConstantGlobal = 0.1f; 										// set to zero to turn off LES
 constexpr float SmagorinskyZoneLength = 10.f;
@@ -309,7 +309,8 @@ int main(int argc, char **argv)
 		vtDeviation = vtDeviation / counter;
 		float pLoss = getPLoss( Grid );
 		
-		float F = log(1 + vtDeviation) + log(1 + std::max({0.f, pLoss}));
+		//float F = log(1 + vtDeviation) + log(1 + std::max({0.f, pLoss}));
+		float F = pLoss;
 		historyVector[iteration] = F;
 		
 		if ( iteration > 0 && iteration % iterationChunk == 0) exportHistoryData( historyVector, iteration, caseID );

@@ -178,19 +178,10 @@ def generateBlade(parameterMatrix):
 	surface_mesh.save("blade.STL")
 
 if __name__ == "__main__":
+	
 	gamma = [45, 67, 74]
 	c = [20, 20, 20]
 	beta = [16, 3, 1]
-	b = [10, 10, 10]
-	w = [1, 1, 1]
-	parameterMatrixList = [gamma, c, beta, b, w]
-	parameterMatrix = np.array(parameterMatrixList).T
-	generateBlade(parameterMatrix)
-	visualizeSTL( "blade.STL" )
-	
-	gamma = [-3.5, -19, -15]
-	c = [20, 26.875, 38.75]
-	beta = [-3.5, -41.5, -37.5]
 	b = [10, 10, 10]
 	w = [1, 1, 1]
 	parameterMatrixList = [gamma, c, beta, b, w]

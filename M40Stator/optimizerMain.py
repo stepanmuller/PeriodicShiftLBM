@@ -8,11 +8,13 @@ from bladeGenerator import *
 
 maximumIterations = 1000
 
+-3.5; 15.625; -14.75; 0.5; 0.0; -19.0; 26.875; -41.5; 0.5; 0.0; -3.75; 24.6875; -37.5; 0.5; 0.0
+
 parameterNames = [ "gamma0", "c0", "beta0", "btoc0", "lnw0", "gamma1", "c1", "beta1", "btoc1", "lnw1", "gamma2", "c2", "beta2", "btoc2", "lnw2" ]
 parameterDefaults = [	
--26, 20, -26, 0.5, 0, 
--19, 20, -19, 0.5, 0, 
--15, 20, -15, 0.5, 0
+-3.5, 15.625, -14.75, 0.5, 0, 
+-19, 26.875, -41.5, 0.5, 0, 
+-3.75, 24.6875, -37.5, 0.5, 0
 ]
 parameterEnables = [
 True, True, True, False, False, 
