@@ -313,7 +313,7 @@ int main(int argc, char **argv)
 		float F = pLoss;
 		historyVector[iteration] = F;
 		
-		if ( iteration > 0 && iteration % iterationChunk == 0) exportHistoryData( historyVector, iteration, caseID );
+		if ( iteration > 0 && iteration % iterationChunk == 0) exportHistoryData( historyVector, iteration, 0 );
 	}
 	lapTimer.stop();
 	auto lapTime = lapTimer.getRealTime();
@@ -325,12 +325,12 @@ int main(int argc, char **argv)
 	int counter = 1;
 	for (float r = RIn + 1.f; r < ROut; r = r + 1.f) 
 	{
-		exportSectionCutPlotToiletPaperZ( Grid, r, 10*caseID + counter );
+		exportSectionCutPlotToiletPaperZ( Grid, r, 10*0 + counter );
 		system("python3 ../plotter/plotter.py");
 		counter++;
 	}
 	
-	exportHistoryData( historyVector, iterationCount, caseID );
+	exportHistoryData( historyVector, iterationCount, 0 );
 	
 	if (argc > 1) 
     {
