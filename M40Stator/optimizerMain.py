@@ -161,7 +161,7 @@ def getSmartCandidate(allCases, resultDict, bestParameters, activeIndexList, par
 
 # Main Optimization Loop
 for iteration in range(maximumIterations):
-	
+	print()
 	# 1. Initialize parameters file if it doesn't exist
 	if not os.path.exists(parametersFile):
 		print(f"Creating {parametersFile}")
