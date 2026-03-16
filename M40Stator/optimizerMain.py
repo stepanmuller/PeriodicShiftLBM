@@ -6,7 +6,7 @@ from matplotlib import pyplot as plt
 from stl import mesh
 from bladeGenerator import *
 
-maximumIterations = 1000
+maximumIterations = 10000
 
 -3.5; 15.625; -14.75; 0.5; 0.0; -19.0; 26.875; -41.5; 0.5; 0.0; -3.75; 24.6875; -37.5; 0.5; 0.0
 
@@ -17,9 +17,9 @@ parameterDefaults = [
 -3.75, 24.6875, -37.5, 0.5, 0
 ]
 parameterEnables = [
-True, True, True, False, False, 
-True, True, True, False, False, 
-True, True, True, False, False
+True, True, True, True, False, 
+True, True, True, True, False, 
+True, True, True, True, False
 ]
 parameterMins = [
 -90, 3.5, -90, 0.1, -3, 
@@ -86,6 +86,79 @@ def isDuplicate(newParameters, allCases, stepSize):
 			return True
 	return False
 
+def getSmartCandidate(allCases, resultDict, bestParameters, activeIndexList, parameterMins, parameterMaxs, parameterNames):
+    stepSize = 0.25
+    
+    while True:
+        candidates = []
+        
+        # 1. Generate and score all possible candidates for the current stepSize
+        for index in activeIndexList:
+            delta = stepSize * (parameterMaxs[index] - parameterMins[index])
+            
+            for direction in [-1, 1]: # -1 for MINUS, 1 for PLUS
+                candidate = list(bestParameters)
+                candidate[index] += direction * delta
+                
+                # Check bounds
+                if candidate[index] < parameterMins[index] or candidate[index] > parameterMaxs[index]:
+                    continue
+                    
+                # Check uniqueness (assuming your isDuplicate function exists)
+                if isDuplicate(candidate, allCases, stepSize):
+                    continue
+                
+                # 2. Evaluate historical success for this specific parameter change
+                pCandidate = candidate[index]
+                threshold = 0.51 * delta
+                
+                historical_Fs = []
+                for past_case in allCases:
+                    past_caseID = int(past_case[0])
+                    # Ensure the case actually finished and has an F value
+                    if past_caseID not in resultDict:
+                        continue 
+                        
+                    past_p = float(past_case[1+index])
+                    
+                    # If the past record had this parameter near pCandidate
+                    if abs(past_p - pCandidate) <= threshold:
+                        historical_Fs.append(float(resultDict[past_caseID]))
+                
+                # 3. Assign priority score
+                if not historical_Fs:
+                    # Priority 0: No historical data at all -> Test this first
+                    score = (0, 0.0) 
+                else:
+                    # Priority 1: Has history -> Rank by the best (minimum) F found
+                    score = (1, min(historical_Fs))
+                    
+                candidates.append((score, candidate, index, direction))
+        
+        # 4. Sort and select the best candidate
+        if candidates:
+            # Python sorts tuples element-by-element. 
+            # It will group by Priority (0 then 1), then sort by the lowest F within Priority 1.
+            candidates.sort(key=lambda x: x[0])
+            
+            best_score, best_candidate, best_index, best_dir = candidates[0]
+            
+            dir_str = "PLUS" if best_dir == 1 else "MINUS"
+            history_str = "Unexplored" if best_score[0] == 0 else f"Explored (Best past F: {best_score[1]})"
+            
+            print(f"New parameters found at step size {stepSize}, changing {parameterNames[best_index]} ({dir_str}) to {best_candidate[best_index]}.")
+            print(f" -> Reason: {history_str}")
+            
+            return best_candidate
+            
+        # 5. If NO candidates were valid/unique across all active indices, halve the scale
+        stepSize *= 0.5
+        
+        # Optional: Safety break to prevent infinite loops if the space is completely exhausted
+        if stepSize < 1e-6:
+            print("Step size diminished to zero. Optimization exhausted.")
+            return None
+
 # Main Optimization Loop
 for iteration in range(maximumIterations):
 	
@@ -137,35 +210,16 @@ for iteration in range(maximumIterations):
 				
 	print(f"Best case ID = {bestCaseID}, (F = {bestF})")
 	
-	# 6. Generate Candidates
-	stepSize = 0.25
-	newParameters = None
-	
-	while newParameters is None:
-		for index in activeIndexList:
-			delta = stepSize * (parameterMaxs[index] - parameterMins[index])
-			
-			# Try MINUS direction
-			candidateMinus = list(bestParameters)
-			candidateMinus[index] -= delta
-			if candidateMinus[index] >= parameterMins[index]:
-				if not isDuplicate(candidateMinus, allCases, stepSize):
-					newParameters = candidateMinus
-					print(f"New parameters found at step size {stepSize}, changing {parameterNames[index]} from {bestParameters[index]} to {newParameters[index]}")
-					break
-					
-			# Try PLUS direction
-			candidatePlus = list(bestParameters)
-			candidatePlus[index] += delta
-			if candidatePlus[index] <= parameterMaxs[index]:
-				if not isDuplicate(candidatePlus, allCases, stepSize):
-					newParameters = candidatePlus
-					print(f"New parameters found at step size {stepSize}, changing {parameterNames[index]} from {bestParameters[index]} to {newParameters[index]}")
-					break
-					
-		# If no candidates were valid/unique at this scale, halve it
-		if newParameters is None:
-			stepSize *= 0.5
+	# 6. Generate Candidates (Smart Coordinate Descent)
+	newParameters = get_smart_candidate(
+		allCases=allCases, 
+		resultDict=resultDict, 
+		bestParameters=bestParameters, 
+		activeIndexList=activeIndexList, 
+		parameterMins=parameterMins, 
+		parameterMaxs=parameterMaxs, 
+		parameterNames=parameterNames
+	)
 
 	# 7. Write and launch new case		
 	newCaseID = int(allCases[-1][0]) + 1

@@ -1,5 +1,5 @@
-constexpr float resGlobal = 0.1f; 														// mm
-constexpr int iterationCount = 200000;
+constexpr float resGlobal = 0.3f; 														// mm
+constexpr int iterationCount = 50000;
 
 constexpr float SmagorinskyConstantGlobal = 0.1f; 										// set to zero to turn off LES
 constexpr float SmagorinskyZoneLength = 10.f;
@@ -19,7 +19,7 @@ constexpr float ROut = 15.f;															// mm
 constexpr float C = 0.092784f;															// m2/s
 constexpr int bladeCount = 5;
 
-constexpr int iterationChunk = 10000;
+constexpr int iterationChunk = 25000;
 
 #include "../types.h"
 
@@ -229,7 +229,7 @@ void exportHistoryData( const std::vector<float>& historyVector, const int &curr
 }
 
 void writeCaseResult( const std::vector<float>& historyVector, const int caseID ) {
-	const int averagingIntervalStart = 7 * iterationCount / 10;
+	const int averagingIntervalStart = (iterationCount / 10 * 7);
 	float sum = 0.f;
 	int counter = 0;
 	for ( int i = averagingIntervalStart; i < iterationCount; i++ )
