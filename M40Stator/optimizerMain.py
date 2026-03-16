@@ -211,7 +211,7 @@ for iteration in range(maximumIterations):
 	print(f"Best case ID = {bestCaseID}, (F = {bestF})")
 	
 	# 6. Generate Candidates (Smart Coordinate Descent)
-	newParameters = get_smart_candidate(
+	newParameters = getSmartCandidate(
 		allCases=allCases, 
 		resultDict=resultDict, 
 		bestParameters=bestParameters, 
