@@ -1,0 +1,17 @@
+Goal:
+	Build a directly adressed carthesian mesh that is refined around walls with any number of refinement levels
+	This means to setup the following data structure:
+	For each grid level:
+		int cellCount
+		int refinementLevel
+			0 = finest
+		float res
+		float ox, oy, oz
+		int iArray, jArray, kArray
+			This gives position in space as x = ox + i*res, cell [0, 0, 0] has the center placed on [ox, oy, oz]
+		int iNbrArray, jNbrArray, kNbrArray
+			This gives cell index of the neighbour cell that is located +1 from our cell on the respective axis
+		int coarseCprArray
+			This gives cell index of the counterpart cell on the coarser level
+		int fineCprArray
+			This gives cell index of the counterpart cell on the finer level. There are 8 of them so this gives the cell with lowest ijk
