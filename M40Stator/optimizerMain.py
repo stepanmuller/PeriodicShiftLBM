@@ -87,7 +87,7 @@ def isDuplicate(newParameters, allCases, stepSize):
 	return False
 
 def getSmartCandidate(allCases, resultDict, bestParameters, activeIndexList, parameterMins, parameterMaxs, parameterNames):
-    stepSize = 0.25
+    stepSize = 0.125
     
     while True:
         candidates = []

@@ -1,5 +1,5 @@
-constexpr float resGlobal = 0.3f; 														// mm
-constexpr int iterationCount = 50000;
+constexpr float resGlobal = 0.15f; 														// mm
+constexpr int iterationCount = 150000;
 
 constexpr float SmagorinskyConstantGlobal = 0.1f; 										// set to zero to turn off LES
 constexpr float SmagorinskyZoneLength = 10.f;
