@@ -1,7 +1,7 @@
 constexpr float channelLengthPhys = 2000.f;												// mm
 constexpr float channelWidthPhys = 1000.f;												// mm
 constexpr float resGlobal = 5.f; 														// mm
-constexpr float uxInlet = 0.05f; 														// also works as nominal LBM Mach number
+constexpr float uxInlet = 0.05f;														// also works as nominal LBM Mach number
 constexpr float reynoldsNumber = 1000000.f;
 constexpr float SmagorinskyConstantGlobal = 0.1f; 										// set to zero to turn off LES
 

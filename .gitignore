@@ -1,3 +1,17 @@
+# 1. Ignore absolutely everything to stop giting executables
+*
+
+# 2. Un-ignore directories
+!*/
+
+# 3. Un-ignore all files that have an extension
+!*.*
+
+# 4. Un-ignore specific extensionless files
+!Makefile
+
+# 5. reignore compiled files (because Step 3 just let them back in)
+
 # Prerequisites
 *.d
 
@@ -27,12 +41,13 @@
 *.a
 *.lib
 
-# Executables
+# Executables with extensions
 *.exe
 *.out
 *.app
-*.png
-*.png
-*.png
-flowAroundSphere/results/000_description.txt
+
+# Python compiled files
 *.pyc
+
+# Specific files you wanted to ignore
+*.png
