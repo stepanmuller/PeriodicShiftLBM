@@ -51,3 +51,5 @@
 
 # Specific files you wanted to ignore
 *.png
+__pycache__
+*.pyc
