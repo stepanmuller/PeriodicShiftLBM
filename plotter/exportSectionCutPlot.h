@@ -151,7 +151,7 @@ void exportSectionCutPlotGeneral( GridStruct &Grid, ScalarTransportStruct &Scala
 		for (int direction = 0; direction < 27; direction++) T[direction] = TArrayView( direction, shiftedIndex[direction] );	
 		float rho, ux, uy, uz, scalarTransport;
 		getRhoUxUyUz(rho, ux, uy, uz, f);
-		getScalarTransport(f, T);
+		getScalarTransport(scalarTransport, f, T);
 		MarkerStruct Marker;
 		if ( useBouncebackArray ) Marker.bounceback = bouncebackMarkerArrayView( cell );
 		getMarkers( iCell, jCell, kCell, Marker, Info );
@@ -161,6 +161,7 @@ void exportSectionCutPlotGeneral( GridStruct &Grid, ScalarTransportStruct &Scala
 		uyArrayView( indexVertical, indexHorizontal ) = uy;
 		uzArrayView( indexVertical, indexHorizontal ) = uz;
 		markerArrayView( indexVertical, indexHorizontal ) = marker;
+		scalarTransportArrayView( indexVertical, indexHorizontal ) = scalarTransport;
 	};
 	IntPairType start{ 0, 0 };
 	IntPairType end{ cellCountHorizontal, cellCountVertical };
@@ -172,9 +173,10 @@ void exportSectionCutPlotGeneral( GridStruct &Grid, ScalarTransportStruct &Scala
 	SectionCutCPU.uyArray = SectionCut.uyArray;
 	SectionCutCPU.uzArray = SectionCut.uzArray;
 	SectionCutCPU.markerArray = SectionCut.markerArray;
+	SectionCutCPU.scalarTransportArray = SectionCut.scalarTransportArray;
 	
 	FILE* fp = fopen("/dev/shm/sim_data.bin", "wb"); 	// Use /dev/shm/ for a pure RAM-based "file" on Linux
-	int header[4] = {plotNumber, (int)cellCountVertical, (int)cellCountHorizontal, 5};
+	int header[4] = {plotNumber, (int)cellCountVertical, (int)cellCountHorizontal, 6};
 	fwrite(header, sizeof(int), 4, fp);
 	
 	for (int indexVertical = 0; indexVertical < cellCountVertical; indexVertical++)
@@ -186,6 +188,7 @@ void exportSectionCutPlotGeneral( GridStruct &Grid, ScalarTransportStruct &Scala
 			float uy = SectionCutCPU.uyArray.getElement(indexVertical, indexHorizontal);
 			float uz = SectionCutCPU.uzArray.getElement(indexVertical, indexHorizontal);
 			float marker = SectionCutCPU.markerArray.getElement(indexVertical, indexHorizontal);
+			float scalarTransport = SectionCutCPU.scalarTransportArray.getElement(indexVertical, indexHorizontal);
 			float p = rho;
 			convertToPhysicalVelocity( ux, uy, uz, Info );
 			convertToPhysicalPressure( p, Info );
@@ -193,8 +196,8 @@ void exportSectionCutPlotGeneral( GridStruct &Grid, ScalarTransportStruct &Scala
 			if ( plane == XY ) 		{ uHorizontal = ux; uVertical = uy; uNormal = uz; }
 			else if ( plane == ZY ) { uHorizontal = uz; uVertical = uy; uNormal = ux; }
 			else 					{ uHorizontal = uz; uVertical = ux; uNormal = uy; }
-			float data[5] = {p, uHorizontal, uVertical, uNormal, marker};
-			fwrite(data, sizeof(float), 5, fp);
+			float data[6] = {p, uHorizontal, uVertical, uNormal, marker, scalarTransport};
+			fwrite(data, sizeof(float), 6, fp);
 		}
 	}
 	fclose(fp);

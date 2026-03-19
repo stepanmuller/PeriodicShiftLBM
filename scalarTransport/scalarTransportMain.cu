@@ -90,6 +90,48 @@ __cuda_callable__ void getInitialRhoUxUyUz( const int &iCell, const int &jCell, 
 #include "../plotter/exportSectionCutPlot.h"
 #include "../fillEquilibrium.h"
 
+void applyZeroGradientOutletScalarTransportBC( GridStruct &Grid, ScalarTransportStruct &ScalarTransport )
+{
+	InfoStruct Info = Grid.Info;	
+	auto shifterView  = Grid.shifter.getConstView();
+	bool useBouncebackArray = ( Grid.bouncebackMarkerArray.getSize() > 0 );
+	auto bouncebackMarkerArrayView = Grid.bouncebackMarkerArray.getConstView();
+	auto TArrayView = ScalarTransport.TArray.getView();
+	
+	auto cellLambda = [=] __cuda_callable__ ( const IntTripleType& tripleIndex ) mutable
+	{
+		const int iCellWrite = tripleIndex[0];
+		const int jCell = tripleIndex[1];
+		const int kCell = tripleIndex[2];
+		int cellWrite;
+		getCellIndex( cellWrite, iCellWrite, jCell, kCell, Info );
+		const int iCellRead = iCellWrite - 1;
+		int cellRead;
+		getCellIndex( cellRead, iCellRead, jCell, kCell, Info );
+		
+		int shiftedIndexWrite[27];
+		getShiftedIndex( cellWrite, shiftedIndexWrite, shifterView, Info );
+		int shiftedIndexRead[27];
+		getShiftedIndex( cellRead, shiftedIndexRead, shifterView, Info );
+		
+		MarkerStruct Marker;
+		if ( useBouncebackArray ) Marker.bounceback = bouncebackMarkerArrayView( cellWrite );
+		getMarkers( iCellWrite, jCell, kCell, Marker, Info );
+		if ( Marker.bounceback ) return;
+		else
+		{
+			float T[27];
+			for ( int direction = 0; direction < 27; direction++ )	T[direction] = TArrayView(direction, shiftedIndexRead[direction]);
+			for ( int direction = 0; direction < 27; direction++ )	TArrayView(direction, shiftedIndexWrite[direction]) = T[direction];
+		}
+	};
+	IntTripleType start; 
+	IntTripleType end;
+	start = IntTripleType{ Info.cellCountX-1, 0, 0 };
+	end = IntTripleType{ Info.cellCountX, Info.cellCountY, Info.cellCountZ };
+	TNL::Algorithms::parallelFor<TNL::Devices::Cuda>(start, end, cellLambda );
+}
+
 int main(int argc, char **argv)
 {
 	GridStruct Grid;
@@ -118,6 +160,7 @@ int main(int argc, char **argv)
 	for (int iteration=0; iteration<=iterationCount; iteration++)
 	{
 		applyStreaming(Grid);
+		applyZeroGradientOutletScalarTransportBC( Grid, ScalarTransport );
 		applyLocalCellUpdate(Grid, ScalarTransport);
 		
 		if (iteration%iterationChunk == 0 && iteration!=0)
@@ -131,8 +174,8 @@ int main(int argc, char **argv)
 			std::cout << "GLUPS: " << glups << std::endl;
 			
 			const int kCut = Grid.Info.cellCountZ / 2;
-			exportSectionCutPlotXY( Grid, kCut, iteration );
-			system("python3 ../plotter/plotter.py");
+			exportSectionCutPlotXY( Grid, ScalarTransport, kCut, iteration );
+			system("python3 ../plotter/plotterScalarTransport.py");
 			
 			lapTimer.reset();
 			lapTimer.start();

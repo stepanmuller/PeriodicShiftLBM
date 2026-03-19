@@ -234,3 +234,12 @@ __cuda_callable__ void convertToPhysicalForce( float &gx, float &gy, float &gz, 
 	gy = gy * rhoNominalPhys * (Info.res/1000.f) * (Info.res/1000.f) * (Info.res/1000.f) * (Info.res/1000.f) / (Info.dtPhys * Info.dtPhys);
 	gz = gz * rhoNominalPhys * (Info.res/1000.f) * (Info.res/1000.f) * (Info.res/1000.f) * (Info.res/1000.f) / (Info.dtPhys * Info.dtPhys);
 }
+
+__cuda_callable__ void getScalarTransport( float &scalarTransport, const float (&f)[27], const float (&T)[27] )
+{
+	float fSum = 0.f;
+	for ( int direction = 0; direction < 27; direction++ ) fSum += f[direction];
+	scalarTransport = 0.f;
+	for ( int direction = 0; direction < 27; direction++ ) scalarTransport += f[direction] * T[direction];
+	scalarTransport = scalarTransport / fSum;
+}
