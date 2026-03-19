@@ -1,8 +1,8 @@
 constexpr float channelLengthPhys = 2000.f;												// mm
 constexpr float channelWidthPhys = 1000.f;												// mm
-constexpr float resGlobal = 10.f; 														// mm
+constexpr float resGlobal = 5.f; 														// mm
 constexpr float uxInlet = 0.05f; 														// also works as nominal LBM Mach number
-constexpr float reynoldsNumber = 100000.f;
+constexpr float reynoldsNumber = 1000000.f;
 constexpr float SmagorinskyConstantGlobal = 0.1f; 										// set to zero to turn off LES
 
 constexpr float nuPhys = 1.50e-5;														// m2/s air
@@ -12,7 +12,7 @@ constexpr float dtPhysGlobal = (uxInlet / uxInletPhys) * (resGlobal/1000); 				/
 constexpr float invSqrt3 = 0.577350269f; 
 constexpr float soundspeedPhys = invSqrt3 * (resGlobal/1000) / dtPhysGlobal; 			// m/s
 
-constexpr float scalarTransportDiffusivity = 0.1f; 										// dimensionless for now
+constexpr float scalarTransportDiffusivity = 0.01f; 									// dimensionless for now
 constexpr float TInlet = 1.f;
 
 const int cellCountX = static_cast<int>(std::ceil(channelLengthPhys / resGlobal));
@@ -22,20 +22,20 @@ const int cellCountZ = static_cast<int>(std::ceil(channelWidthPhys / resGlobal))
 constexpr int iterationCount = 20000;
 constexpr int iterationChunk = 1000;
 
-#include "../types.h"
+#include "../include/types.h"
 
-#include "../cellFunctions.h"
-#include "../applyStreaming.h"
-#include "../applyCollision.h"
+#include "../include/cellFunctions.h"
+#include "../include/applyStreaming.h"
+#include "../include/applyCollision.h"
 
-#include "../scalarTransportFunctions.h"
+#include "../include/scalarTransportFunctions.h"
 
-#include "../boundaryConditions/applyBounceback.h"
-#include "../boundaryConditions/applyMirror.h"
-#include "../boundaryConditions/restoreRho.h"
-#include "../boundaryConditions/restoreUxUyUz.h"
-#include "../boundaryConditions/restoreRhoUxUyUz.h"
-#include "../boundaryConditions/applyMBBC.h"
+#include "../include/boundaryConditions/applyBounceback.h"
+#include "../include/boundaryConditions/applyMirror.h"
+#include "../include/boundaryConditions/restoreRho.h"
+#include "../include/boundaryConditions/restoreUxUyUz.h"
+#include "../include/boundaryConditions/restoreRhoUxUyUz.h"
+#include "../include/boundaryConditions/applyMBBC.h"
 
 __cuda_callable__ void getMarkers( 	const int& iCell, const int& jCell, const int& kCell, 
 									MarkerStruct &Marker, const InfoStruct& Info )
@@ -74,7 +74,8 @@ __cuda_callable__ void getGivenT( 	const int& iCell, const int& jCell, const int
 
 __cuda_callable__ float getSmagorinskyConstant( const int  &iCell, const int &jCell, const int &kCell, const InfoStruct &Info  )
 {
-	return SmagorinskyConstantGlobal;
+	if ( iCell > Info.cellCountX / 20 ) return 1.f;
+	else return SmagorinskyConstantGlobal;
 }
 
 __cuda_callable__ void getInitialRhoUxUyUz( const int &iCell, const int &jCell, const int &kCell, float &rho, float &ux, float &uy, float &uz, const MarkerStruct &Marker, const InfoStruct &Info )
@@ -86,9 +87,9 @@ __cuda_callable__ void getInitialRhoUxUyUz( const int &iCell, const int &jCell, 
 	uz = 0.f;
 }
 
-#include "../applyLocalCellUpdate.h"
-#include "../plotter/exportSectionCutPlot.h"
-#include "../fillEquilibrium.h"
+#include "../include/applyLocalCellUpdate.h"
+#include "../include/plotter/exportSectionCutPlot.h"
+#include "../include/fillEquilibrium.h"
 
 void applyZeroGradientOutletScalarTransportBC( GridStruct &Grid, ScalarTransportStruct &ScalarTransport )
 {
@@ -175,7 +176,7 @@ int main(int argc, char **argv)
 			
 			const int kCut = Grid.Info.cellCountZ / 2;
 			exportSectionCutPlotXY( Grid, ScalarTransport, kCut, iteration );
-			system("python3 ../plotter/plotterScalarTransport.py");
+			system("python3 ../include/plotter/plotterScalarTransport.py");
 			
 			lapTimer.reset();
 			lapTimer.start();

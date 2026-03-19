@@ -24,20 +24,20 @@ constexpr int iterationCount = 500000;
 constexpr int iterationChunk = 10000;
 constexpr int gridLevelCount = 3;
 
-#include "../types.h"
+#include "../include/types.h"
 
-#include "../cellFunctions.h"
-#include "../applyStreaming.h"
-#include "../applyCollision.h"
+#include "../include/cellFunctions.h"
+#include "../include/applyStreaming.h"
+#include "../include/applyCollision.h"
 
-#include "../boundaryConditions/applyBounceback.h"
-#include "../boundaryConditions/applyMirror.h"
-#include "../boundaryConditions/restoreRho.h"
-#include "../boundaryConditions/restoreUxUyUz.h"
-#include "../boundaryConditions/restoreRhoUxUyUz.h"
-#include "../boundaryConditions/applyMBBC.h"
+#include "../include/boundaryConditions/applyBounceback.h"
+#include "../include/boundaryConditions/applyMirror.h"
+#include "../include/boundaryConditions/restoreRho.h"
+#include "../include/boundaryConditions/restoreUxUyUz.h"
+#include "../include/boundaryConditions/restoreRhoUxUyUz.h"
+#include "../include/boundaryConditions/applyMBBC.h"
 
-#include "../STLFunctions.h"
+#include "../include/STLFunctions.h"
 std::string STLPathNACA = "NACA0012.STL";
 
 __cuda_callable__ void getMarkers( 	const int& iCell, const int& jCell, const int& kCell, 
@@ -88,10 +88,10 @@ __cuda_callable__ void getInitialRhoUxUyUz( const int &iCell, const int &jCell, 
 	uz = 0.f;
 }
 
-#include "../applyLocalCellUpdate.h"
-#include "../plotter/exportSectionCutPlot.h"
-#include "../fillEquilibrium.h"
-#include "../gridRefinementFunctions.h"
+#include "../include/applyLocalCellUpdate.h"
+#include "../include/plotter/exportSectionCutPlot.h"
+#include "../include/fillEquilibrium.h"
+#include "../include/gridRefinementFunctions.h"
 
 float getLift( GridStruct &Grid )
 {
@@ -282,7 +282,7 @@ int main(int argc, char **argv)
 			{
 				const int kCut = grids[level].Info.cellCountZ / 2;
 				exportSectionCutPlotXY( grids[level], kCut, iteration + level );
-				system("python3 ../plotter/plotter.py");
+				system("python3 ../include/plotter/plotter.py");
 			}
 			
 			exportHistoryData( historyVector, iteration, caseID );

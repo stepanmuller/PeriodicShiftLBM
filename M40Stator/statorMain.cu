@@ -21,22 +21,22 @@ constexpr int bladeCount = 5;
 
 constexpr int iterationChunk = 25000;
 
-#include "../types.h"
+#include "../include/types.h"
 
 #include <sstream>
 
-#include "../cellFunctions.h"
-#include "../applyStreaming.h"
-#include "../applyCollision.h"
+#include "../include/cellFunctions.h"
+#include "../include/applyStreaming.h"
+#include "../include/applyCollision.h"
 
-#include "../boundaryConditions/applyBounceback.h"
-#include "../boundaryConditions/applyMirror.h"
-#include "../boundaryConditions/restoreRho.h"
-#include "../boundaryConditions/restoreUxUyUz.h"
-#include "../boundaryConditions/restoreRhoUxUyUz.h"
-#include "../boundaryConditions/applyMBBC.h"
+#include "../include/boundaryConditions/applyBounceback.h"
+#include "../include/boundaryConditions/applyMirror.h"
+#include "../include/boundaryConditions/restoreRho.h"
+#include "../include/boundaryConditions/restoreUxUyUz.h"
+#include "../include/boundaryConditions/restoreRhoUxUyUz.h"
+#include "../include/boundaryConditions/applyMBBC.h"
 
-#include "../STLFunctions.h"
+#include "../include/STLFunctions.h"
 std::string STLPathBlade = "blade.STL";
 
 __cuda_callable__ void getMarkers( 	const int& iCell, const int& jCell, const int& kCell, 
@@ -92,9 +92,9 @@ __cuda_callable__ void getInitialRhoUxUyUz( const int &iCell, const int &jCell, 
 	uz = uzInlet;
 }
 
-#include "../applyLocalCellUpdate.h"
-#include "../plotter/exportSectionCutPlot.h"
-#include "../fillEquilibrium.h"
+#include "../include/applyLocalCellUpdate.h"
+#include "../include/plotter/exportSectionCutPlot.h"
+#include "../include/fillEquilibrium.h"
 
 float getVtDeviation( GridStruct &Grid, const float &r )
 {
@@ -326,7 +326,7 @@ int main(int argc, char **argv)
 	for (float r = RIn + 1.f; r < ROut; r = r + 1.f) 
 	{
 		exportSectionCutPlotToiletPaperZ( Grid, r, 10*0 + counter );
-		system("python3 ../plotter/plotter.py");
+		system("python3 ../include/plotter/plotter.py");
 		counter++;
 	}
 	

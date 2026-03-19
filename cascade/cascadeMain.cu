@@ -15,23 +15,23 @@ constexpr float dtPhysGlobal = (uxInlet / uxInletPhys) * (resGlobal/1000); 				/
 constexpr float invSqrt3 = 0.577350269f; 
 constexpr float soundspeedPhys = invSqrt3 * (resGlobal/1000) / dtPhysGlobal; 			// m/s
 
-#include "../types.h"
+#include "../include/types.h"
 
 #include <sstream>
 
-#include "../cellFunctions.h"
-#include "../applyStreaming.h"
-#include "../applyCollision.h"
+#include "../include/cellFunctions.h"
+#include "../include/applyStreaming.h"
+#include "../include/applyCollision.h"
 
-#include "../boundaryConditions/applyBounceback.h"
-#include "../boundaryConditions/applyMirror.h"
-#include "../boundaryConditions/restoreRho.h"
-#include "../boundaryConditions/restoreUxUyUz.h"
-#include "../boundaryConditions/restoreRhoUxUyUz.h"
-#include "../boundaryConditions/applyMBBC.h"
-#include "../boundaryConditions/periodicXY.h"
+#include "../include/boundaryConditions/applyBounceback.h"
+#include "../include/boundaryConditions/applyMirror.h"
+#include "../include/boundaryConditions/restoreRho.h"
+#include "../include/boundaryConditions/restoreUxUyUz.h"
+#include "../include/boundaryConditions/restoreRhoUxUyUz.h"
+#include "../include/boundaryConditions/applyMBBC.h"
+#include "../include/boundaryConditions/periodicXY.h"
 
-#include "../STLFunctions.h"
+#include "../include/STLFunctions.h"
 std::string STLPathVane = "vane.STL";
 
 __cuda_callable__ void getMarkers( 	const int& iCell, const int& jCell, const int& kCell, 
@@ -70,9 +70,9 @@ __cuda_callable__ void getInitialRhoUxUyUz( const int &iCell, const int &jCell, 
 	uz = 0.f;
 }
 
-#include "../applyLocalCellUpdate.h"
-#include "../plotter/exportSectionCutPlot.h"
-#include "../fillEquilibrium.h"
+#include "../include/applyLocalCellUpdate.h"
+#include "../include/plotter/exportSectionCutPlot.h"
+#include "../include/fillEquilibrium.h"
 
 float getAvgInletPressure( GridStruct &Grid )
 {
@@ -203,7 +203,7 @@ int main(int argc, char **argv)
 	
 	int kCut = 0;
 	exportSectionCutPlotXY( Grid, kCut, caseID );
-	system("python3 ../plotter/plotter.py");
+	system("python3 ../include/plotter/plotter.py");
 	
 	exportHistoryData( historyVector, iterationCount, caseID );
 	

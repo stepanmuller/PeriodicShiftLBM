@@ -25,18 +25,18 @@ constexpr int iterationCount = 20000;
 constexpr int iterationChunk = 1000;
 constexpr int gridLevelCount = 3;
 
-#include "../types.h"
+#include "../include/types.h"
 
-#include "../cellFunctions.h"
-#include "../applyStreaming.h"
-#include "../applyCollision.h"
+#include "../include/cellFunctions.h"
+#include "../include/applyStreaming.h"
+#include "../include/applyCollision.h"
 
-#include "../boundaryConditions/applyBounceback.h"
-#include "../boundaryConditions/applyMirror.h"
-#include "../boundaryConditions/restoreRho.h"
-#include "../boundaryConditions/restoreUxUyUz.h"
-#include "../boundaryConditions/restoreRhoUxUyUz.h"
-#include "../boundaryConditions/applyMBBC.h"
+#include "../include/boundaryConditions/applyBounceback.h"
+#include "../include/boundaryConditions/applyMirror.h"
+#include "../include/boundaryConditions/restoreRho.h"
+#include "../include/boundaryConditions/restoreUxUyUz.h"
+#include "../include/boundaryConditions/restoreRhoUxUyUz.h"
+#include "../include/boundaryConditions/applyMBBC.h"
 
 __cuda_callable__ void getMarkers( 	const int& iCell, const int& jCell, const int& kCell, 
 									MarkerStruct &Marker, const InfoStruct& Info )
@@ -90,10 +90,10 @@ __cuda_callable__ void getInitialRhoUxUyUz( const int &iCell, const int &jCell, 
 	uz = 0.f;
 }
 
-#include "../applyLocalCellUpdate.h"
-#include "../plotter/exportSectionCutPlot.h"
-#include "../fillEquilibrium.h"
-#include "../gridRefinementFunctions.h"
+#include "../include/applyLocalCellUpdate.h"
+#include "../include/plotter/exportSectionCutPlot.h"
+#include "../include/fillEquilibrium.h"
+#include "../include/gridRefinementFunctions.h"
 
 float getSphereDrag( GridStruct &Grid )
 {
