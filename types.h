@@ -56,8 +56,8 @@ using IntTripleType = TNL::Containers::StaticArray< 3, int >;
 
 struct FStructCPU { IntArrayTypeCPU shifter; FloatArray2DTypeCPU fArray; };
 
-struct SectionCutStruct { FloatArray2DType rhoArray; FloatArray2DType uxArray; FloatArray2DType uyArray; FloatArray2DType uzArray; FloatArray2DType markerArray; };
-struct SectionCutStructCPU { FloatArray2DTypeCPU rhoArray; FloatArray2DTypeCPU uxArray; FloatArray2DTypeCPU uyArray; FloatArray2DTypeCPU uzArray; FloatArray2DTypeCPU markerArray; };	
+struct SectionCutStruct { FloatArray2DType rhoArray; FloatArray2DType uxArray; FloatArray2DType uyArray; FloatArray2DType uzArray; FloatArray2DType markerArray; FloatArray2DType scalarTransportArray; };
+struct SectionCutStructCPU { FloatArray2DTypeCPU rhoArray; FloatArray2DTypeCPU uxArray; FloatArray2DTypeCPU uyArray; FloatArray2DTypeCPU uzArray; FloatArray2DTypeCPU markerArray; FloatArray2DType scalarTransportArray; };	
 
 struct Section3DStruct { FloatArray3DType rhoArray; FloatArray3DType uxArray; FloatArray3DType uyArray; FloatArray3DType uzArray; FloatArray3DType markerArray; };
 struct Section3DStructCPU { FloatArray3DTypeCPU rhoArray; FloatArray3DTypeCPU uxArray; FloatArray3DTypeCPU uyArray; FloatArray3DTypeCPU uzArray; FloatArray3DTypeCPU markerArray; };	
