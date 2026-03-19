@@ -43,6 +43,7 @@ __cuda_callable__ void getMarkers( 	const int& iCell, const int& jCell, const in
 	if ( jCell == 0 || jCell == Info.cellCountY-1 ) Marker.bounceback = 1; // top bottom wall
 	else if ( kCell == 0 || kCell == Info.cellCountZ-1 ) Marker.bounceback = 1; // front back wall
 	else if ( iCell <= Info.cellCountX / 4 && jCell <= Info.cellCountY / 2 ) Marker.bounceback = 1; // step wall
+	else if ( iCell > 200 && iCell < 250 && jCell > 100 && jCell < 150 ) Marker.bounceback = 1;
 	else if ( iCell == 0 ) Marker.givenUxUyUz = 1; // velocity inlet
 	else if ( iCell == Info.cellCountX-1 ) Marker.givenRho = 1; // pressure outlet (weakly compressible, rho is proportional to pressure)
 	else Marker.fluid = 1;
@@ -74,7 +75,7 @@ __cuda_callable__ void getGivenT( 	const int& iCell, const int& jCell, const int
 
 __cuda_callable__ float getSmagorinskyConstant( const int  &iCell, const int &jCell, const int &kCell, const InfoStruct &Info  )
 {
-	if ( iCell > Info.cellCountX / 20 ) return 1.f;
+	if ( iCell > Info.cellCountX - Info.cellCountX / 20 ) return 1.f;
 	else return SmagorinskyConstantGlobal;
 }
 
