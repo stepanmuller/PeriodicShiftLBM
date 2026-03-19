@@ -5,12 +5,14 @@ Compile using tnlcxx: https://gitlab.com/tnl-project/tnlcxx
 tnlcxx --release main.cu
 
 Features
+- D3Q27 set
 - periodic shift (PS) streaming
 - cummulant collision taken from TNL-LBM: https://gitlab.com/tnl-project/tnl-lbm
-	- just slightly modified: high order moments all get relaxed to zero so their calculation is removed
-- LES taken from: https://github.com/stloufra/LB/tree/thesis
+- LES Smagorinsky model taken from: https://github.com/stloufra/LB/tree/thesis
 - fully local moment-based boundary conditions
+- block grid refinement
+- scalar transport (in progress)
 
-Read attached PDF for more about periodic shift and BC implementation.
+Read attached PDF for more about periodic shift, boundary conditions and grid refinement.
 
 Performance: 2.0 GLUPS on 4070 Ti 12GB (100M cells)
