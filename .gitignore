@@ -53,3 +53,4 @@
 *.png
 __pycache__
 *.pyc
+gitignoreBackup.txt
