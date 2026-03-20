@@ -83,11 +83,27 @@ Building the coarsest grid level
 		If its fluid and its not fineMarker, but its neighbour is fineMarker, mark it as fineToCoarseMarker
 	Loop through all cells.
 		If its fluid and its not fineMarker and not fineToCoarseMarker, but its neighbour is fineToCoarseMarker, mark it as coarseToFineMarker
+	Loop through all cells.
+		If its fineToCoarseMarker or coarseToFineMarker, also now mark it as fineMarker.
 	
+	Now, assemble the starting point for the fine grid. 
+	Reduction: Count fineMarker -> temporary cellCountFine (before the fine cells get filtered by the fine grid)
+	It should be 3 plain lists: iFine, jFine, kFine. 
+	Copy fineMarker to CPU.
+	Initialize iFine, jFine, kFine.
+	Serial loop through all cells.
+		If its fineMarker, calculate 8 ijk indexes for the 8 fine cells under our coarse cell and write it to iFine, jFine, kFine.
+	Copy iFine, jFine, kFine to GPU. We will use it later.
+	
+	Now, after assembling the iFine, jFine, kFine instructions, we can delete the cells that we dont need on the coarse grid.
 	Right now, we exactly know which cells we need to keep and which not.
 	initialize temporary keepCell array
 	Loop through all cells.
-		If its fluid but not fineMarker, keep cell. Else do not keep it.
+		If its fluid:
+			If its not fineMarker, keep cell.
+			Else if its fineToCoarse or coarseToFine, keep cell.
+			Else, dont keep it
+		Else dont keep it
 	
 	Now, we will sort cells. We will do it like this:
 		First, put cells that will be kept (first key)
@@ -108,22 +124,21 @@ Building the coarsest grid level
 	Loop through all cells
 		Find all neighbours from connectivity of iNbr, jNbr, kNbr, and fill the jk, ik, ij, ijk Nbrs. Connectivity done.
 	
-	HERE, we need to assemble starting point for the fine grid. 
-	First, save indexes of our coarse grid where the communication happens.
-	Count fineToCoarseMarker cells
-	initialize fineToCoarseWriteArray, fineToCoarseReadArray
+	Call the recursive function assembleGrid( iFine, jFine, kFine, Info (?) ) to build the finer grid
+	After that has been built, the very last thing is that we need indices of its cells where we will communicate.
+	The simplest, yet admittedly slow way is to:
+	Initialize coarseToFineWriteArray -> same length as coarseToFineReadArray
+	For cells in coarseToFineReadArray:
+		calculate underlying ijk of the fine grid
+		ask the fine grid whats the index of its cell with coords ijk fine
+		write the index into coarseToFineWriteArray
+	Initialize fineToCoarseReadArray
+	For cells in fineToCoarseWriteArray:
+		calculate underlying ijk of the fine grid
+		ask the fine grid whats the index of its cell with coords ijk fine
+		write the index into fineToCoarseReadArray
+	END	
 	
-	Count coarseToFineMarker cells
-	initialize coarseToFineReadArray, coarseToFineWriteArray
-	
-	copy fineToCoarseMarker and coarseToFineMarker to CPU
-	Serial loop through all cells
-		if fineToCoarseMarker: fineToCoarseWriteArray
-		else if coarseToFineMarker: 
-		
-	So, what is the starting point exactly?
-	It should be 3 plain lists: i, j, k. 
-		
 How to update our grid level?
 	1) Streaming and then collision on our level
 		Read iNbr, jNbr, kNbr, based on those you need to also load ijNbr, ikNbr, jkNbr and ijkNbr
