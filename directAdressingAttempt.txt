@@ -2,27 +2,127 @@ Goal:
 	Build a directly adressed carthesian mesh that is refined around walls with any number of refinement levels
 	This means to setup the following data structure:
 	For each grid level:
-		int cellCount
+		int cellCountX, cellCountY, cellCountZ, cellCount
+			while cellCount represents the actual number of cells that exist and have data, cellCountX, Y, Z informs about theoretical maximum span of the domain.
 		int refinementLevel
-			0 = finest
+			0 = coarsest
 		float res
 		float ox, oy, oz
 			The origin is always placed in center of a virtual cell [0, 0, 0] that may not actually exist, 
 			it is the cell that would be placed in the very corner of the domain, bounded by outer walls of the coarsest grid.
 			Thanks to that, the origin can be calculated recursively from the coarser level:
 			oxFine = oxCoarse - resFine / 2
-		int iArray, jArray, kArray
+		
+		bool stopperMarkerArray [cellCount]
+			Marks stopper cells -> ghost cells on the border that are needed for esotwist
+		
+		bool bouncebackMarkerArray [cellCount]
+			Marks bounceback cells
+		
+		int iArray, jArray, kArray [cellCount]
 			This gives position in space as x = ox + i*res, cell [0, 0, 0] has the center placed on [ox, oy, oz]
 		int iNbrArray, jNbrArray, kNbrArray
 			This gives cell index of the neighbour cell that is located +1 from our cell on the respective axis
-		int fineReadArray
-			This gives cell index of the counterpart cell on the finer level. There are 8 of them so this gives the cell with lowest ijk
-		int coarseReadArray
-			This gives cell index of the counterpart cell on the coarser level, where we read information from in order to update the grid interface
-		bool bouncebackMarkerArray
-			Marks bounceback cells
 		
+		int fineToCoarseWriteArray [< cellCount, uknown apriori]
+			List of our cells that should receive information from finer grid
+		int fineToCoarseReadArray 
+			List of fine cells from the finer grid that lie in the left bottom corner of our cell from fineToCoarseWriteArray
 		
+		int coarseToFineReadArray [< cellCount, uknown apriori]
+			List of our cells that should send information to finer grid
+		int coarseToFineWriteArray
+			List of fine cells from the finer grid that lie in the left bottom corner of our cell from coarseToFineReadArray
+
+How to build the grids?
+We are starting with the following information:
+	- One or more STLs, inside = solid. Keep it simple that way.
+	- getMarkers(ijk) function that might mark bounceback cells in addition to the STLs
+	- ox, oy, oz for the coarsest grid
+	- resGlobal = res for the coarsest grid
+	- using STL dimensions or knowing the domain bounds, we can determine cellCountX, cellCountY, cellCountZ
+	- gridLevelCount
+	- wallRefinementSpan = how many coarse cells (how thick layer of them) will get refined near wall (2-cell thick interface excluded)?
+	This is the input information. From this, we need to start assembling the grid levels. Let's start from the coarsest grid level.
+
+Building the coarsest grid level
+	gridID = 0
+	- The procedure goes like this. 
+	First, do a repetetive fluid marking in order to find which of our coarse cells could possibly contain at least one finest (maximum refinement level) fluid cell. 
+	Meaning of this will become clear later. To do this we will be repeatedly temporarily shifting the origin of our grid, to simulate being on a finer grid.
+	int shiftCount = 2^(gridLevelCount-1) ... 1->1, 2->2, 3->4 etc ... this tells how many times we run the fluid identification
+	float finestRes = res / ( 2^(gridLevelCount-1) )
+	float shiftStart = - res/2 + (finestRes/2)
+	initialize temporary fluid marker array
+	for ( shiftCountX = 0; shiftCountX < shiftCount; shiftCountX++ )
+		for ( shiftCountY = 0; shiftCountY < shiftCount; shiftCountY++ )
+			for ( shiftCountZ = 0; shiftCountZ < shiftCount; shiftCountZ++ )
+				create new bounceback array
+				add STLs to it
+				add marker function to it
+				Invert the bounceback array -> now it shows where fluid is
+				add the new fluid array to the fluid array of our grid
+	Now, do this:
+		We are now sure that there are not even the finest fluid cells outside of the fluid marked region. 
+		However, before throwing off all the other cells, we now we need to add one more layer, in order to be able to place walls next to the fluid again. 
+		Initialize temporary borderMarker array
+		Loop through all cells. 
+			If it is not fluid, check if at least one of its neighbours is fluid. If yes, mark it as border cell.
+	Now we have marked fluid cells and boundary cells. Next, we need to identify the refinement region.
+	initialize fineMarker array
+	for layer in range(wallRefinementSpan):
+		initialize temporary newFineMarker array
+		Loop through all cells.
+			If it is border, mark it as newFineMarker
+			If its fluid and its neighbour is border, mark it as newFineMarker
+			If its fluid and its neighbour is fineMarker, mark it as newFineMarker -> this is how we spread further from the wall each iteration
+		fineMarker = newFineMarker
+	Now, the layer where we communicate from fine to coarse
+	initialize temporary fineToCoarseMarker array
+	Loop through all cells.
+		If its fluid and its not fineMarker, but its neighbour is fineMarker, mark it as fineToCoarseMarker
+	Loop through all cells.
+		If its fluid and its not fineMarker and not fineToCoarseMarker, but its neighbour is fineToCoarseMarker, mark it as coarseToFineMarker
+	
+	Right now, we exactly know which cells we need to keep and which not.
+	initialize temporary keepCell array
+	Loop through all cells.
+		If its fluid but not fineMarker, keep cell. Else do not keep it.
+	
+	Now, we will sort cells. We will do it like this:
+		First, put cells that will be kept (first key)
+		Next, sort by k (slowest changing Z coord, second key)
+		Next, sort by j, then by i. That are 4 keys in total.
+		All elements in all previously defined arrays must be swapped together with this sort.
+	
+	Next, count cells that are marked as keep -> reduction -> cellCount (finally!)
+	Shorten all existing arrays to length "cellCount"
+	
+	initialize new iNbr, jNbr, kNbr	
+	Then: assemble the domain connections and fill the nbr lists. This includes periodic connection on the borders to allow esotwist to work on borders.
+	For all neighbour directions (100, 010, 001):
+		Loop through all cells
+			keep travelling forward in the given direction and wrap around cellCount[direction], until you find a cell
+				assign that cell as the neighbour
+	initialize jkNbr, ikNbr, ijNbr, ijkNbr
+	Loop through all cells
+		Find all neighbours from connectivity of iNbr, jNbr, kNbr, and fill the jk, ik, ij, ijk Nbrs. Connectivity done.
+	
+	HERE, we need to assemble starting point for the fine grid. 
+	First, save indexes of our coarse grid where the communication happens.
+	Count fineToCoarseMarker cells
+	initialize fineToCoarseWriteArray, fineToCoarseReadArray
+	
+	Count coarseToFineMarker cells
+	initialize coarseToFineReadArray, coarseToFineWriteArray
+	
+	copy fineToCoarseMarker and coarseToFineMarker to CPU
+	Serial loop through all cells
+		if fineToCoarseMarker: fineToCoarseWriteArray
+		else if coarseToFineMarker: 
+		
+	So, what is the starting point exactly?
+	It should be 3 plain lists: i, j, k. 
 		
 How to update our grid level?
 	1) Streaming and then collision on our level
@@ -33,12 +133,9 @@ How to update our grid level?
 	2) Call the finer level to update two times
 	3) Perform communication between our grid and the finer grid -> could this be merged into the collision, so that reads are reduced?
 	
+	
 How to perform communication between a coarse level and a fine level?
 	1) Send information from fine to coarse level
-		-> I obviously need to loop over the coarse cells, because there I do a write. Therefore, I need:
-			- Identify which cells to loop over. Should I keep a list of them, or should I loop over all of them and have a bool marker?
-				-> I will have a list, because that in fact shortens the second list
-			- For each coarse cell, I need to remember its fine counterpart to know where to read from. -> two lists. One to loop over, second where to read from.
+		Loop over fineToCoarseWriteArray, find the first read index in fineToCoarseReadArray, find other 7 indexes from connectivity
 	2) Send information from coarse to fine level
-		-> Here I need to loop over coarse cells again, because I can easily assign the 8 finer cells to them, and do a sub-loop to write into the fine cells.
-		-> I will do an interpolation on velocity by extracting the velocity gradient from the stress tensor. Need to learn how to do that.
+		Loop over coarseToFineReadArray, find the first write index in coarseToFineWriteArray, find other 7 indexes from connectivity
