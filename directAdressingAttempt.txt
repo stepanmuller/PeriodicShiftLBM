@@ -7,11 +7,38 @@ Goal:
 			0 = finest
 		float res
 		float ox, oy, oz
+			The origin is always placed in center of a virtual cell [0, 0, 0] that may not actually exist, 
+			it is the cell that would be placed in the very corner of the domain, bounded by outer walls of the coarsest grid.
+			Thanks to that, the origin can be calculated recursively from the coarser level:
+			oxFine = oxCoarse - resFine / 2
 		int iArray, jArray, kArray
 			This gives position in space as x = ox + i*res, cell [0, 0, 0] has the center placed on [ox, oy, oz]
 		int iNbrArray, jNbrArray, kNbrArray
 			This gives cell index of the neighbour cell that is located +1 from our cell on the respective axis
-		int coarseCprArray
-			This gives cell index of the counterpart cell on the coarser level
-		int fineCprArray
+		int fineReadArray
 			This gives cell index of the counterpart cell on the finer level. There are 8 of them so this gives the cell with lowest ijk
+		int coarseReadArray
+			This gives cell index of the counterpart cell on the coarser level, where we read information from in order to update the grid interface
+		bool bouncebackMarkerArray
+			Marks bounceback cells
+		
+		
+		
+How to update our grid level?
+	1) Streaming and then collision on our level
+		Read iNbr, jNbr, kNbr, based on those you need to also load ijNbr, ikNbr, jkNbr and ijkNbr
+		Perform esotwist and collision on all cells except for stopper cells. -> do I actually need the stopper cells? Could I treat this in a periodic way? -> need to think more
+		Bounceback marker array works normally.
+		Thanks to our way of IJK indexing, applyMarkers(ijk) will work normally, so boundary conditions get applied the exact same way as before.
+	2) Call the finer level to update two times
+	3) Perform communication between our grid and the finer grid -> could this be merged into the collision, so that reads are reduced?
+	
+How to perform communication between a coarse level and a fine level?
+	1) Send information from fine to coarse level
+		-> I obviously need to loop over the coarse cells, because there I do a write. Therefore, I need:
+			- Identify which cells to loop over. Should I keep a list of them, or should I loop over all of them and have a bool marker?
+				-> I will have a list, because that in fact shortens the second list
+			- For each coarse cell, I need to remember its fine counterpart to know where to read from. -> two lists. One to loop over, second where to read from.
+	2) Send information from coarse to fine level
+		-> Here I need to loop over coarse cells again, because I can easily assign the 8 finer cells to them, and do a sub-loop to write into the fine cells.
+		-> I will do an interpolation on velocity by extracting the velocity gradient from the stress tensor. Need to learn how to do that.
