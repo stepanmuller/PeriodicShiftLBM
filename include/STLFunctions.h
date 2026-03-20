@@ -541,3 +541,15 @@ void sumBoolArrays( BoolArrayType &markerArray1, BoolArrayType &markerArray2, Bo
 	};
 	TNL::Algorithms::parallelFor<TNL::Devices::Cuda>( 0, size, cellLambda );
 }
+
+void invertBoolArray( BoolArrayType &resultArray )
+{
+	std::cout << "Inverting bool array" << std::endl;
+	const int size = resultArray.getSize();
+	auto resultArrayView = resultArray.getView();
+    auto cellLambda = [ = ] __cuda_callable__( const int cell ) mutable
+    {
+		resultArrayView( cell ) = resultArrayView( cell );
+	};
+	TNL::Algorithms::parallelFor<TNL::Devices::Cuda>( 0, size, cellLambda );
+}

@@ -48,6 +48,11 @@ We are starting with the following information:
 	- wallRefinementSpan = how many coarse cells (how thick layer of them) will get refined near wall (2-cell thick interface excluded)?
 	This is the input information. From this, we need to start assembling the grid levels. Let's start from the coarsest grid level.
 
+void findMatchingIJKIndex( iWanted, jWanted, kWanted, iSource, jSource, kSource, cellSourceResult )
+	Receives sorted iSource, jSource, kSource that !must! be already sorted with key k, j, i
+	Loop through Wanted
+	for each Wanted, find a matching cell in Source. If its found, write its index to cellSourceResult. If there is no such cell, write -1.
+
 void markWhereFinestFluidIs( fluidMarker, STLs, Info )
 	First, do a repetetive fluid marking in order to find which of our coarse cells could possibly contain at least one finest (maximum refinement level) fluid cell. 
 	Meaning of this will become clear later. To do this we will be repeatedly temporarily shifting the origin of our grid, to simulate being on a finer grid.
@@ -85,6 +90,10 @@ Recursive function assembleGrid( grids, level, STLs )
 	The input Grid must have already predefined (even though some of it will get overwritten):
 		cellCountX, cellCountY, cellCountZ, cellCount, gridID, res, ox, oy, oz
 		Most importantly: iArray, jArray, kArray
+	
+	Sort iArray, jArray, kArray:
+		First, sort by k (slowest changing Z coord, second key)
+		Next, sort by j, then by i. That are 3 keys in total.
 	
 	DIADNeighboursStruct Neighbours
 	getDIADNeighbours( Grid, Neighbours )
