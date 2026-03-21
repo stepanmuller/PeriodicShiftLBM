@@ -129,6 +129,6 @@ struct DIADEsotwistConnectionsStruct { 	IntArrayType iNbrArray; IntArrayType jNb
 										IntArrayType ijkNbrArray; }; 
 
 struct DIADGridStruct { InfoStruct Info; FloatArray2DType fArray; BoolArrayType bouncebackMarkerArray; 
-						IntArrayType iArray; IntArrayType jArray; IntArrayType kArray; DIADEsotwistConnectionsStruct EsotwistConnections; 
+						IJKArrayStruct IJK; DIADEsotwistConnectionsStruct EsotwistConnections; 
 						IntArrayType fineToCoarseWriteArray; IntArrayType fineToCoarseReadArray; 
 						IntArrayType coarseToFineWriteArray; IntArrayType coarseToFineReadArray; }; 

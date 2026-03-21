@@ -471,8 +471,6 @@ void applyMarkersInsideSTL( BoolArrayType &markerArray, STLStruct &STL, const bo
 	IntPairType startList{ 0, 0 };
 	IntPairType endList{ Info.cellCountX, Info.cellCountY };
 	TNL::Algorithms::parallelFor<TNL::Devices::Cuda>(startList, endList, rayLambda );	
-	
-	std::cout << "	Markers inside STL applied" << std::endl;
 }
 
 // DIAD Version. DIAD stands for directly adressed. This means, IJK arrays are provided that capture positions of existing cells (not all cells exist in the block)
@@ -692,8 +690,6 @@ void ApplyMarkersInsideSTL( BoolArrayType &markerArray, IJKArrayStruct &IJK, STL
 		}		
 	};
 	TNL::Algorithms::parallelFor<TNL::Devices::Cuda>(0, Info.cellCount, cellLambda );	
-	
-	std::cout << "	Markers inside STL applied, DIAD version" << std::endl;
 }
 
 void rotateSTLAlongZ( STLStruct &STL, float &radians )
@@ -759,7 +755,6 @@ void ApplyMarkersFromFunction( BoolArrayType &markerArray, IJKArrayStruct &IJK, 
 
 void multiplyBoolArrays( BoolArrayType &markerArray1, BoolArrayType &markerArray2, BoolArrayType &resultArray )
 {
-	std::cout << "Multiplying bool arrays" << std::endl;
 	const int size = resultArray.getSize();
 	auto markerArrayView1 = markerArray1.getView();
 	auto markerArrayView2 = markerArray2.getView();
@@ -773,7 +768,6 @@ void multiplyBoolArrays( BoolArrayType &markerArray1, BoolArrayType &markerArray
 
 void sumBoolArrays( BoolArrayType &markerArray1, BoolArrayType &markerArray2, BoolArrayType &resultArray )
 {
-	std::cout << "Multiplying bool arrays" << std::endl;
 	const int size = resultArray.getSize();
 	auto markerArrayView1 = markerArray1.getView();
 	auto markerArrayView2 = markerArray2.getView();
@@ -787,12 +781,11 @@ void sumBoolArrays( BoolArrayType &markerArray1, BoolArrayType &markerArray2, Bo
 
 void invertBoolArray( BoolArrayType &resultArray )
 {
-	std::cout << "Inverting bool array" << std::endl;
 	const int size = resultArray.getSize();
 	auto resultArrayView = resultArray.getView();
     auto cellLambda = [ = ] __cuda_callable__( const int cell ) mutable
     {
-		resultArrayView( cell ) = resultArrayView( cell );
+		resultArrayView( cell ) = !resultArrayView( cell );
 	};
 	TNL::Algorithms::parallelFor<TNL::Devices::Cuda>( 0, size, cellLambda );
 }

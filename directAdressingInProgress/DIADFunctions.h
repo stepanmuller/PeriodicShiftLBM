@@ -1,3 +1,38 @@
+// Builds IJK from Info by filling the whole domain	
+void buildIJKFromInfo( IJKArrayStruct &IJK, InfoStruct &Info )
+{
+	IJK.iArray.setSize( Info.cellCount );
+	IJK.jArray.setSize( Info.cellCount );
+	IJK.kArray.setSize( Info.cellCount );
+	auto iView = IJK.iArray.getView();
+	auto jView = IJK.jArray.getView();
+	auto kView = IJK.kArray.getView();
+	
+	auto cellLambda = [=] __cuda_callable__ ( const int cell ) mutable
+	{
+		int iCell, jCell, kCell;
+		getIJKCellIndex( cell, iCell, jCell, kCell, Info );
+		iView[ cell ] = iCell;
+		jView[ cell ] = jCell;
+		kView[ cell ] = kCell;
+	};
+	TNL::Algorithms::parallelFor<TNL::Devices::Cuda>( 0, Info.cellCount, cellLambda );
+}
+
+void shiftIJK( IJKArrayStruct &IJK, const int cx, const int cy, const int cz )
+{
+	auto iView = IJK.iArray.getView();
+	auto jView = IJK.jArray.getView();
+	auto kView = IJK.kArray.getView();
+	
+	auto cellLambda = [=] __cuda_callable__ ( const int cell ) mutable
+	{
+		iView[ cell ] = iView[ cell ] + cx;
+		jView[ cell ] = jView[ cell ] + cy;
+		kView[ cell ] = kView[ cell ] + cz;
+	};
+	TNL::Algorithms::parallelFor<TNL::Devices::Cuda>( 0, IJK.iArray.getSize(), cellLambda );
+}
 
 // Receives sorted IJKSource that !must! be already sorted with key k, j, i so that k index changes the slowest
 // For each Wanted, find a matching cell in Source. If its found, write its index to resultArray. If there is no such cell, write -2.		
@@ -55,7 +90,7 @@ void findMatchingIJKIndex( 	IJKArrayStruct &Wanted, IJKArrayStruct &Source, IntA
 			if ( kSourceView[kStepView[half]] > kWanted ) end = half;
 			else start = half + 1;
 		}
-		if ( kSourceView[kStepView[start]] == kWanted )
+		if ( start < kStepCount && kSourceView[kStepView[start]] == kWanted )
 		{
 			result = start;
 		}
@@ -106,7 +141,7 @@ void findMatchingIJKIndex( 	IJKArrayStruct &Wanted, IJKArrayStruct &Source, IntA
 
 // Do a repetetive fluid marking in order to find which of our coarse cells could possibly contain at least one finest (maximum refinement level) fluid cell. 
 // To do this we will be repeatedly temporarily shifting the origin of our grid, to simulate being on a finer grid.
-void markWhereFinestFluidIs( BoolArrayType &fluidMarkerArray, IntArrayType &iArray, IntArrayType &jArray, IntArrayType &kArray, std::vector<STLStruct> STLs, InfoStruct &Info )
+void markWhereFinestFluidIs( BoolArrayType &fluidMarkerArray, IJKArrayStruct &IJK, std::vector<STLStruct> STLs, InfoStruct &Info )
 {
 	const int shiftCount = std::pow(2, (gridLevelCount - Info.gridID - 1));
 	const float finestRes = Info.res / ( std::pow(2, (gridLevelCount - Info.gridID - 1)) );
@@ -125,11 +160,11 @@ void markWhereFinestFluidIs( BoolArrayType &fluidMarkerArray, IntArrayType &iArr
 				Info.ox = oxOriginal + shiftStart + shiftCountX * finestRes;
 				Info.oy = oyOriginal + shiftStart + shiftCountY * finestRes;
 				Info.oz = ozOriginal + shiftStart + shiftCountZ * finestRes;
-				ApplyMarkersFromFunction( markerArray, iArray, jArray, kArray, Info );
+				ApplyMarkersFromFunction( markerArray, IJK, Info );
 				for ( int STLIndex = 0; STLIndex < STLs.size(); STLIndex++ )
 				{
 					const bool insideMarkerValue = 1;
-					ApplyMarkersInsideSTL( markerArraySTL, iArray, jArray, kArray, STLs[STLIndex], insideMarkerValue, Info );
+					ApplyMarkersInsideSTL( markerArraySTL, IJK, STLs[STLIndex], insideMarkerValue, Info );
 					sumBoolArrays( markerArray, markerArraySTL, markerArray );
 				}
 				invertBoolArray( markerArray );
@@ -140,4 +175,40 @@ void markWhereFinestFluidIs( BoolArrayType &fluidMarkerArray, IntArrayType &iArr
 	Info.ox = oxOriginal;
 	Info.oy = oyOriginal;
 	Info.oz = ozOriginal;
+}
+
+void getDIADNeighbours( DIADNeighboursStruct &Neighbours, IJKArrayStruct &IJK )
+{
+	const int cellCount = IJK.iArray.getSize();
+	Neighbours.iPlusArray.setSize(cellCount);
+	Neighbours.jPlusArray.setSize(cellCount);
+	Neighbours.kPlusArray.setSize(cellCount);
+	Neighbours.iMinusArray.setSize(cellCount);
+	Neighbours.jMinusArray.setSize(cellCount);
+	Neighbours.kMinusArray.setSize(cellCount);
+	
+	IJKArrayStruct IJKShifted;
+	IJKShifted = IJK;
+	shiftIJK( IJKShifted, 1, 0, 0 );
+	findMatchingIJKIndex( IJKShifted, IJK, Neighbours.iPlusArray );
+	
+	IJKShifted = IJK;
+	shiftIJK( IJKShifted, 0, 1, 0 );
+	findMatchingIJKIndex( IJKShifted, IJK, Neighbours.jPlusArray );
+	
+	IJKShifted = IJK;
+	shiftIJK( IJKShifted, 0, 0, 1 );
+	findMatchingIJKIndex( IJKShifted, IJK, Neighbours.kPlusArray );
+	
+	IJKShifted = IJK;
+	shiftIJK( IJKShifted, -1, 0, 0 );
+	findMatchingIJKIndex( IJKShifted, IJK, Neighbours.iMinusArray );
+	
+	IJKShifted = IJK;
+	shiftIJK( IJKShifted, 0, -1, 0 );
+	findMatchingIJKIndex( IJKShifted, IJK, Neighbours.jMinusArray );
+	
+	IJKShifted = IJK;
+	shiftIJK( IJKShifted, 0, 0, -1 );
+	findMatchingIJKIndex( IJKShifted, IJK, Neighbours.kMinusArray );
 }
