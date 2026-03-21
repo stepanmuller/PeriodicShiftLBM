@@ -475,6 +475,227 @@ void applyMarkersInsideSTL( BoolArrayType &markerArray, STLStruct &STL, const bo
 	std::cout << "	Markers inside STL applied" << std::endl;
 }
 
+// DIAD Version. DIAD stands for directly adressed. This means, IJK arrays are provided that capture positions of existing cells (not all cells exist in the block)
+void ApplyMarkersInsideSTL( BoolArrayType &markerArray, IJKArrayStruct &IJK, STLStruct &STL, const bool &insideMarkerValue, InfoStruct &Info )
+{
+	std::cout << "Applying markers inside STL, DIAD version" << std::endl;
+	auto markerArrayView = markerArray.getView();
+	
+	auto axArrayView = STL.axArray.getConstView();
+	auto ayArrayView = STL.ayArray.getConstView();
+	auto azArrayView = STL.azArray.getConstView();
+	auto bxArrayView = STL.bxArray.getConstView();
+	auto byArrayView = STL.byArray.getConstView();
+	auto bzArrayView = STL.bzArray.getConstView();
+	auto cxArrayView = STL.cxArray.getConstView();
+	auto cyArrayView = STL.cyArray.getConstView();
+	auto czArrayView = STL.czArray.getConstView();
+	
+	IntArray2DType intersectionCounterArray;
+	intersectionCounterArray.setSizes( Info.cellCountX, Info.cellCountY );
+	intersectionCounterArray.setValue( 0 );
+	auto intersectionCounterArrayView = intersectionCounterArray.getView();
+
+    auto counterLambda = [ = ] __cuda_callable__( const int triangleIndex ) mutable
+    {
+		// transform into the coordinate system of the LBM grid
+		const float ax = axArrayView[ triangleIndex ] + STL.ox - Info.ox;
+		const float ay = ayArrayView[ triangleIndex ] + STL.oy - Info.oy;
+		const float bx = bxArrayView[ triangleIndex ] + STL.ox - Info.ox;
+		const float by = byArrayView[ triangleIndex ] + STL.oy - Info.oy;
+		const float cx = cxArrayView[ triangleIndex ] + STL.ox - Info.ox;
+		const float cy = cyArrayView[ triangleIndex ] + STL.oy - Info.oy;
+		// transform STL floats to integer grid that is 100x finer than the LBM grid to prevent float errors
+		// make the STL coords odd, rays will be even, this prevents hitting a vortex
+		const float scale = 50.0f / Info.res;
+		const long long ak = (long long)(round( ax * scale )) * 2 + 1;
+		const long long al = (long long)(round( ay * scale )) * 2 + 1;
+		const long long bk = (long long)(round( bx * scale )) * 2 + 1;
+		const long long bl = (long long)(round( by * scale )) * 2 + 1;
+		const long long ck = (long long)(round( cx * scale )) * 2 + 1;
+		const long long cl = (long long)(round( cy * scale )) * 2 + 1;
+		
+		const long long kmin = std::max({ 0LL, std::min({ ak, bk, ck, (long long)(Info.cellCountX-1)*100 }) });
+		const long long kmax = std::min({ (long long)(Info.cellCountX-1)*100, std::max({ ak, bk, ck, 0LL }) });
+		const long long lmin = std::max({ 0LL, std::min({ al, bl, cl, (long long)(Info.cellCountY-1)*100 }) });
+		const long long lmax = std::min({ (long long)(Info.cellCountY-1)*100, std::max({ al, bl, cl, 0LL }) });
+		
+		const long long imin = (kmin + 99) / 100;
+		const long long imax = kmax / 100;
+		const long long jmin = (lmin + 99) / 100;
+		const long long jmax = lmax / 100;
+		
+		for ( int j = jmin; j <= jmax; j++ )
+		{
+			for ( int i = imin; i <= imax; i++ )
+			{
+				const long long rayK = i * 100;
+				const long long rayL = j * 100;
+				// transform the triangle into coordinate system where ray is [0, 0]
+				const long long ak0 = ak - rayK;
+				const long long al0 = al - rayL;
+				const long long bk0 = bk - rayK;
+				const long long bl0 = bl - rayL;
+				const long long ck0 = ck - rayK;
+				const long long cl0 = cl - rayL;
+
+				const bool rayHit = getRayHitYesNo( ak0, al0, bk0, bl0, ck0, cl0 );
+
+				if (rayHit) 
+				{
+					TNL::Algorithms::AtomicOperations<TNL::Devices::Cuda>::add(intersectionCounterArrayView(i, j), 1);
+				}
+			}
+		}
+	};
+	TNL::Algorithms::parallelFor<TNL::Devices::Cuda>( 0, STL.triangleCount, counterLambda );
+	
+	auto fetch = [ = ] __cuda_callable__( const int singleIndex )
+	{
+		const int i = singleIndex % Info.cellCountX;
+		const int j = singleIndex / Info.cellCountX;
+		return intersectionCounterArrayView( i, j );
+	};
+	auto reduction = [] __cuda_callable__( const int& a, const int& b )
+	{
+		return TNL::max( a, b );
+	};
+	const int start = 0;
+	const int end = Info.cellCountX * Info.cellCountY;
+	int intersectionCountMax = TNL::Algorithms::reduce<TNL::Devices::Cuda>( start, end, fetch, reduction, 0 );
+	std::cout << "	intersectionCountMax: " << intersectionCountMax << std::endl; 
+	
+	if ( intersectionCountMax < 1 ) intersectionCountMax = 1;
+	// extracting the intersection indexes
+	IntArray3DType intersectionIndexArray;
+	intersectionIndexArray.setSizes( intersectionCountMax, Info.cellCountX, Info.cellCountY );
+	intersectionIndexArray.setValue( Info.cellCountZ );
+	auto intersectionIndexArrayView = intersectionIndexArray.getView();
+	intersectionCounterArray.setValue(0);
+	
+	auto rayHitIndexLambda = [ = ] __cuda_callable__( const int triangleIndex ) mutable
+    {
+		// transform into the coordinate system of the LBM grid
+		const float ax = axArrayView[ triangleIndex ] + STL.ox - Info.ox;
+		const float ay = ayArrayView[ triangleIndex ] + STL.oy - Info.oy;
+		const float az = azArrayView[ triangleIndex ] + STL.oz - Info.oz;
+		const float bx = bxArrayView[ triangleIndex ] + STL.ox - Info.ox;
+		const float by = byArrayView[ triangleIndex ] + STL.oy - Info.oy;
+		const float bz = bzArrayView[ triangleIndex ] + STL.oz - Info.oz;
+		const float cx = cxArrayView[ triangleIndex ] + STL.ox - Info.ox;
+		const float cy = cyArrayView[ triangleIndex ] + STL.oy - Info.oy;
+		const float cz = czArrayView[ triangleIndex ] + STL.oz - Info.oz;
+		// transform STL floats to integer grid that is 100x finer than the LBM grid to prevent float errors
+		// make the STL coords odd, rays will be even, this prevents hitting a vortex
+		const float scale = 50.0f / Info.res;
+		const long long ak = (long long)(round( ax * scale )) * 2 + 1;
+		const long long al = (long long)(round( ay * scale )) * 2 + 1;
+		const long long bk = (long long)(round( bx * scale )) * 2 + 1;
+		const long long bl = (long long)(round( by * scale )) * 2 + 1;
+		const long long ck = (long long)(round( cx * scale )) * 2 + 1;
+		const long long cl = (long long)(round( cy * scale )) * 2 + 1;
+		
+		const long long kmin = std::max({ 0LL, std::min({ ak, bk, ck, (long long)(Info.cellCountX-1)*100 }) });
+		const long long kmax = std::min({ (long long)(Info.cellCountX-1)*100, std::max({ ak, bk, ck, 0LL }) });
+		const long long lmin = std::max({ 0LL, std::min({ al, bl, cl, (long long)(Info.cellCountY-1)*100 }) });
+		const long long lmax = std::min({ (long long)(Info.cellCountY-1)*100, std::max({ al, bl, cl, 0LL }) });
+		
+		const long long imin = (kmin + 99) / 100;
+		const long long imax = kmax / 100;
+		const long long jmin = (lmin + 99) / 100;
+		const long long jmax = lmax / 100;
+		
+		for ( int j = jmin; j <= jmax; j++ )
+		{
+			for ( int i = imin; i <= imax; i++ )
+			{
+				const long long rayK = i * 100;
+				const long long rayL = j * 100;
+				// transform the triangle into coordinate system where ray is [0, 0]
+				const long long ak0 = ak - rayK;
+				const long long al0 = al - rayL;
+				const long long bk0 = bk - rayK;
+				const long long bl0 = bl - rayL;
+				const long long ck0 = ck - rayK;
+				const long long cl0 = cl - rayL;
+
+				const bool rayHit = getRayHitYesNo( ak0, al0, bk0, bl0, ck0, cl0 );
+
+				if (rayHit) 
+				{
+					const int writePosition = TNL::Algorithms::AtomicOperations<TNL::Devices::Cuda>::add(intersectionCounterArrayView(i, j), 1);
+					const float rayX = i * Info.res;
+					const float rayY = j * Info.res;
+					const float rayZ = getRayHitZCoordinate( ax, ay, az, bx, by, bz, cx, cy, cz, rayX, rayY );
+					int k = (int)std::max( 0.0f, ceilf(rayZ / Info.res) );
+					k = std::min( k, Info.cellCountZ );
+					intersectionIndexArrayView(writePosition, i, j) = k;
+				}
+			}
+		}
+	};
+	TNL::Algorithms::parallelFor<TNL::Devices::Cuda>( 0, STL.triangleCount, rayHitIndexLambda );
+	
+	auto rayLambda = [=] __cuda_callable__ ( const IntPairType& doubleIndex ) mutable
+	{
+		const int iCell = doubleIndex.x();
+		const int jCell = doubleIndex.y();
+		
+		for ( int layer = 1; layer < intersectionCountMax; layer++ ) // sort
+		{
+			int key = intersectionIndexArrayView( layer, iCell, jCell );
+			int slider = layer - 1;
+			while ( slider >= 0 && intersectionIndexArrayView( slider, iCell, jCell ) > key ) 
+			{
+				intersectionIndexArrayView( slider + 1, iCell, jCell ) = intersectionIndexArrayView( slider, iCell, jCell );
+				slider = slider - 1;
+			}
+			intersectionIndexArrayView( slider + 1, iCell, jCell ) = key;
+		}
+	};
+	IntPairType startList{ 0, 0 };
+	IntPairType endList{ Info.cellCountX, Info.cellCountY };
+	TNL::Algorithms::parallelFor<TNL::Devices::Cuda>(startList, endList, rayLambda );	
+	
+	auto iArrayView = IJK.iArray.getView();
+	auto jArrayView = IJK.jArray.getView();
+	auto kArrayView = IJK.kArray.getView();
+
+	auto cellLambda = [=] __cuda_callable__ ( const int cell ) mutable
+	{
+		const int iCell = iArrayView[ cell ];
+		const int jCell = jArrayView[ cell ];
+		const int kCell = kArrayView[ cell ];
+		
+		bool markerValue = !insideMarkerValue; // we are always starting outside
+		for ( int interval = 0; interval <= intersectionCountMax; interval++ )
+		{
+			int start = 0;
+			int end = 0;
+			if ( interval == 0 ) end = intersectionIndexArrayView( 0, iCell, jCell );
+			else if ( interval == intersectionCountMax ) 
+			{
+				start = intersectionIndexArrayView( intersectionCountMax-1, iCell, jCell );
+				end = Info.cellCountZ;
+			}
+			else
+			{
+				start = intersectionIndexArrayView( interval-1, iCell, jCell );
+				end = intersectionIndexArrayView( interval, iCell, jCell );
+			}
+			if ( (kCell >= start) && (kCell < end) ) 
+			{
+				markerArrayView( cell ) = markerValue;
+				return;
+			}
+			markerValue = !markerValue;
+		}		
+	};
+	TNL::Algorithms::parallelFor<TNL::Devices::Cuda>(0, Info.cellCount, cellLambda );	
+	
+	std::cout << "	Markers inside STL applied, DIAD version" << std::endl;
+}
+
 void rotateSTLAlongZ( STLStruct &STL, float &radians )
 {
 	std::cout << "Rotating STL along Z axis" << std::endl;
@@ -512,6 +733,28 @@ void rotateSTLAlongZ( STLStruct &STL, float &radians )
 	};
 	TNL::Algorithms::parallelFor<TNL::Devices::Cuda>( 0, STL.triangleCount, rotateLambda );
 	std::cout << "	STL rotated" << std::endl;
+}
+
+// Applies the bounceback marker onto an array using the getMarkers function
+void ApplyMarkersFromFunction( BoolArrayType &markerArray, IJKArrayStruct &IJK, InfoStruct &Info )
+{
+	std::cout << "Applying markers from function, DIAD version" << std::endl;
+	auto markerArrayView = markerArray.getView();
+	
+	auto iArrayView = IJK.iArray.getView();
+	auto jArrayView = IJK.jArray.getView();
+	auto kArrayView = IJK.kArray.getView();
+	
+	auto cellLambda = [=] __cuda_callable__ ( const int cell ) mutable
+	{
+		const int iCell = iArrayView[ cell ];
+		const int jCell = jArrayView[ cell ];
+		const int kCell = kArrayView[ cell ];
+		MarkerStruct Marker;
+		getMarkers( iCell, jCell, kCell, Marker, Info );
+		markerArrayView( cell ) = Marker.bounceback;
+	};
+	TNL::Algorithms::parallelFor<TNL::Devices::Cuda>(0, Info.cellCount, cellLambda );	
 }
 
 void multiplyBoolArrays( BoolArrayType &markerArray1, BoolArrayType &markerArray2, BoolArrayType &resultArray )

@@ -109,3 +109,26 @@ struct STLStruct { 	FloatArrayType axArray; FloatArrayType ayArray; FloatArrayTy
 				};
 
 struct ScalarTransportStruct { FloatArray2DType TArray; float tauT = 1.f; }; 
+
+//------------------------------------------------------------------------------------
+//--------------------------------- DIAD SECTION -------------------------------------
+//------------------------------------------------------------------------------------
+// DIAD stands for directly adressed grid. On such grid, not all cells within the block exist. The cells that exist are saved using IJK coordinates. 
+// Neighbour mapping must be kept in memory, because implicit indexing no longer works.
+
+// This holds i, j, k cell indexes for a DIAD grid
+struct IJKArrayStruct { IntArrayType iArray; IntArrayType jArray; IntArrayType kArray; };
+
+// This holds cell indexes of the neighbour cells in the main positive and negative i,j,k directions for finding geometric neighbours.
+struct DIADNeighboursStruct { 	IntArrayType iPlusArray; IntArrayType jPlusArray; IntArrayType kPlusArray; 
+								IntArrayType iMinusArray; IntArrayType jMinusArray; IntArrayType kMinusArray; };
+
+// This holds cell indexes of the neighbour cells in only positive i,j,k directions for Esotwist streaming.
+struct DIADEsotwistConnectionsStruct { 	IntArrayType iNbrArray; IntArrayType jNbrArray; IntArrayType kNbrArray; 
+										IntArrayType ijNbrArray; IntArrayType ikNbrArray; IntArrayType jkNbrArray; 
+										IntArrayType ijkNbrArray; }; 
+
+struct DIADGridStruct { InfoStruct Info; FloatArray2DType fArray; BoolArrayType bouncebackMarkerArray; 
+						IntArrayType iArray; IntArrayType jArray; IntArrayType kArray; DIADEsotwistConnectionsStruct EsotwistConnections; 
+						IntArrayType fineToCoarseWriteArray; IntArrayType fineToCoarseReadArray; 
+						IntArrayType coarseToFineWriteArray; IntArrayType coarseToFineReadArray; }; 
