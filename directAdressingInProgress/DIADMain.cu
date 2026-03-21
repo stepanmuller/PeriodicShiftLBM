@@ -1,5 +1,5 @@
-constexpr float sphereDiameterPhys = 14.f;											// mm
-constexpr float resGlobal = 1.f; 														// mm
+constexpr float sphereDiameterPhys = 8.f;												// mm
+constexpr float resGlobal = 0.5f; 														// mm
 constexpr float uxInlet = 0.07f; 														// also works as nominal LBM Mach number
 constexpr float reynoldsNumber = 1000000.f;
 constexpr float SmagorinskyConstantGlobal = 0.0f; 										// set to zero to turn off LES
@@ -12,10 +12,10 @@ constexpr float dtPhysGlobal = (uxInlet / uxInletPhys) * (resGlobal/1000); 				/
 constexpr float invSqrt3 = 0.577350269f; 
 constexpr float soundspeedPhys = invSqrt3 * (resGlobal/1000) / dtPhysGlobal; 			// m/s
 
-constexpr float domainSizePhys = 24.f;													// mm
-constexpr float sphereXPhys = 0.5f * domainSizePhys;									// mm
-constexpr float sphereYPhys = 0.5f * domainSizePhys;									// mm
-constexpr float sphereZPhys = 0.5f * domainSizePhys;									// mm
+constexpr float domainSizePhys = 16.f;													// mm
+constexpr float sphereXPhys = 0.f;														// mm
+constexpr float sphereYPhys = 0.f;														// mm
+constexpr float sphereZPhys = 0.f;														// mm
 
 const int cellCountX = static_cast<int>(std::ceil(domainSizePhys / resGlobal));
 const int cellCountY = cellCountX;
@@ -23,9 +23,9 @@ const int cellCountZ = cellCountX;
 
 constexpr int iterationCount = 20000;
 constexpr int iterationChunk = 1000;
-constexpr int gridLevelCount = 1;
+constexpr int gridLevelCount = 4;
 
-constexpr int wallRefinementSpan = 3; // how many cells there are in each refinement layer around the wall
+constexpr int wallRefinementSpan = 1; // how many cells there are in each refinement layer around the wall
 
 #include "../include/types.h"
 
@@ -51,6 +51,7 @@ __cuda_callable__ void getMarkers( 	const int& iCell, const int& jCell, const in
 }
 
 #include "../include/STLFunctions.h"
+std::string STLPathBlade = "blade.STL";
 
 //#include "../include/applyLocalCellUpdate.h"
 #include "../include/plotter/exportSectionCutPlot.h"
@@ -61,7 +62,18 @@ __cuda_callable__ void getMarkers( 	const int& iCell, const int& jCell, const in
 
 int main(int argc, char **argv)
 {
-	std::vector<STLStruct> STLs = {};
+	/*
+	STLStructCPU STLCPUBlade;
+	readSTL( STLCPUBlade, STLPathBlade );
+	STLStruct STLBlade( STLCPUBlade );
+	checkSTLEdges( STLBlade );
+	float radians = 3.14159f * 2.f * (1.f / 4.f);
+	rotateSTLAlongX( STLBlade, radians );
+	rotateSTLAlongZ( STLBlade, radians );
+	STLBlade.oz = -10.f;
+	std::vector<STLStruct> STLs = { STLBlade };
+	*/
+	std::vector<STLStruct> STLs = { };
 	
 	std::vector<DIADGridStruct> grids(gridLevelCount);
 	grids[0].Info.res = resGlobal;
@@ -70,9 +82,9 @@ int main(int argc, char **argv)
 	grids[0].Info.cellCountX = cellCountX;
 	grids[0].Info.cellCountY = cellCountY;
 	grids[0].Info.cellCountZ = cellCountZ;
-	grids[0].Info.ox = 0.5f * grids[0].Info.res;
-	grids[0].Info.oy = 0.5f * grids[0].Info.res;
-	grids[0].Info.oz = 0.5f * grids[0].Info.res;
+	grids[0].Info.ox = - 0.5f * domainSizePhys;
+	grids[0].Info.oy = - 0.5f * domainSizePhys;
+	grids[0].Info.oz = - 0.5f * domainSizePhys;
 	grids[0].Info.cellCount = grids[0].Info.cellCountX * grids[0].Info.cellCountY * grids[0].Info.cellCountZ;
 	buildIJKFromInfo( grids[0].IJK, grids[0].Info );
 	

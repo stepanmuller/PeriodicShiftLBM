@@ -15,6 +15,7 @@
 #include <TNL/Timer.h>
 
 using BoolArrayType = TNL::Containers::Array< bool, TNL::Devices::Cuda, size_t >;
+using BoolArrayTypeCPU = TNL::Containers::Array< bool, TNL::Devices::Host, size_t >;
 												
 using IntArrayType = TNL::Containers::Array< int, TNL::Devices::Cuda, size_t >;
 using IntArrayConstViewType = TNL::Containers::ArrayView< const int, TNL::Devices::Cuda, size_t >;
@@ -117,7 +118,28 @@ struct ScalarTransportStruct { FloatArray2DType TArray; float tauT = 1.f; };
 // Neighbour mapping must be kept in memory, because implicit indexing no longer works.
 
 // This holds i, j, k cell indexes for a DIAD grid
-struct IJKArrayStruct { IntArrayType iArray; IntArrayType jArray; IntArrayType kArray; };
+struct IJKArrayStructCPU; // just declaring first
+struct IJKArrayStruct { IntArrayType iArray; IntArrayType jArray; IntArrayType kArray; 
+						IJKArrayStruct() = default;
+						// Constructor copies data from IJKArrayStructCPU
+						IJKArrayStruct( const IJKArrayStructCPU& IJKCPU );
+					};
+
+struct IJKArrayStructCPU { 	IntArrayTypeCPU iArray; IntArrayTypeCPU jArray; IntArrayTypeCPU kArray; 
+							IJKArrayStructCPU() = default;
+							// Constructor copies data from IJKArrayStruct (GPU)
+							IJKArrayStructCPU( const IJKArrayStruct& IJK )
+							{
+								iArray = IJK.iArray; 
+								jArray = IJK.jArray;
+								kArray = IJK.kArray;
+							}
+						};
+inline IJKArrayStruct::IJKArrayStruct(const IJKArrayStructCPU& IJKCPU) {
+    iArray = IJKCPU.iArray;
+    jArray = IJKCPU.jArray;
+    kArray = IJKCPU.kArray;
+}
 
 // This holds cell indexes of the neighbour cells in the main positive and negative i,j,k directions for finding geometric neighbours.
 struct DIADNeighboursStruct { 	IntArrayType iPlusArray; IntArrayType jPlusArray; IntArrayType kPlusArray; 

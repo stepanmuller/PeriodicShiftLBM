@@ -692,6 +692,45 @@ void ApplyMarkersInsideSTL( BoolArrayType &markerArray, IJKArrayStruct &IJK, STL
 	TNL::Algorithms::parallelFor<TNL::Devices::Cuda>(0, Info.cellCount, cellLambda );	
 }
 
+void rotateSTLAlongX( STLStruct &STL, float &radians )
+{
+	std::cout << "Rotating STL along X axis" << std::endl;
+	auto ayArrayView = STL.ayArray.getView();
+	auto azArrayView = STL.azArray.getView();
+	auto byArrayView = STL.byArray.getView();
+	auto bzArrayView = STL.bzArray.getView();
+	auto cyArrayView = STL.cyArray.getView();
+	auto czArrayView = STL.czArray.getView();
+	
+	auto rotateLambda = [ = ] __cuda_callable__( const int triangleIndex ) mutable
+	{
+		const float ay = ayArrayView[ triangleIndex ];
+		const float az = azArrayView[ triangleIndex ];
+		const float by = byArrayView[ triangleIndex ];
+		const float bz = bzArrayView[ triangleIndex ];
+		const float cy = cyArrayView[ triangleIndex ];
+		const float cz = czArrayView[ triangleIndex ];
+		
+		const float s = sinf(radians);
+		const float c = cosf(radians);
+		const float newAy = ay * c - az * s;
+		const float newAz = ay * s + az * c;
+		const float newBy = by * c - bz * s;
+		const float newBz = by * s + bz * c;
+		const float newCy = cy * c - cz * s;
+		const float newCz = cy * s + cz * c;
+		
+		ayArrayView[ triangleIndex ] = newAy;
+		azArrayView[ triangleIndex ] = newAz;
+		byArrayView[ triangleIndex ] = newBy;
+		bzArrayView[ triangleIndex ] = newBz;
+		cyArrayView[ triangleIndex ] = newCy;
+		czArrayView[ triangleIndex ] = newCz;
+	};
+	TNL::Algorithms::parallelFor<TNL::Devices::Cuda>( 0, STL.triangleCount, rotateLambda );
+	std::cout << "	STL rotated" << std::endl;
+}
+
 void rotateSTLAlongZ( STLStruct &STL, float &radians )
 {
 	std::cout << "Rotating STL along Z axis" << std::endl;

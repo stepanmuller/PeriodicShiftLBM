@@ -111,21 +111,65 @@ void sortFinestGrid( DIADGridStruct &Grid, BoolArrayType &keepCellMarkerArray )
 	TNL::Algorithms::sort<TNL::Devices::Cuda, size_t>( 0, cellCount, comparisonLambda, swapLambda );
 }
 
-int countKeepCells( BoolArrayType &keepCellMarkerArray )
+// sort for all coarse grid levels
+void sortCoarseGrid( DIADGridStruct &Grid, BoolArrayType &keepCellMarkerArray, BoolArrayType &fineToCoarseMarkerArray, BoolArrayType &coarseToFineMarkerArray )
 {
-	const int cellCount = keepCellMarkerArray.getSize();
+	const int cellCount = Grid.Info.cellCount;
+	auto iView = Grid.IJK.iArray.getView();
+	auto jView = Grid.IJK.jArray.getView();
+	auto kView = Grid.IJK.kArray.getView();
 	auto keepCellMarkerView = keepCellMarkerArray.getView();
+	auto fineToCoarseMarkerView = fineToCoarseMarkerArray.getView();
+	auto coarseToFineMarkerView = coarseToFineMarkerArray.getView();
+
+    auto comparisonLambda = [=] __cuda_callable__ ( const size_t a, const size_t b )
+	{
+		if ( keepCellMarkerView[ a ] > keepCellMarkerView[ b ] ) return true;
+		else if ( keepCellMarkerView[ a ] < keepCellMarkerView[ b ] ) return false;
+		else
+		{
+			if ( kView[ a ] < kView[ b ] ) return true;
+			else if ( kView[ a ] > kView[ b ] ) return false;
+			else
+			{
+				if ( jView[ a ] < jView[ b ] ) return true;
+				else if ( jView[ a ] > jView[ b ] ) return false;
+				else
+				{
+					if ( iView[ a ] < iView[ b ] ) return true;
+					else if ( iView[ a ] > iView[ b ] ) return false;
+					else return false;
+				}
+			}
+		}
+	};
+	auto swapLambda = [=] __cuda_callable__ ( const size_t a, const size_t b ) mutable
+	{
+		TNL::swap( iView[ a ], iView[ b ] );
+		TNL::swap( jView[ a ], jView[ b ] );
+		TNL::swap( kView[ a ], kView[ b ] );
+		TNL::swap( keepCellMarkerView[ a ], keepCellMarkerView[ b ] );
+		TNL::swap( fineToCoarseMarkerView[ a ], fineToCoarseMarkerView[ b ] );
+		TNL::swap( coarseToFineMarkerView[ a ], coarseToFineMarkerView[ b ] );
+	};
+	TNL::Algorithms::sort<TNL::Devices::Cuda, size_t>( 0, cellCount, comparisonLambda, swapLambda );
+}
+
+int countMarkerCells( BoolArrayType &markerArray )
+{
+	const int cellCount = markerArray.getSize();
+	auto markerView = markerArray.getView();
 	
 	auto fetch = [ = ] __cuda_callable__( const int cell )
 		{
-			return (int)keepCellMarkerView[ cell ];
+			return (int)markerView[ cell ];
 		};
 		auto reduction = [] __cuda_callable__( const int& a, const int& b )
 		{
 			return a + b;
 		};	
-	int keepCellCount = TNL::Algorithms::reduce<TNL::Devices::Cuda>( 0, cellCount, fetch, reduction, 0 );
-	return keepCellCount;
+	int result = TNL::Algorithms::reduce<TNL::Devices::Cuda>( 0, cellCount, fetch, reduction, 0 );
+	return result;
 }
 
 // Receives sorted IJKSource that !must! be already sorted with key k, j, i so that k index changes the slowest
@@ -244,7 +288,9 @@ void markWhereFinestFluidIs( BoolArrayType &fluidMarkerArray, IJKArrayStruct &IJ
 	const float ozOriginal = Info.oz;
 	fluidMarkerArray.setValue( 0 );
 	BoolArrayType markerArray = BoolArrayType( Info.cellCount );
+	markerArray.setValue( 0 );
 	BoolArrayType markerArraySTL = BoolArrayType( Info.cellCount );
+	markerArraySTL.setValue( 0 );
 	for ( int shiftCountX = 0; shiftCountX < shiftCount; shiftCountX++ )
 	{
 		for ( int shiftCountY = 0; shiftCountY < shiftCount; shiftCountY++ )
@@ -596,83 +642,237 @@ void markDIADNeighbours( DIADNeighboursStruct &Neighbours, BoolArrayType &source
 
 void buildDIADGrid( std::vector<DIADGridStruct> &grids, std::vector<STLStruct> STLs, const int level )
 {
-	const int kCut = grids[0].Info.cellCountZ / 2;
-	
 	DIADGridStruct Grid = grids[level];
 	InfoStruct Info = Grid.Info;
 	
-	sortIJK( Grid.IJK );
+	const int kCut = Grid.Info.cellCountZ / 2;
 	
+	//PLOT
+	Grid.bouncebackMarkerArray = BoolArrayType( Grid.Info.cellCount );
+	Grid.bouncebackMarkerArray.setValue( 0 );
+	exportSectionCutPlotXY( Grid, kCut, 10*level );
+	system("python3 ../include/plotter/plotter.py");
+	//PLOT END
+
+	sortIJK( Grid.IJK );
 	DIADNeighboursStruct Neighbours;
 	getDIADNeighbours( Grid.IJK, Neighbours );	
 		
-	BoolArrayType fluidMarkerArray = BoolArrayType( Info.cellCount );
-	markWhereFinestFluidIs( fluidMarkerArray, Grid.IJK, STLs, Info );
-	
+	BoolArrayType fluidMarkerArray = BoolArrayType( Grid.Info.cellCount );
+	markWhereFinestFluidIs( fluidMarkerArray, Grid.IJK, STLs, Grid.Info );
 	//PLOT
 	Grid.bouncebackMarkerArray = fluidMarkerArray;
-	exportSectionCutPlotXY( Grid, kCut, 0 );
+	exportSectionCutPlotXY( Grid, kCut, 10*level+1 );
 	system("python3 ../include/plotter/plotter.py");
 	//PLOT END
 	
-	/*
-	Initialize temporary borderMarker array
-	Loop through all cells. 
-		If it is not fluid, check if at least one of its neighbours is fluid. If yes, mark it as border cell.
-	*/
-	BoolArrayType borderMarkerArray = BoolArrayType( Info.cellCount );
+	// BORDER
+	BoolArrayType borderMarkerArray = BoolArrayType( Grid.Info.cellCount );
+	borderMarkerArray.setValue( 0 );
 	markDIADNeighbours( Neighbours, fluidMarkerArray, borderMarkerArray );
-	BoolArrayType fluidInverseMarkerArray = BoolArrayType( Info.cellCount );
+	BoolArrayType fluidInverseMarkerArray = BoolArrayType( Grid.Info.cellCount );
 	fluidInverseMarkerArray = fluidMarkerArray;
 	invertBoolArray( fluidInverseMarkerArray );
 	multiplyBoolArrays( fluidInverseMarkerArray, borderMarkerArray, borderMarkerArray );
-	
 	//PLOT
 	Grid.bouncebackMarkerArray = borderMarkerArray;
-	exportSectionCutPlotXY( Grid, kCut, 1 );
+	exportSectionCutPlotXY( Grid, kCut, 10*level+2 );
 	system("python3 ../include/plotter/plotter.py");
 	//PLOT END
 	
-	BoolArrayType keepCellMarkerArray = BoolArrayType( Info.cellCount );
-	if ( level == gridLevelCount - 1 ) // true if we are on the finest level
+	// KEEP CELL ARRAY -> SO FAR KEEP FLUID AND BORDER
+	BoolArrayType keepCellMarkerArray = BoolArrayType( Grid.Info.cellCount );
+	keepCellMarkerArray = fluidMarkerArray;
+	sumBoolArrays( keepCellMarkerArray, borderMarkerArray, keepCellMarkerArray );
+	
+	// FINEST GRID BRANCH
+	if ( level == gridLevelCount - 1 )
 	{
-		keepCellMarkerArray = fluidMarkerArray;
-		sumBoolArrays( keepCellMarkerArray, borderMarkerArray, keepCellMarkerArray );
 		Grid.bouncebackMarkerArray = borderMarkerArray;
 		sortFinestGrid( Grid, keepCellMarkerArray );
-		Info.cellCount = countKeepCells( keepCellMarkerArray );
-		Grid.IJK.iArray.resize(Info.cellCount);
-		Grid.IJK.jArray.resize(Info.cellCount);
-		Grid.IJK.kArray.resize(Info.cellCount);
-		Grid.bouncebackMarkerArray.resize(Info.cellCount);
+		Grid.Info.cellCount = countMarkerCells( keepCellMarkerArray );
+		Grid.IJK.iArray.resize(Grid.Info.cellCount);
+		Grid.IJK.jArray.resize(Grid.Info.cellCount);
+		Grid.IJK.kArray.resize(Grid.Info.cellCount);
+		Grid.bouncebackMarkerArray.resize(Grid.Info.cellCount);
+		// getDIADEsotwistConnections( Grid ) <- NEED TO FINISH THIS!
 		//PLOT
-		exportSectionCutPlotXY( Grid, kCut, level + 10 );
+		Grid.bouncebackMarkerArray = Grid.bouncebackMarkerArray;
+		exportSectionCutPlotXY( Grid, kCut, 10*level+3 );
 		system("python3 ../include/plotter/plotter.py");
 		//PLOT END
-		// getDIADEsotwistConnections( Grid )
+		//PLOT
+		Grid.bouncebackMarkerArray.setValue( 0 );
+		exportSectionCutPlotXY( Grid, kCut, 10*level+4 );
+		system("python3 ../include/plotter/plotter.py");
+		//PLOT END
 		return;
 	}
-	// If we got here, we are on a coarser grid and need to add refinement region
 	
-	/*
-	 * Now we have marked fluid cells and boundary cells. Next, we need to identify the refinement region.
-	initialize temporary fineMarker array
-	for layer in range(wallRefinementSpan):
-		initialize temporary newFineMarker array
-		Loop through all cells.
-			If it is border, mark it as newFineMarker
-			If its fluid and its neighbour is border, mark it as newFineMarker
-			If its fluid and its neighbour is fineMarker, mark it as newFineMarker -> this is how we spread further from the wall each iteration
-		fineMarker = newFineMarker
-	Now, the layer where we communicate from fine to coarse
-	initialize temporary fineToCoarseMarker array
-	Loop through all cells.
-		If its fluid and its not fineMarker, but its neighbour is fineMarker, mark it as fineToCoarseMarker
-	Loop through all cells.
-		If its fluid and its not fineMarker and not fineToCoarseMarker, but its neighbour is fineToCoarseMarker, mark it as coarseToFineMarker
-	Loop through all cells.
-		If its fineToCoarseMarker or coarseToFineMarker, also now mark it as fineMarker.
-	*/
+	// COARSE GRID BRANCH
+	// THICK REFINEMENT REGION
+	BoolArrayType refinementMarkerArray = BoolArrayType( Grid.Info.cellCount );
+	refinementMarkerArray = borderMarkerArray;
+	BoolArrayType newRefinementMarkerArray = BoolArrayType( Grid.Info.cellCount );
+	newRefinementMarkerArray.setValue( 0 );
+	for ( int layer = 0; layer < wallRefinementSpan; layer++ )
+	{
+		markDIADNeighbours( Neighbours, refinementMarkerArray, newRefinementMarkerArray );
+		multiplyBoolArrays( newRefinementMarkerArray, keepCellMarkerArray, refinementMarkerArray );
+	}
+	
+	// FINE TO COARSE COMMUNICATION INTERFACE
+	BoolArrayType fineToCoarseMarkerArray = BoolArrayType( Grid.Info.cellCount );
+	fineToCoarseMarkerArray.setValue( 0 );
+	markDIADNeighbours( Neighbours, refinementMarkerArray, fineToCoarseMarkerArray );
+	multiplyBoolArrays( fluidMarkerArray, fineToCoarseMarkerArray, fineToCoarseMarkerArray );
+	BoolArrayType refinementInverseMarkerArray = BoolArrayType( Grid.Info.cellCount );
+	refinementInverseMarkerArray = refinementMarkerArray;
+	invertBoolArray( refinementInverseMarkerArray );
+	multiplyBoolArrays( fineToCoarseMarkerArray, refinementInverseMarkerArray, fineToCoarseMarkerArray );
+	
+	// COARSE TO FINE COMMUNICATION INTERFACE
+	BoolArrayType coarseToFineMarkerArray = BoolArrayType( Grid.Info.cellCount );
+	coarseToFineMarkerArray.setValue( 0 );
+	markDIADNeighbours( Neighbours, fineToCoarseMarkerArray, coarseToFineMarkerArray );
+	multiplyBoolArrays( fluidMarkerArray, coarseToFineMarkerArray, coarseToFineMarkerArray );
+	BoolArrayType fineToCoarseInverseMarkerArray = BoolArrayType( Grid.Info.cellCount );
+	fineToCoarseInverseMarkerArray = fineToCoarseMarkerArray;
+	invertBoolArray( fineToCoarseInverseMarkerArray );
+	multiplyBoolArrays( coarseToFineMarkerArray, fineToCoarseInverseMarkerArray, coarseToFineMarkerArray );
+	multiplyBoolArrays( coarseToFineMarkerArray, refinementInverseMarkerArray, coarseToFineMarkerArray );
+	
+	// NOW ALSO ADD THE INTERFACE INTO THE REFINEMENT AREA
+	sumBoolArrays( refinementMarkerArray, fineToCoarseMarkerArray, refinementMarkerArray );
+	sumBoolArrays( refinementMarkerArray, coarseToFineMarkerArray, refinementMarkerArray );
+	refinementInverseMarkerArray = refinementMarkerArray;
+	invertBoolArray( refinementInverseMarkerArray );
+	
+	// ASSEMBLE IJK FOR THE NEXT LEVEL FINER GRID BASED ON THE REFINEMENT AREA
+	const int cellCountFine = 8 * countMarkerCells( keepCellMarkerArray );
+	grids[level+1].Info.cellCount = cellCountFine;
+	BoolArrayTypeCPU refinementMarkerArrayCPU = BoolArrayTypeCPU( Grid.Info.cellCount );
+	refinementMarkerArrayCPU = refinementMarkerArray;
+	IJKArrayStructCPU IJKCPU = IJKArrayStructCPU( Grid.IJK );
+	IJKArrayStructCPU IJKFineCPU;
+	IJKFineCPU.iArray.setSize( cellCountFine );
+	IJKFineCPU.jArray.setSize( cellCountFine );
+	IJKFineCPU.kArray.setSize( cellCountFine );
+	int cellFine = 0;
+	for ( int cellCoarse = 0; cellCoarse < Grid.Info.cellCount; cellCoarse++ )
+	{
+		if ( refinementMarkerArrayCPU[ cellCoarse ] )
+		{
+			const int iCoarse = IJKCPU.iArray[ cellCoarse ];
+			const int jCoarse = IJKCPU.jArray[ cellCoarse ];
+			const int kCoarse = IJKCPU.kArray[ cellCoarse ];
+			const int iFine = iCoarse * 2;
+			const int jFine = jCoarse * 2;
+			const int kFine = kCoarse * 2;
+			IJKFineCPU.iArray[ cellFine ] = iFine;
+			IJKFineCPU.jArray[ cellFine ] = jFine;
+			IJKFineCPU.kArray[ cellFine ] = kFine;
+			cellFine++;
+			IJKFineCPU.iArray[ cellFine ] = iFine + 1;
+			IJKFineCPU.jArray[ cellFine ] = jFine;
+			IJKFineCPU.kArray[ cellFine ] = kFine;
+			cellFine++;
+			IJKFineCPU.iArray[ cellFine ] = iFine;
+			IJKFineCPU.jArray[ cellFine ] = jFine + 1;
+			IJKFineCPU.kArray[ cellFine ] = kFine;
+			cellFine++;
+			IJKFineCPU.iArray[ cellFine ] = iFine + 1;
+			IJKFineCPU.jArray[ cellFine ] = jFine + 1;
+			IJKFineCPU.kArray[ cellFine ] = kFine;
+			cellFine++;
+			IJKFineCPU.iArray[ cellFine ] = iFine;
+			IJKFineCPU.jArray[ cellFine ] = jFine;
+			IJKFineCPU.kArray[ cellFine ] = kFine + 1;
+			cellFine++;
+			IJKFineCPU.iArray[ cellFine ] = iFine + 1;
+			IJKFineCPU.jArray[ cellFine ] = jFine;
+			IJKFineCPU.kArray[ cellFine ] = kFine + 1;
+			cellFine++;
+			IJKFineCPU.iArray[ cellFine ] = iFine;
+			IJKFineCPU.jArray[ cellFine ] = jFine + 1;
+			IJKFineCPU.kArray[ cellFine ] = kFine + 1;
+			cellFine++;
+			IJKFineCPU.iArray[ cellFine ] = iFine + 1;
+			IJKFineCPU.jArray[ cellFine ] = jFine + 1;
+			IJKFineCPU.kArray[ cellFine ] = kFine + 1;
+			cellFine++;
+		}
+	}
+	
+	grids[level + 1].IJK = IJKArrayStruct( IJKFineCPU );
+	
+	// MARK KEEP CELLS TO BE ABLE TO DELETE ALL CELLS THAT ARE NOT NEEDED ON OUR COARSE GRID
+	keepCellMarkerArray = fluidMarkerArray;
+	multiplyBoolArrays( keepCellMarkerArray, refinementInverseMarkerArray, keepCellMarkerArray );
+	sumBoolArrays( keepCellMarkerArray, coarseToFineMarkerArray, keepCellMarkerArray );
+	sumBoolArrays( keepCellMarkerArray, fineToCoarseMarkerArray, keepCellMarkerArray );
+	
+	// SORT ALL CELLS BY KEY: keepCell, k, j, i
+	sortCoarseGrid( Grid, keepCellMarkerArray, fineToCoarseMarkerArray, coarseToFineMarkerArray );
+	Grid.Info.cellCount = countMarkerCells( keepCellMarkerArray );
+	Grid.IJK.iArray.resize(Grid.Info.cellCount);
+	Grid.IJK.jArray.resize(Grid.Info.cellCount);
+	Grid.IJK.kArray.resize(Grid.Info.cellCount);
+	fineToCoarseMarkerArray.resize(Grid.Info.cellCount);
+	coarseToFineMarkerArray.resize(Grid.Info.cellCount);
+	
+	// FINAL BOUNCEBACK PASS IN CASE WE ARE NOT REFINING IN SOME WALL AREA
+	Grid.bouncebackMarkerArray.setSize(Grid.Info.cellCount);
+	Grid.bouncebackMarkerArray.setValue( 0 );
+	BoolArrayType markerArraySTL = BoolArrayType( Grid.Info.cellCount );	
+	ApplyMarkersFromFunction( Grid.bouncebackMarkerArray, Grid.IJK, Grid.Info );
+	for ( int STLIndex = 0; STLIndex < STLs.size(); STLIndex++ )
+	{
+		const bool insideMarkerValue = 1;
+		ApplyMarkersInsideSTL( markerArraySTL, Grid.IJK, STLs[STLIndex], insideMarkerValue, Grid.Info );
+		sumBoolArrays( Grid.bouncebackMarkerArray, markerArraySTL, Grid.bouncebackMarkerArray );
+	}
+	
+	// BUILD ESOTWIST CONNECTIONS
+	// getDIADEsotwistConnections( Grid ) <- NEED TO FINISH THIS!
+	
+	//PLOT
+	Grid.bouncebackMarkerArray = Grid.bouncebackMarkerArray;
+	exportSectionCutPlotXY( Grid, kCut, 10*level+3 );
+	system("python3 ../include/plotter/plotter.py");
+	//PLOT END
+		
+	//PLOT
+	Grid.bouncebackMarkerArray = fineToCoarseMarkerArray;
+	exportSectionCutPlotXY( Grid, kCut, 10*level+4 );
+	system("python3 ../include/plotter/plotter.py");
+	//PLOT END
+	
+	//PLOT
+	Grid.bouncebackMarkerArray = coarseToFineMarkerArray;
+	exportSectionCutPlotXY( Grid, kCut, 10*level+5 );
+	system("python3 ../include/plotter/plotter.py");
+	//PLOT END
+	
+	//PLOT
+	Grid.bouncebackMarkerArray.setValue( 0 );
+	exportSectionCutPlotXY( Grid, kCut, 10*level+6 );
+	system("python3 ../include/plotter/plotter.py");
+	//PLOT END
+	
+	// CALL THE FUNCTION RECURSIVELY TO BUILD THE NEXT FINER GRID LEVEL
+	grids[level+1].Info.gridID = Grid.Info.gridID + 1;
+	grids[level+1].Info.res = Grid.Info.res * 0.5f;
+	grids[level+1].Info.dtPhys = Grid.Info.dtPhys * 0.5f;
+	grids[level+1].Info.nu = (grids[level+1].Info.dtPhys * nuPhys) / ((grids[level+1].Info.res/1000.f) * (grids[level+1].Info.res/1000.f));
+	grids[level+1].Info.ox = Grid.Info.ox - grids[level+1].Info.res * 0.5f;
+	grids[level+1].Info.oy = Grid.Info.oy - grids[level+1].Info.res * 0.5f;
+	grids[level+1].Info.oz = Grid.Info.oz - grids[level+1].Info.res * 0.5f;
+	grids[level+1].Info.cellCountX = Grid.Info.cellCountX * 2;
+	grids[level+1].Info.cellCountY = Grid.Info.cellCountY * 2;
+	grids[level+1].Info.cellCountZ = Grid.Info.cellCountZ * 2;
+	buildDIADGrid( grids, STLs, level + 1 );
+	
 	/*
 	for ( int cell = 0; cell < grids[0].Info.cellCount; cell++ )
 	{
