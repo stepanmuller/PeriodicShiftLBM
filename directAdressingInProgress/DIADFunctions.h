@@ -36,6 +36,21 @@ void shiftIJK( IJKArrayStruct &IJK, const int cx, const int cy, const int cz )
 	TNL::Algorithms::parallelFor<TNL::Devices::Cuda>( 0, IJK.iArray.getSize(), cellLambda );
 }
 
+void shiftIJKPeriodic( IJKArrayStruct &IJK, const int cx, const int cy, const int cz, InfoStruct &Info )
+{
+	auto iView = IJK.iArray.getView();
+	auto jView = IJK.jArray.getView();
+	auto kView = IJK.kArray.getView();
+	
+	auto cellLambda = [=] __cuda_callable__ ( const int cell ) mutable
+	{
+		iView[ cell ] = (iView[ cell ] + cx) % Info.cellCountX;
+		jView[ cell ] = (jView[ cell ] + cy) % Info.cellCountY;
+		kView[ cell ] = (kView[ cell ] + cz) % Info.cellCountZ;
+	};
+	TNL::Algorithms::parallelFor<TNL::Devices::Cuda>( 0, IJK.iArray.getSize(), cellLambda );
+}
+
 // sort IJK arrays as ascending k, j, i so that k changes the slowest
 void sortIJK( IJKArrayStruct &IJK )
 {
@@ -172,11 +187,27 @@ int countMarkerCells( BoolArrayType &markerArray )
 	return result;
 }
 
-// Receives sorted IJKSource that !must! be already sorted with key k, j, i so that k index changes the slowest
-// For each Wanted, find a matching cell in Source. If its found, write its index to resultArray. If there is no such cell, write -2.		
-void findMatchingIJKIndex( 	IJKArrayStruct &Wanted, IJKArrayStruct &Source, IntArrayType &resultArray )
+int countInvalidIndexes( IntArrayType &intArray )
 {
-	const int wantedCellCount = Wanted.iArray.getSize();
+	const int cellCount = intArray.getSize();
+	auto intView = intArray.getView();
+	
+	auto fetch = [ = ] __cuda_callable__( const int cell )
+		{
+			if (intView[ cell ] < 0) return 1;
+			else return 0;
+		};
+		auto reduction = [] __cuda_callable__( const int& a, const int& b )
+		{
+			return a + b;
+		};	
+	int result = TNL::Algorithms::reduce<TNL::Devices::Cuda>( 0, cellCount, fetch, reduction, 0 );
+	return result;
+}
+
+// Helper for the findMatchingIJKIndex function
+void getIJKStepArray( IJKArrayStruct &Source, IntArrayType &kStepArray )
+{
 	const int sourceCellCount = Source.iArray.getSize();
 	
 	IntArrayTypeCPU kSourceArrayCPU;
@@ -196,8 +227,16 @@ void findMatchingIJKIndex( 	IJKArrayStruct &Wanted, IJKArrayStruct &Source, IntA
 	}
 	const int kStepCount = counter;
 	kStepArrayCPU.resize( kStepCount );
-	IntArrayType kStepArray;
 	kStepArray = kStepArrayCPU;
+}
+
+// Receives sorted IJKSource that !must! be already sorted with key k, j, i so that k index changes the slowest
+// For each Wanted, find a matching cell in Source. If its found, write its index to resultArray. If there is no such cell, write -2.		
+void findMatchingIJKIndex( 	IJKArrayStruct &Wanted, IJKArrayStruct &Source, IntArrayType &resultArray, IntArrayType &kStepArray )
+{
+	const int wantedCellCount = Wanted.iArray.getSize();
+	const int sourceCellCount = Source.iArray.getSize();
+	const int kStepCount = kStepArray.getSize();
 	
 	auto iWantedView = Wanted.iArray.getConstView();
 	auto jWantedView = Wanted.jArray.getConstView();
@@ -210,6 +249,7 @@ void findMatchingIJKIndex( 	IJKArrayStruct &Wanted, IJKArrayStruct &Source, IntA
 	
 	auto cellLambda = [=] __cuda_callable__ ( const int cellWanted ) mutable
 	{
+		if ( resultView[ cellWanted ] >= 0 ) return; // Do not overwrite the cell if its already valid from before
 		const int iWanted = iWantedView[ cellWanted ];
 		const int jWanted = jWantedView[ cellWanted ];
 		const int kWanted = kWantedView[ cellWanted ];
@@ -326,31 +366,130 @@ void getDIADNeighbours( IJKArrayStruct &IJK, DIADNeighboursStruct &Neighbours )
 	Neighbours.iMinusArray.setSize(cellCount);
 	Neighbours.jMinusArray.setSize(cellCount);
 	Neighbours.kMinusArray.setSize(cellCount);
+	Neighbours.iPlusArray.setValue( -2 );
+	Neighbours.jPlusArray.setValue( -2 );
+	Neighbours.kPlusArray.setValue( -2 );
+	Neighbours.iMinusArray.setValue( -2 );
+	Neighbours.jMinusArray.setValue( -2 );
+	Neighbours.kMinusArray.setValue( -2 );
+	
+	IntArrayType kStepArray;
+	getIJKStepArray( IJK, kStepArray );
 
 	IJKArrayStruct IJKShifted;
 	IJKShifted = IJK;
 	shiftIJK( IJKShifted, 1, 0, 0 );
-	findMatchingIJKIndex( IJKShifted, IJK, Neighbours.iPlusArray );
+	findMatchingIJKIndex( IJKShifted, IJK, Neighbours.iPlusArray, kStepArray );
 
 	IJKShifted = IJK;
 	shiftIJK( IJKShifted, 0, 1, 0 );
-	findMatchingIJKIndex( IJKShifted, IJK, Neighbours.jPlusArray );
+	findMatchingIJKIndex( IJKShifted, IJK, Neighbours.jPlusArray, kStepArray );
 	
 	IJKShifted = IJK;
 	shiftIJK( IJKShifted, 0, 0, 1 );
-	findMatchingIJKIndex( IJKShifted, IJK, Neighbours.kPlusArray );
+	findMatchingIJKIndex( IJKShifted, IJK, Neighbours.kPlusArray, kStepArray );
 	
 	IJKShifted = IJK;
 	shiftIJK( IJKShifted, -1, 0, 0 );
-	findMatchingIJKIndex( IJKShifted, IJK, Neighbours.iMinusArray );
+	findMatchingIJKIndex( IJKShifted, IJK, Neighbours.iMinusArray, kStepArray );
 	
 	IJKShifted = IJK;
 	shiftIJK( IJKShifted, 0, -1, 0 );
-	findMatchingIJKIndex( IJKShifted, IJK, Neighbours.jMinusArray );
+	findMatchingIJKIndex( IJKShifted, IJK, Neighbours.jMinusArray, kStepArray );
 	
 	IJKShifted = IJK;
 	shiftIJK( IJKShifted, 0, 0, -1 );
-	findMatchingIJKIndex( IJKShifted, IJK, Neighbours.kMinusArray );
+	findMatchingIJKIndex( IJKShifted, IJK, Neighbours.kMinusArray, kStepArray );
+}
+
+void getDIADEsotwistConnections( DIADGridStruct &Grid )
+{
+	InfoStruct Info = Grid.Info;
+	IJKArrayStruct IJK = Grid.IJK;
+	const int cellCount = Info.cellCount;
+	Grid.EsotwistConnections.iNbrArray.setSize( cellCount );
+	Grid.EsotwistConnections.jNbrArray.setSize( cellCount );
+	Grid.EsotwistConnections.kNbrArray.setSize( cellCount );
+	Grid.EsotwistConnections.ijNbrArray.setSize( cellCount );
+	Grid.EsotwistConnections.ikNbrArray.setSize( cellCount );
+	Grid.EsotwistConnections.jkNbrArray.setSize( cellCount );
+	Grid.EsotwistConnections.ijkNbrArray.setSize( cellCount );
+	Grid.EsotwistConnections.iNbrArray.setValue( -2 );
+	Grid.EsotwistConnections.jNbrArray.setValue( -2 );
+	Grid.EsotwistConnections.kNbrArray.setValue( -2 );
+	Grid.EsotwistConnections.ijNbrArray.setValue( -2 );
+	Grid.EsotwistConnections.ikNbrArray.setValue( -2 );
+	Grid.EsotwistConnections.jkNbrArray.setValue( -2 );
+	Grid.EsotwistConnections.ijkNbrArray.setValue( -2 );
+	
+	IntArrayType kStepArray;
+	getIJKStepArray( IJK, kStepArray );
+	
+	IJKArrayStruct IJKShifted;
+	int invalidNeighbourCount;
+	
+	IJKShifted = IJK;
+	invalidNeighbourCount = 1;
+	while ( invalidNeighbourCount > 0 )
+	{
+		shiftIJKPeriodic( IJKShifted, 1, 0, 0, Info );
+		findMatchingIJKIndex( IJKShifted, IJK, Grid.EsotwistConnections.iNbrArray, kStepArray );
+		invalidNeighbourCount = countInvalidIndexes( Grid.EsotwistConnections.iNbrArray );
+	}
+
+	IJKShifted = IJK;
+	invalidNeighbourCount = 1;
+	while ( invalidNeighbourCount > 0 )
+	{
+		shiftIJKPeriodic( IJKShifted, 0, 1, 0, Info );
+		findMatchingIJKIndex( IJKShifted, IJK, Grid.EsotwistConnections.jNbrArray, kStepArray );
+		invalidNeighbourCount = countInvalidIndexes( Grid.EsotwistConnections.jNbrArray );
+	}
+	
+	IJKShifted = IJK;
+	invalidNeighbourCount = 1;
+	while ( invalidNeighbourCount > 0 )
+	{
+		shiftIJKPeriodic( IJKShifted, 0, 0, 1, Info );
+		findMatchingIJKIndex( IJKShifted, IJK, Grid.EsotwistConnections.kNbrArray, kStepArray );
+		invalidNeighbourCount = countInvalidIndexes( Grid.EsotwistConnections.kNbrArray );
+	}
+	
+	IJKShifted = IJK;
+	invalidNeighbourCount = 1;
+	while ( invalidNeighbourCount > 0 )
+	{
+		shiftIJKPeriodic( IJKShifted, 1, 1, 0, Info );
+		findMatchingIJKIndex( IJKShifted, IJK, Grid.EsotwistConnections.ijNbrArray, kStepArray );
+		invalidNeighbourCount = countInvalidIndexes( Grid.EsotwistConnections.ijNbrArray );
+	}
+	
+	IJKShifted = IJK;
+	invalidNeighbourCount = 1;
+	while ( invalidNeighbourCount > 0 )
+	{
+		shiftIJKPeriodic( IJKShifted, 1, 0, 1, Info );
+		findMatchingIJKIndex( IJKShifted, IJK, Grid.EsotwistConnections.ikNbrArray, kStepArray );
+		invalidNeighbourCount = countInvalidIndexes( Grid.EsotwistConnections.ikNbrArray );
+	}
+	
+	IJKShifted = IJK;
+	invalidNeighbourCount = 1;
+	while ( invalidNeighbourCount > 0 )
+	{
+		shiftIJKPeriodic( IJKShifted, 0, 1, 1, Info );
+		findMatchingIJKIndex( IJKShifted, IJK, Grid.EsotwistConnections.jkNbrArray, kStepArray );
+		invalidNeighbourCount = countInvalidIndexes( Grid.EsotwistConnections.jkNbrArray );
+	}
+	
+	IJKShifted = IJK;
+	invalidNeighbourCount = 1;
+	while ( invalidNeighbourCount > 0 )
+	{
+		shiftIJKPeriodic( IJKShifted, 1, 1, 1, Info );
+		findMatchingIJKIndex( IJKShifted, IJK, Grid.EsotwistConnections.ijkNbrArray, kStepArray );
+		invalidNeighbourCount = countInvalidIndexes( Grid.EsotwistConnections.ijkNbrArray );
+	}
 }
 
 // Mark target cell as 1 if at least one of its neighbours in source is 1
@@ -643,16 +782,9 @@ void markDIADNeighbours( DIADNeighboursStruct &Neighbours, BoolArrayType &source
 void buildDIADGrid( std::vector<DIADGridStruct> &grids, std::vector<STLStruct> STLs, const int level )
 {
 	DIADGridStruct Grid = grids[level];
-	InfoStruct Info = Grid.Info;
+	std::cout << "Initial cell count on level " << level <<" : " << Grid.Info.cellCount << std::endl;
 	
 	const int kCut = Grid.Info.cellCountZ / 2;
-	
-	//PLOT
-	Grid.bouncebackMarkerArray = BoolArrayType( Grid.Info.cellCount );
-	Grid.bouncebackMarkerArray.setValue( 0 );
-	exportSectionCutPlotXY( Grid, kCut, 10*level );
-	system("python3 ../include/plotter/plotter.py");
-	//PLOT END
 
 	sortIJK( Grid.IJK );
 	DIADNeighboursStruct Neighbours;
@@ -660,11 +792,6 @@ void buildDIADGrid( std::vector<DIADGridStruct> &grids, std::vector<STLStruct> S
 		
 	BoolArrayType fluidMarkerArray = BoolArrayType( Grid.Info.cellCount );
 	markWhereFinestFluidIs( fluidMarkerArray, Grid.IJK, STLs, Grid.Info );
-	//PLOT
-	Grid.bouncebackMarkerArray = fluidMarkerArray;
-	exportSectionCutPlotXY( Grid, kCut, 10*level+1 );
-	system("python3 ../include/plotter/plotter.py");
-	//PLOT END
 	
 	// BORDER
 	BoolArrayType borderMarkerArray = BoolArrayType( Grid.Info.cellCount );
@@ -674,11 +801,6 @@ void buildDIADGrid( std::vector<DIADGridStruct> &grids, std::vector<STLStruct> S
 	fluidInverseMarkerArray = fluidMarkerArray;
 	invertBoolArray( fluidInverseMarkerArray );
 	multiplyBoolArrays( fluidInverseMarkerArray, borderMarkerArray, borderMarkerArray );
-	//PLOT
-	Grid.bouncebackMarkerArray = borderMarkerArray;
-	exportSectionCutPlotXY( Grid, kCut, 10*level+2 );
-	system("python3 ../include/plotter/plotter.py");
-	//PLOT END
 	
 	// KEEP CELL ARRAY -> SO FAR KEEP FLUID AND BORDER
 	BoolArrayType keepCellMarkerArray = BoolArrayType( Grid.Info.cellCount );
@@ -695,17 +817,12 @@ void buildDIADGrid( std::vector<DIADGridStruct> &grids, std::vector<STLStruct> S
 		Grid.IJK.jArray.resize(Grid.Info.cellCount);
 		Grid.IJK.kArray.resize(Grid.Info.cellCount);
 		Grid.bouncebackMarkerArray.resize(Grid.Info.cellCount);
-		// getDIADEsotwistConnections( Grid ) <- NEED TO FINISH THIS!
+		getDIADEsotwistConnections( Grid );
 		//PLOT
-		Grid.bouncebackMarkerArray = Grid.bouncebackMarkerArray;
-		exportSectionCutPlotXY( Grid, kCut, 10*level+3 );
+		exportSectionCutPlotXY( Grid, kCut, level );
 		system("python3 ../include/plotter/plotter.py");
 		//PLOT END
-		//PLOT
-		Grid.bouncebackMarkerArray.setValue( 0 );
-		exportSectionCutPlotXY( Grid, kCut, 10*level+4 );
-		system("python3 ../include/plotter/plotter.py");
-		//PLOT END
+		std::cout << "Final cell count on level " << level <<" : " << Grid.Info.cellCount << std::endl;
 		return;
 	}
 	
@@ -749,7 +866,7 @@ void buildDIADGrid( std::vector<DIADGridStruct> &grids, std::vector<STLStruct> S
 	invertBoolArray( refinementInverseMarkerArray );
 	
 	// ASSEMBLE IJK FOR THE NEXT LEVEL FINER GRID BASED ON THE REFINEMENT AREA
-	const int cellCountFine = 8 * countMarkerCells( keepCellMarkerArray );
+	const int cellCountFine = 8 * countMarkerCells( refinementMarkerArray );
 	grids[level+1].Info.cellCount = cellCountFine;
 	BoolArrayTypeCPU refinementMarkerArrayCPU = BoolArrayTypeCPU( Grid.Info.cellCount );
 	refinementMarkerArrayCPU = refinementMarkerArray;
@@ -834,31 +951,7 @@ void buildDIADGrid( std::vector<DIADGridStruct> &grids, std::vector<STLStruct> S
 	}
 	
 	// BUILD ESOTWIST CONNECTIONS
-	// getDIADEsotwistConnections( Grid ) <- NEED TO FINISH THIS!
-	
-	//PLOT
-	Grid.bouncebackMarkerArray = Grid.bouncebackMarkerArray;
-	exportSectionCutPlotXY( Grid, kCut, 10*level+3 );
-	system("python3 ../include/plotter/plotter.py");
-	//PLOT END
-		
-	//PLOT
-	Grid.bouncebackMarkerArray = fineToCoarseMarkerArray;
-	exportSectionCutPlotXY( Grid, kCut, 10*level+4 );
-	system("python3 ../include/plotter/plotter.py");
-	//PLOT END
-	
-	//PLOT
-	Grid.bouncebackMarkerArray = coarseToFineMarkerArray;
-	exportSectionCutPlotXY( Grid, kCut, 10*level+5 );
-	system("python3 ../include/plotter/plotter.py");
-	//PLOT END
-	
-	//PLOT
-	Grid.bouncebackMarkerArray.setValue( 0 );
-	exportSectionCutPlotXY( Grid, kCut, 10*level+6 );
-	system("python3 ../include/plotter/plotter.py");
-	//PLOT END
+	getDIADEsotwistConnections( Grid ); // <- NEED TO FINISH THIS!
 	
 	// CALL THE FUNCTION RECURSIVELY TO BUILD THE NEXT FINER GRID LEVEL
 	grids[level+1].Info.gridID = Grid.Info.gridID + 1;
@@ -872,6 +965,28 @@ void buildDIADGrid( std::vector<DIADGridStruct> &grids, std::vector<STLStruct> S
 	grids[level+1].Info.cellCountY = Grid.Info.cellCountY * 2;
 	grids[level+1].Info.cellCountZ = Grid.Info.cellCountZ * 2;
 	buildDIADGrid( grids, STLs, level + 1 );
+	
+	/*
+	The very last thing is that we need indices of its cells where we will communicate.
+	The simplest, yet admittedly slow way is to:
+	Initialize coarseToFineWriteArray -> same length as coarseToFineReadArray
+	For cells in coarseToFineReadArray:
+		calculate underlying ijk of the fine grid
+		ask the fine grid whats the index of its cell with coords ijk fine
+		write the index into coarseToFineWriteArray
+	Initialize fineToCoarseReadArray
+	For cells in fineToCoarseWriteArray:
+		calculate underlying ijk of the fine grid
+		ask the fine grid whats the index of its cell with coords ijk fine
+		write the index into fineToCoarseReadArray
+	END
+	*/
+	
+	//PLOT
+	exportSectionCutPlotXY( Grid, kCut, level );
+	system("python3 ../include/plotter/plotter.py");
+	//PLOT END
+	std::cout << "Final cell count on level " << level <<" : " << Grid.Info.cellCount << std::endl;
 	
 	/*
 	for ( int cell = 0; cell < grids[0].Info.cellCount; cell++ )

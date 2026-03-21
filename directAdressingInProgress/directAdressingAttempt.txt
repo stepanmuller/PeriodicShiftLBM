@@ -182,6 +182,7 @@ Recursive function assembleGrid( grids, level, STLs )
 	getDIADEsotwistConnections( Grid )
 	
 	Call the recursive function assembleGrid( iFine, jFine, kFine, Info (?) ) to build the finer grid
+	
 	After that has been built, the very last thing is that we need indices of its cells where we will communicate.
 	The simplest, yet admittedly slow way is to:
 	Initialize coarseToFineWriteArray -> same length as coarseToFineReadArray

@@ -23,7 +23,7 @@ const int cellCountZ = cellCountX;
 
 constexpr int iterationCount = 20000;
 constexpr int iterationChunk = 1000;
-constexpr int gridLevelCount = 4;
+constexpr int gridLevelCount = 7;
 
 constexpr int wallRefinementSpan = 1; // how many cells there are in each refinement layer around the wall
 
@@ -87,8 +87,6 @@ int main(int argc, char **argv)
 	grids[0].Info.oz = - 0.5f * domainSizePhys;
 	grids[0].Info.cellCount = grids[0].Info.cellCountX * grids[0].Info.cellCountY * grids[0].Info.cellCountZ;
 	buildIJKFromInfo( grids[0].IJK, grids[0].Info );
-	
-	std::cout << "Initial cell count on level 0: " << grids[0].Info.cellCount << std::endl;
 	
 	buildDIADGrid( grids, STLs, 0 );
 	

@@ -269,7 +269,6 @@ __host__ __device__ float getRayHitZCoordinate(	const float &ax, const float &ay
 
 void applyMarkersInsideSTL( BoolArrayType &markerArray, STLStruct &STL, const bool &insideMarkerValue, InfoStruct &Info )
 {
-	std::cout << "Applying markers inside STL" << std::endl;
 	auto markerArrayView = markerArray.getView();
 
 	auto axArrayView = STL.axArray.getConstView();
@@ -476,7 +475,6 @@ void applyMarkersInsideSTL( BoolArrayType &markerArray, STLStruct &STL, const bo
 // DIAD Version. DIAD stands for directly adressed. This means, IJK arrays are provided that capture positions of existing cells (not all cells exist in the block)
 void ApplyMarkersInsideSTL( BoolArrayType &markerArray, IJKArrayStruct &IJK, STLStruct &STL, const bool &insideMarkerValue, InfoStruct &Info )
 {
-	std::cout << "Applying markers inside STL, DIAD version" << std::endl;
 	auto markerArrayView = markerArray.getView();
 	
 	auto axArrayView = STL.axArray.getConstView();
@@ -773,7 +771,6 @@ void rotateSTLAlongZ( STLStruct &STL, float &radians )
 // Applies the bounceback marker onto an array using the getMarkers function
 void ApplyMarkersFromFunction( BoolArrayType &markerArray, IJKArrayStruct &IJK, InfoStruct &Info )
 {
-	std::cout << "Applying markers from function, DIAD version" << std::endl;
 	auto markerArrayView = markerArray.getView();
 	
 	auto iArrayView = IJK.iArray.getView();
