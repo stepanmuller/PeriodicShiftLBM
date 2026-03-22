@@ -25,7 +25,7 @@ constexpr int iterationCount = 20000;
 constexpr int iterationChunk = 1000;
 constexpr int gridLevelCount = 7;
 
-constexpr int wallRefinementSpan = 1; // how many cells there are in each refinement layer around the wall
+constexpr int wallRefinementSpan = 2; // how many cells there are in each refinement layer around the wall
 
 #include "../include/types.h"
 
@@ -47,7 +47,7 @@ __cuda_callable__ void getMarkers( 	const int& iCell, const int& jCell, const in
 	const float yPhys = jCell * Info.res + Info.oy;
 	const float zPhys = kCell * Info.res + Info.oz;
 	const float r2 = (xPhys-sphereXPhys) * (xPhys - sphereXPhys) + (yPhys - sphereYPhys) * (yPhys - sphereYPhys) + (zPhys - sphereZPhys) * (zPhys - sphereZPhys);
-	if ( r2 <= sphereRadiusPhys * sphereRadiusPhys ) Marker.bounceback = 1;
+	//if ( r2 <= sphereRadiusPhys * sphereRadiusPhys ) Marker.bounceback = 1;
 }
 
 #include "../include/STLFunctions.h"
@@ -62,7 +62,7 @@ std::string STLPathBlade = "blade.STL";
 
 int main(int argc, char **argv)
 {
-	/*
+	
 	STLStructCPU STLCPUBlade;
 	readSTL( STLCPUBlade, STLPathBlade );
 	STLStruct STLBlade( STLCPUBlade );
@@ -72,8 +72,8 @@ int main(int argc, char **argv)
 	rotateSTLAlongZ( STLBlade, radians );
 	STLBlade.oz = -10.f;
 	std::vector<STLStruct> STLs = { STLBlade };
-	*/
-	std::vector<STLStruct> STLs = { };
+	
+	//std::vector<STLStruct> STLs = { };
 	
 	std::vector<DIADGridStruct> grids(gridLevelCount);
 	grids[0].Info.res = resGlobal;

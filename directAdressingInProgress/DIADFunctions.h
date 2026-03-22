@@ -781,7 +781,7 @@ void markDIADNeighbours( DIADNeighboursStruct &Neighbours, BoolArrayType &source
 
 void buildDIADGrid( std::vector<DIADGridStruct> &grids, std::vector<STLStruct> STLs, const int level )
 {
-	DIADGridStruct Grid = grids[level];
+	DIADGridStruct &Grid = grids[level];
 	std::cout << "Initial cell count on level " << level <<" : " << Grid.Info.cellCount << std::endl;
 	
 	const int kCut = Grid.Info.cellCountZ / 2;
@@ -832,7 +832,8 @@ void buildDIADGrid( std::vector<DIADGridStruct> &grids, std::vector<STLStruct> S
 	refinementMarkerArray = borderMarkerArray;
 	BoolArrayType newRefinementMarkerArray = BoolArrayType( Grid.Info.cellCount );
 	newRefinementMarkerArray.setValue( 0 );
-	for ( int layer = 0; layer < wallRefinementSpan; layer++ )
+	const int thickness = std::max({wallRefinementSpan, 2}) + (gridLevelCount - level - 1);
+	for ( int layer = 0; layer < thickness; layer++ )
 	{
 		markDIADNeighbours( Neighbours, refinementMarkerArray, newRefinementMarkerArray );
 		multiplyBoolArrays( newRefinementMarkerArray, keepCellMarkerArray, refinementMarkerArray );
@@ -966,79 +967,110 @@ void buildDIADGrid( std::vector<DIADGridStruct> &grids, std::vector<STLStruct> S
 	grids[level+1].Info.cellCountZ = Grid.Info.cellCountZ * 2;
 	buildDIADGrid( grids, STLs, level + 1 );
 	
-	/*
-	The very last thing is that we need indices of its cells where we will communicate.
-	The simplest, yet admittedly slow way is to:
-	Initialize coarseToFineWriteArray -> same length as coarseToFineReadArray
-	For cells in coarseToFineReadArray:
-		calculate underlying ijk of the fine grid
-		ask the fine grid whats the index of its cell with coords ijk fine
-		write the index into coarseToFineWriteArray
-	Initialize fineToCoarseReadArray
-	For cells in fineToCoarseWriteArray:
-		calculate underlying ijk of the fine grid
-		ask the fine grid whats the index of its cell with coords ijk fine
-		write the index into fineToCoarseReadArray
-	END
-	*/
+	// MAP INTERFACE COMMUNICATION PREPARATION
+	auto iView = Grid.IJK.iArray.getView();
+	auto jView = Grid.IJK.jArray.getView();
+	auto kView = Grid.IJK.kArray.getView();
+	IJKCPU = IJKArrayStructCPU( Grid.IJK );
+	IJKArrayStruct fineIJK;
+	const int coarseToFineCount = countMarkerCells( coarseToFineMarkerArray );
+	Grid.coarseToFineWriteArray.setSize( coarseToFineCount );
+	Grid.coarseToFineReadArray.setSize( coarseToFineCount );
+	Grid.coarseToFineWriteArray.setValue( -2 );
+	Grid.coarseToFineReadArray.setValue( -2 );
+	const int fineToCoarseCount = countMarkerCells( fineToCoarseMarkerArray );
+	Grid.fineToCoarseWriteArray.setSize( fineToCoarseCount );
+	Grid.fineToCoarseReadArray.setSize( fineToCoarseCount );
+	Grid.fineToCoarseWriteArray.setValue( -2 );
+	Grid.fineToCoarseReadArray.setValue( -2 );
+	int counter;
+	
+	// MAP INTERFACE COMMUNICATION COARSE TO FINE
+	BoolArrayTypeCPU coarseToFineMarkerArrayCPU;
+	coarseToFineMarkerArrayCPU = coarseToFineMarkerArray;
+	IntArrayTypeCPU coarseToFineReadArrayCPU;
+	coarseToFineReadArrayCPU = Grid.coarseToFineReadArray;
+	counter = 0;
+	for ( int cell = 0; cell < Grid.Info.cellCount; cell++ )
+	{
+		if ( coarseToFineMarkerArrayCPU[ cell ] )
+		{
+			coarseToFineReadArrayCPU[ counter ] = cell;
+			counter++;
+		}
+	}
+	Grid.coarseToFineReadArray = coarseToFineReadArrayCPU;
+	fineIJK.iArray.setSize( coarseToFineCount );
+	fineIJK.jArray.setSize( coarseToFineCount );
+	fineIJK.kArray.setSize( coarseToFineCount );
+	auto coarseToFineReadArrayView = Grid.coarseToFineReadArray.getConstView();
+	auto iFineView1 = fineIJK.iArray.getView();
+	auto jFineView1 = fineIJK.jArray.getView();
+	auto kFineView1 = fineIJK.kArray.getView();
+	auto cellLambda1 = [=] __cuda_callable__ ( const int counter ) mutable
+	{
+		const int cell = coarseToFineReadArrayView[ counter ];
+		iFineView1[ counter ] = iView[ cell ] * 2;
+		jFineView1[ counter ] = jView[ cell ] * 2;
+		kFineView1[ counter ] = kView[ cell ] * 2;
+	};
+	TNL::Algorithms::parallelFor<TNL::Devices::Cuda>( 0, coarseToFineCount, cellLambda1 );
+	IntArrayType kStepArray;
+	getIJKStepArray( grids[level+1].IJK, kStepArray );
+	findMatchingIJKIndex( fineIJK, grids[level+1].IJK, Grid.coarseToFineWriteArray, kStepArray );
+	const int invalidConnections1 = countInvalidIndexes( Grid.coarseToFineWriteArray );
+	if ( invalidConnections1 > 0 )
+	{
+		throw std::runtime_error( 
+			"DIAD Grid Generation Error: " + std::to_string(invalidConnections1) + 
+			" invalid coarse-to-fine connections found on level " + std::to_string(level) 
+		);
+	}
+	
+	// MAP INTERFACE COMMUNICATION FINE TO COARSE
+	BoolArrayTypeCPU fineToCoarseMarkerArrayCPU;
+	fineToCoarseMarkerArrayCPU = fineToCoarseMarkerArray;
+	IntArrayTypeCPU fineToCoarseWriteArrayCPU;
+	fineToCoarseWriteArrayCPU = Grid.fineToCoarseWriteArray;
+	counter = 0;
+	for ( int cell = 0; cell < Grid.Info.cellCount; cell++ )
+	{
+		if ( fineToCoarseMarkerArrayCPU[ cell ] )
+		{
+			fineToCoarseWriteArrayCPU[ counter ] = cell;
+			counter++;
+		}
+	}
+	Grid.fineToCoarseWriteArray = fineToCoarseWriteArrayCPU;
+	fineIJK.iArray.setSize( fineToCoarseCount );
+	fineIJK.jArray.setSize( fineToCoarseCount );
+	fineIJK.kArray.setSize( fineToCoarseCount );
+	auto fineToCoarseWriteArrayView = Grid.fineToCoarseWriteArray.getConstView();
+	auto iFineView2 = fineIJK.iArray.getView();
+	auto jFineView2 = fineIJK.jArray.getView();
+	auto kFineView2 = fineIJK.kArray.getView();
+	auto cellLambda2 = [=] __cuda_callable__ ( const int counter ) mutable
+	{
+		const int cell = fineToCoarseWriteArrayView[ counter ];
+		iFineView2[ counter ] = iView[ cell ] * 2;
+		jFineView2[ counter ] = jView[ cell ] * 2;
+		kFineView2[ counter ] = kView[ cell ] * 2;
+	};
+	TNL::Algorithms::parallelFor<TNL::Devices::Cuda>( 0, fineToCoarseCount, cellLambda2 );
+	getIJKStepArray( grids[level+1].IJK, kStepArray );
+	findMatchingIJKIndex( fineIJK, grids[level+1].IJK, Grid.fineToCoarseReadArray, kStepArray );
+	const int invalidConnections2 = countInvalidIndexes( Grid.fineToCoarseReadArray );
+	if ( invalidConnections2 > 0 )
+	{
+		throw std::runtime_error( 
+			"DIAD Grid Generation Error: " + std::to_string(invalidConnections2) + 
+			" invalid coarse-to-fine connections found on level " + std::to_string(level) 
+		);
+	}
 	
 	//PLOT
 	exportSectionCutPlotXY( Grid, kCut, level );
 	system("python3 ../include/plotter/plotter.py");
 	//PLOT END
 	std::cout << "Final cell count on level " << level <<" : " << Grid.Info.cellCount << std::endl;
-	
-	/*
-	for ( int cell = 0; cell < grids[0].Info.cellCount; cell++ )
-	{
-		int iPlus = Neighbours.iPlusArray.getElement(cell);
-		int jPlus = Neighbours.jPlusArray.getElement(cell);
-		int kPlus = Neighbours.kPlusArray.getElement(cell);
-		int iMinus = Neighbours.iMinusArray.getElement(cell);
-		int jMinus = Neighbours.jMinusArray.getElement(cell);
-		int kMinus = Neighbours.kMinusArray.getElement(cell);		
-		
-		std::cout << "cell: " << cell <<
-		" i: " << grids[0].IJK.iArray.getElement(cell) <<
-		" j: " << grids[0].IJK.jArray.getElement(cell) <<
-		" k: " << grids[0].IJK.kArray.getElement(cell) << std::endl;
-		std::cout << "neighbours: " <<
-		" iPlus: " << iPlus <<
-		" jPlus: " << jPlus <<
-		" kPlus: " << kPlus <<
-		" iMinus: " << iMinus <<
-		" jMinus: " << jMinus  <<
-		" kMinus: " << kMinus  << std::endl;
-
-		iPlus = std::max({0, iPlus});
-		jPlus = std::max({0, jPlus});
-		kPlus = std::max({0, kPlus});
-		iMinus = std::max({0, iMinus});
-		jMinus = std::max({0, jMinus});
-		kMinus = std::max({0, kMinus});
-		std::cout << "neighbour ijk: " << 
-		" iPlus i: " << grids[0].IJK.iArray.getElement(iPlus) <<
-		" iPlus j: " << grids[0].IJK.jArray.getElement(iPlus) <<
-		" iPlus k: " << grids[0].IJK.kArray.getElement(iPlus) <<
-		" jPlus i: " << grids[0].IJK.iArray.getElement(jPlus) <<
-		" jPlus j: " << grids[0].IJK.jArray.getElement(jPlus) <<
-		" jPlus k: " << grids[0].IJK.kArray.getElement(jPlus) <<
-		" kPlus i: " << grids[0].IJK.iArray.getElement(kPlus) <<
-		" kPlus j: " << grids[0].IJK.jArray.getElement(kPlus) <<
-		" kPlus k: " << grids[0].IJK.kArray.getElement(kPlus) <<
-		" iMinus i: " << grids[0].IJK.iArray.getElement(iMinus) <<
-		" iMinus j: " << grids[0].IJK.jArray.getElement(iMinus) <<
-		" iMinus k: " << grids[0].IJK.kArray.getElement(iMinus) <<
-		" jMinus i: " << grids[0].IJK.iArray.getElement(jMinus) <<
-		" jMinus j: " << grids[0].IJK.jArray.getElement(jMinus) <<
-		" jMinus k: " << grids[0].IJK.kArray.getElement(jMinus) <<
-		" kMinus i: " << grids[0].IJK.iArray.getElement(kMinus) <<
-		" kMinus j: " << grids[0].IJK.jArray.getElement(kMinus) <<
-		" kMinus k: " << grids[0].IJK.kArray.getElement(kMinus) <<
-		std::endl;
-		std::cout << std::endl;
-		std::cout << std::endl;
-
-	}
-	*/
 }
