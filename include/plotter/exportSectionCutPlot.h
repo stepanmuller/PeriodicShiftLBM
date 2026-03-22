@@ -236,6 +236,15 @@ void exportSectionCutPlotGeneral( DIADGridStruct &Grid, const int &cutIndex, con
 	auto jView = Grid.IJK.jArray.getConstView();
 	auto kView = Grid.IJK.kArray.getConstView();
 	
+	bool esotwistFlipper = Grid.esotwistFlipper;
+	auto iNbrView = Grid.EsotwistConnections.iNbrArray.getConstView();
+	auto jNbrView = Grid.EsotwistConnections.jNbrArray.getConstView();
+	auto kNbrView = Grid.EsotwistConnections.kNbrArray.getConstView();
+	auto ijNbrView = Grid.EsotwistConnections.ijNbrArray.getConstView();
+	auto ikNbrView = Grid.EsotwistConnections.ikNbrArray.getConstView();
+	auto jkNbrView = Grid.EsotwistConnections.jkNbrArray.getConstView();
+	auto ijkNbrView = Grid.EsotwistConnections.ijkNbrArray.getConstView();
+	
 	SectionCutStruct SectionCut;
 	SectionCut.rhoArray.setSizes( cellCountVertical, cellCountHorizontal );
 	SectionCut.uxArray.setSizes( cellCountVertical, cellCountHorizontal );
@@ -261,6 +270,15 @@ void exportSectionCutPlotGeneral( DIADGridStruct &Grid, const int &cutIndex, con
 		int jCell = jView[ cell ];
 		int kCell = kView[ cell ];
 		
+		DIADEsotwistNbrStruct Nbr;
+		Nbr.i = iNbrView( cell );
+		Nbr.j = jNbrView( cell );
+		Nbr.k = kNbrView( cell );
+		Nbr.ij = ijNbrView( cell );
+		Nbr.ik = ikNbrView( cell );
+		Nbr.jk = jkNbrView( cell );
+		Nbr.ijk = ijkNbrView( cell );
+		
 		int indexHorizontal = 0;
 		int indexVertical = 0;
 		
@@ -282,12 +300,17 @@ void exportSectionCutPlotGeneral( DIADGridStruct &Grid, const int &cutIndex, con
 			indexVertical = iCell; 
 			indexHorizontal = kCell; 
 		}
+		
+		float f[27];
+		int cellReadIndex[27];
+		int fReadIndex[27];
+		getEsotwistWriteIndex( cell, cellReadIndex, fReadIndex, Nbr, esotwistFlipper, Info ); 
+		// Using the write index because plotting is happening after collision and we want to be consistent with that last write
+		for ( int direction = 0; direction < 27; direction++ )	f[direction] = fArrayView(fReadIndex[direction], cellReadIndex[direction]);
+		
 		float rho, ux, uy, uz;
-		//getRhoUxUyUz(rho, ux, uy, uz, f);
-		rho = 1.f;
-		ux = 0.f;
-		uy = 0.f;
-		uz = 0.f;
+		getRhoUxUyUz(rho, ux, uy, uz, f);
+
 		MarkerStruct Marker;
 		if ( useBouncebackArray ) Marker.bounceback = bouncebackMarkerArrayView( cell );
 		//getMarkers( iCell, jCell, kCell, Marker, Info );
@@ -349,7 +372,6 @@ void exportSectionCutPlotZX( DIADGridStruct &Grid, const int &jCell, const int &
 	std::cout << "Exporting DIAD ZX section cut plot " << plotNumber << std::endl;
 	exportSectionCutPlotGeneral( Grid, jCell, plotNumber, ZX );
 }
-
 
 void export3DPlot( GridStruct &Grid, const int &plotNumber )
 {

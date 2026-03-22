@@ -145,10 +145,13 @@ inline IJKArrayStruct::IJKArrayStruct(const IJKArrayStructCPU& IJKCPU) {
 struct DIADNeighboursStruct { 	IntArrayType iPlusArray; IntArrayType jPlusArray; IntArrayType kPlusArray; 
 								IntArrayType iMinusArray; IntArrayType jMinusArray; IntArrayType kMinusArray; };
 
-// This holds cell indexes of the neighbour cells in only positive i,j,k directions for Esotwist streaming.
+// This holds cell indexes of the neighbour cells in only positive i,j,k directions for Esotwist streaming for all cells
 struct DIADEsotwistConnectionsStruct { 	IntArrayType iNbrArray; IntArrayType jNbrArray; IntArrayType kNbrArray; 
 										IntArrayType ijNbrArray; IntArrayType ikNbrArray; IntArrayType jkNbrArray; 
 										IntArrayType ijkNbrArray; }; 
+										
+// This holds cell indexes of the neighbour cells in only positive i,j,k directions for Esotwist streaming for a single cell
+struct DIADEsotwistNbrStruct { int i; int j; int k; int ij; int ik; int jk; int ijk; }; 
 
 struct DIADGridStruct { InfoStruct Info; FloatArray2DType fArray; BoolArrayType bouncebackMarkerArray; 
 						IJKArrayStruct IJK; DIADEsotwistConnectionsStruct EsotwistConnections; 

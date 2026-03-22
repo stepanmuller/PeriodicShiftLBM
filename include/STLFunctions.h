@@ -1,3 +1,5 @@
+#pragma once
+
 void readSTL( STLStructCPU &STLCPU, const std::string &filename )
 {
 	std::cout << "Reading STL: " << filename << std::endl;
@@ -764,27 +766,6 @@ void rotateSTLAlongZ( STLStruct &STL, float &radians )
 	};
 	TNL::Algorithms::parallelFor<TNL::Devices::Cuda>( 0, STL.triangleCount, rotateLambda );
 	std::cout << "	STL rotated" << std::endl;
-}
-
-// Applies the bounceback marker onto an array using the getMarkers function
-void ApplyMarkersFromFunction( BoolArrayType &markerArray, IJKArrayStruct &IJK, InfoStruct &Info )
-{
-	auto markerArrayView = markerArray.getView();
-	
-	auto iArrayView = IJK.iArray.getView();
-	auto jArrayView = IJK.jArray.getView();
-	auto kArrayView = IJK.kArray.getView();
-	
-	auto cellLambda = [=] __cuda_callable__ ( const int cell ) mutable
-	{
-		const int iCell = iArrayView[ cell ];
-		const int jCell = jArrayView[ cell ];
-		const int kCell = kArrayView[ cell ];
-		MarkerStruct Marker;
-		getMarkers( iCell, jCell, kCell, Marker, Info );
-		markerArrayView( cell ) = Marker.bounceback;
-	};
-	TNL::Algorithms::parallelFor<TNL::Devices::Cuda>(0, Info.cellCount, cellLambda );	
 }
 
 void multiplyBoolArrays( BoolArrayType &markerArray1, BoolArrayType &markerArray2, BoolArrayType &resultArray )

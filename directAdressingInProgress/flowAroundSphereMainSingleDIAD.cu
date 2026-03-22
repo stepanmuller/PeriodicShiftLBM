@@ -24,6 +24,7 @@ const int cellCountZ = cellCountX;
 constexpr int iterationCount = 20000;
 constexpr int iterationChunk = 1000;
 constexpr int gridLevelCount = 1;
+constexpr int wallRefinementSpan = 2;
 
 #include "../include/types.h"
 
@@ -95,89 +96,26 @@ __cuda_callable__ void getInitialRhoUxUyUz( const int &iCell, const int &jCell, 
 #include "../include/fillEquilibrium.h"
 #include "../include/gridRefinementFunctions.h"
 
-float getSphereDrag( GridStruct &Grid )
-{
-	auto fArrayView  = Grid.fArray.getView();
-	auto shifterView  = Grid.shifter.getConstView();
-	InfoStruct Info = Grid.Info;
-	
-	const int iStart = (int)((sphereXPhys - sphereRadiusPhys - Info.ox) / Info.res);
-	const int iEnd = (int)((sphereXPhys + sphereRadiusPhys - Info.ox) / Info.res) + 2;
-	const int jStart = (int)((sphereYPhys - sphereRadiusPhys - Info.oy) / Info.res);
-	const int jEnd = (int)((sphereYPhys + sphereRadiusPhys - Info.oy) / Info.res) + 2;
-	const int kStart = (int)((sphereZPhys - sphereRadiusPhys - Info.oz) / Info.res);
-	const int kEnd = (int)((sphereZPhys + sphereRadiusPhys - Info.oz) / Info.res) + 2;
-	
-	const int start = 0;
-	const int end = (iEnd - iStart) * (jEnd - jStart) * (kEnd - kStart);
-	
-	auto fetch = [ = ] __cuda_callable__( const int singleIndex )
-	{
-		const int iSpan = iEnd - iStart;
-		const int jSpan = jEnd - jStart;
-		const int kRelative = singleIndex / (iSpan * jSpan);
-		const int remainder = singleIndex % (iSpan * jSpan);
-		const int jRelative = remainder / iSpan;
-		const int iRelative = remainder % iSpan;
-		
-		const int iCell = iRelative + iStart;
-		const int jCell = jRelative + jStart;
-		const int kCell = kRelative + kStart;
-		int cell;
-		getCellIndex( cell, iCell, jCell, kCell, Info );
-		
-		MarkerStruct Marker;
-		getMarkers( iCell, jCell, kCell, Marker, Info );
-		
-		if ( !Marker.bounceback ) return 0.f;
-		
-		int shiftedIndex[27];
-		getShiftedIndex( cell, shiftedIndex, shifterView, Info );
-		float f[27];
-		for (int direction = 0; direction < 27; direction++) f[direction] = fArrayView( direction, shiftedIndex[direction] );	
-		float rho, ux, uy, uz;
-		getRhoUxUyUz( rho, ux, uy, uz, f );
-		applyBounceback( f );
-		float rhoPrev, uxPrev, uyPrev, uzPrev;
-		getRhoUxUyUz( rhoPrev, uxPrev, uyPrev, uzPrev, f );
-		const float gx = rho * (ux -  uxPrev);
-		return gx;
-	};
-	auto reduction = [] __cuda_callable__( const float& a, const float& b )
-	{
-		return a + b;
-	};
-	
-	float gxSum = TNL::Algorithms::reduce<TNL::Devices::Cuda>( start, end, fetch, reduction, 0.f );
-	float gy, gz = 0;
-	convertToPhysicalForce( gxSum, gy, gz, Info );
-	return gxSum;
-}
+#include "./DIADFunctions.h"
 
-void exportHistoryData( const std::vector<float>& historyDragCoefficient, const int &currentIteration ) {
-    FILE* fp = fopen("/dev/shm/historyData.bin", "wb");
-    if (!fp) return;
-    int count = currentIteration + 1;
-    fwrite(&count, sizeof(int), 1, fp);
-    fwrite(historyDragCoefficient.data(), sizeof(float), count, fp);
-    fclose(fp);
-    system("python3 historyPlotter.py &"); 
-}
-
-void updateGrid( std::vector<GridStruct>& grids, int level ) 
+void updateGrid( std::vector<DIADGridStruct>& grids, int level ) 
 {
     applyStreaming(grids[level]);
     applyLocalCellUpdate(grids[level]);
+    /*
     if (level < gridLevelCount - 1) 
     {
         for (int i = 0; i < 2; i++) updateGrid(grids, level + 1);
         applyCoarseFineGridCommunication(grids[level], grids[level + 1]);
     }
+    */
 }
 
 int main(int argc, char **argv)
 {
-	std::vector<GridStruct> grids(gridLevelCount);
+	std::vector<STLStruct> STLs = { };
+	
+	std::vector<DIADGridStruct> grids(gridLevelCount);
 	// Coarse grid: Grid0
 	grids[0].Info.res = resGlobal;
 	grids[0].Info.dtPhys = dtPhysGlobal;
@@ -186,48 +124,11 @@ int main(int argc, char **argv)
 	grids[0].Info.cellCountY = cellCountY;
 	grids[0].Info.cellCountZ = cellCountZ;
 	grids[0].Info.cellCount = grids[0].Info.cellCountX * grids[0].Info.cellCountY * grids[0].Info.cellCountZ;
+	buildIJKFromInfo( grids[0].IJK, grids[0].Info );
+	buildDIADGrids( grids, STLs, 0 );
+	
 	grids[0].fArray.setSizes( 27, grids[0].Info.cellCount );
-	grids[0].shifter = IntArrayType( 27, 0 );
 	fillEquilibriumFromFunction( grids[0] );
-	
-	std::cout << "Cell count on grid " << 0 << ": " << grids[0].Info.cellCount << std::endl;
-	
-	for ( int level = 1; level < gridLevelCount; level++ )
-	{
-		grids[level].Info.gridID = grids[level-1].Info.gridID + 1;
-		grids[level].Info.res = grids[level-1].Info.res * 0.5f;
-		grids[level].Info.dtPhys = grids[level-1].Info.dtPhys * 0.5f;
-		grids[level].Info.nu = (grids[level].Info.dtPhys * nuPhys) / ((grids[level].Info.res/1000.f) * (grids[level].Info.res/1000.f));
-		
-		float progress = (float)level / (float)(gridLevelCount-1);
-		progress = std::pow( progress, 0.2f );
-		const float xStart = progress * 1.4f * sphereDiameterPhys;
-		const float xEnd = (1 - progress) * domainSizePhys + progress * 2.6f * sphereDiameterPhys;
-		const float yStart = progress * 4.9f * sphereDiameterPhys;
-		
-		grids[level-1].Info.iSubgridStart = (int)((xStart - grids[level-1].Info.ox) / grids[level-1].Info.res + 0.5f);
-		grids[level-1].Info.iSubgridEnd = (int)((xEnd - grids[level-1].Info.ox) / grids[level-1].Info.res + 0.5f);
-		grids[level-1].Info.jSubgridStart = (int)((yStart - grids[level-1].Info.oy) / grids[level-1].Info.res + 0.5f);
-		grids[level-1].Info.jSubgridEnd = grids[level-1].Info.jSubgridStart + ( grids[level-1].Info.iSubgridEnd - grids[level-1].Info.iSubgridStart );
-		grids[level-1].Info.kSubgridStart = grids[level-1].Info.jSubgridStart;
-		grids[level-1].Info.kSubgridEnd = grids[level-1].Info.jSubgridEnd;
-		
-		grids[level].Info.ox = grids[level-1].Info.ox + grids[level-1].Info.iSubgridStart * grids[level-1].Info.res - grids[level].Info.res * 0.5f;
-		grids[level].Info.oy = grids[level-1].Info.oy + grids[level-1].Info.jSubgridStart * grids[level-1].Info.res - grids[level].Info.res * 0.5f;
-		grids[level].Info.oz = grids[level-1].Info.oz + grids[level-1].Info.kSubgridStart * grids[level-1].Info.res - grids[level].Info.res * 0.5f;
-		
-		grids[level].Info.cellCountX = (grids[level-1].Info.iSubgridEnd - grids[level-1].Info.iSubgridStart) * 2;
-		grids[level].Info.cellCountY = (grids[level-1].Info.jSubgridEnd - grids[level-1].Info.jSubgridStart) * 2;
-		grids[level].Info.cellCountZ = (grids[level-1].Info.kSubgridEnd - grids[level-1].Info.kSubgridStart) * 2;
-		grids[level].Info.cellCount = grids[level].Info.cellCountX * grids[level].Info.cellCountY * grids[level].Info.cellCountZ;
-		
-		const int cellCountLevel = grids[level].Info.cellCount;
-		std::cout << "Cell count on grid " << level << ": " << cellCountLevel << std::endl;
-		
-		grids[level].fArray.setSizes( 27, grids[level].Info.cellCount );	
-		grids[level].shifter = IntArrayType( 27, 0 );
-		fillEquilibriumFromFunction( grids[level] );
-	}
 	
 	int cellCountTotal = 0;
 	long int cellUpdatesPerIteration = 0;
@@ -236,17 +137,13 @@ int main(int argc, char **argv)
 		const int cellCountLevel = grids[level].Info.cellCount;
 		cellCountTotal += cellCountLevel; 
 		cellUpdatesPerIteration += cellCountLevel * std::pow(2, level);
-		cellUpdatesPerIteration -= (grids[level].Info.iSubgridEnd - grids[level].Info.iSubgridStart - 2) 
-								* (grids[level].Info.jSubgridEnd - grids[level].Info.jSubgridStart - 2) 
-								* (grids[level].Info.kSubgridEnd - grids[level].Info.kSubgridStart - 2)
-								* std::pow(2, level);
 	}
 	std::cout << "Cell count total: " << cellCountTotal << std::endl;
 	std::cout << "Cell updates per iteration: " << cellUpdatesPerIteration << std::endl;
 	
 	std::cout << "Starting simulation" << std::endl;
 	
-	std::vector<float> historyDragCoefficient( iterationCount, 0.f );
+	//std::vector<float> historyDragCoefficient( iterationCount, 0.f );
 	
 	TNL::Timer lapTimer;
 	lapTimer.reset();
@@ -255,27 +152,27 @@ int main(int argc, char **argv)
 	{
 		updateGrid( grids, 0 );
 		
-		const float drag = getSphereDrag( grids[gridLevelCount-1] );
-		const float dragCoefficient = - (8 * drag) / (rhoNominalPhys * uxInletPhys * uxInletPhys * 3.14159f * (sphereDiameterPhys / 1000.f) * (sphereDiameterPhys / 1000.f));
+		//const float drag = getSphereDrag( grids[gridLevelCount-1] );
+		//const float dragCoefficient = - (8 * drag) / (rhoNominalPhys * uxInletPhys * uxInletPhys * 3.14159f * (sphereDiameterPhys / 1000.f) * (sphereDiameterPhys / 1000.f));
 		
-		historyDragCoefficient[iteration] = dragCoefficient;
+		//historyDragCoefficient[iteration] = dragCoefficient;
 		
 		if (iteration%iterationChunk == 0 && iteration!=0)
 		{
 			lapTimer.stop();
 			auto lapTime = lapTimer.getRealTime();
 			std::cout << "Finished iteration " << iteration << std::endl;
-			std::cout << "Drag " << drag << std::endl;
-			std::cout << "Drag coefficient " << dragCoefficient << std::endl;
 			
 			const float updateCount = (float)cellUpdatesPerIteration * (float)iterationChunk;
 			const float glups = updateCount / lapTime / 1000000000.f;
 			std::cout << "GLUPS: " << glups << std::endl;
 			
+			/*
 			for ( int level = gridLevelCount-2; level >= 0; level-- )
 			{
 				fillCoarseGridFromFine( grids[level], grids[level+1] );
 			}
+			*/
 			
 			for ( int level = 0; level < gridLevelCount; level++ )
 			{
@@ -284,7 +181,7 @@ int main(int argc, char **argv)
 				system("python3 ../include/plotter/plotter.py");
 			}
 			
-			exportHistoryData( historyDragCoefficient, iteration );
+			//exportHistoryData( historyDragCoefficient, iteration );
 			
 			lapTimer.reset();
 			lapTimer.start();

@@ -88,7 +88,7 @@ int main(int argc, char **argv)
 	grids[0].Info.cellCount = grids[0].Info.cellCountX * grids[0].Info.cellCountY * grids[0].Info.cellCountZ;
 	buildIJKFromInfo( grids[0].IJK, grids[0].Info );
 	
-	buildDIADGrid( grids, STLs, 0 );
+	buildDIADGrids( grids, STLs, 0 );
 	
 	std::cout << "Finshed successfuly" << std::endl;	
 	return EXIT_SUCCESS;

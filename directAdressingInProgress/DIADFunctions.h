@@ -1,4 +1,5 @@
 #include <TNL/Algorithms/sort.h>
+#include "../include/STLFunctions.h"
 
 // Builds IJK from Info by filling the whole domain	
 void buildIJKFromInfo( IJKArrayStruct &IJK, InfoStruct &Info )
@@ -314,6 +315,27 @@ void findMatchingIJKIndex( 	IJKArrayStruct &Wanted, IJKArrayStruct &Source, IntA
 	};
 	
 	TNL::Algorithms::parallelFor<TNL::Devices::Cuda>( 0, wantedCellCount, cellLambda );
+}
+
+// Applies the bounceback marker onto an array using the getMarkers function
+void ApplyMarkersFromFunction( BoolArrayType &markerArray, IJKArrayStruct &IJK, InfoStruct &Info )
+{
+	auto markerArrayView = markerArray.getView();
+	
+	auto iArrayView = IJK.iArray.getView();
+	auto jArrayView = IJK.jArray.getView();
+	auto kArrayView = IJK.kArray.getView();
+	
+	auto cellLambda = [=] __cuda_callable__ ( const int cell ) mutable
+	{
+		const int iCell = iArrayView[ cell ];
+		const int jCell = jArrayView[ cell ];
+		const int kCell = kArrayView[ cell ];
+		MarkerStruct Marker;
+		getMarkers( iCell, jCell, kCell, Marker, Info );
+		markerArrayView( cell ) = Marker.bounceback;
+	};
+	TNL::Algorithms::parallelFor<TNL::Devices::Cuda>(0, Info.cellCount, cellLambda );	
 }
 
 // Do a repetetive fluid marking in order to find which of our coarse cells could possibly contain at least one finest (maximum refinement level) fluid cell. 
@@ -779,7 +801,7 @@ void markDIADNeighbours( DIADNeighboursStruct &Neighbours, BoolArrayType &source
 	TNL::Algorithms::parallelFor<TNL::Devices::Cuda>( 0, cellCount, cellLambda );
 }
 
-void buildDIADGrid( std::vector<DIADGridStruct> &grids, std::vector<STLStruct> STLs, const int level )
+void buildDIADGrids( std::vector<DIADGridStruct> &grids, std::vector<STLStruct> STLs, const int level )
 {
 	DIADGridStruct &Grid = grids[level];
 	std::cout << "Initial cell count on level " << level <<" : " << Grid.Info.cellCount << std::endl;
@@ -961,7 +983,7 @@ void buildDIADGrid( std::vector<DIADGridStruct> &grids, std::vector<STLStruct> S
 	grids[level+1].Info.cellCountX = Grid.Info.cellCountX * 2;
 	grids[level+1].Info.cellCountY = Grid.Info.cellCountY * 2;
 	grids[level+1].Info.cellCountZ = Grid.Info.cellCountZ * 2;
-	buildDIADGrid( grids, STLs, level + 1 );
+	buildDIADGrids( grids, STLs, level + 1 );
 	
 	// MAP INTERFACE COMMUNICATION PREPARATION
 	auto iView = Grid.IJK.iArray.getView();

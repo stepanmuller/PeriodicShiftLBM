@@ -43,16 +43,6 @@ __cuda_callable__ void getXYZFromIJKCellIndex( const int& iCell, const int& jCel
     z = kCell * Info.res + Info.oz;
 }
 
-__cuda_callable__ void getShiftedIndex( const int& cell, int (&shiftedIndex)[27], IntArrayConstViewType shifterView, const InfoStruct &Info )
-{
-    for ( int direction = 0; direction < 27; direction++ ) 
-		{
-			const int shift = shifterView[direction];
-			shiftedIndex[direction] = cell + shift;
-			if (shiftedIndex[direction] >= Info.cellCount) shiftedIndex[direction] -= Info.cellCount;
-		}	
-}
-
 __cuda_callable__ void getOuterNormal( 	const int& iCell, const int& jCell, const int& kCell,
 										int& outerNormalX, int& outerNormalY, int& outerNormalZ, const InfoStruct &Info )
 {
