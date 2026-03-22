@@ -25,7 +25,7 @@ constexpr int iterationCount = 20000;
 constexpr int iterationChunk = 1000;
 constexpr int gridLevelCount = 6;
 
-constexpr int wallRefinementSpan = 2; // how many cells there are in each refinement layer around the wall
+constexpr int wallRefinementSpan = 2; // how many cells there are at least in each refinement layer around the wall, excluding the communication interface
 
 #include "../include/types.h"
 
