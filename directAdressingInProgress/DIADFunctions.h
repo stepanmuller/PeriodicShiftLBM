@@ -818,10 +818,6 @@ void buildDIADGrid( std::vector<DIADGridStruct> &grids, std::vector<STLStruct> S
 		Grid.IJK.kArray.resize(Grid.Info.cellCount);
 		Grid.bouncebackMarkerArray.resize(Grid.Info.cellCount);
 		getDIADEsotwistConnections( Grid );
-		//PLOT
-		exportSectionCutPlotXY( Grid, kCut, level );
-		system("python3 ../include/plotter/plotter.py");
-		//PLOT END
 		std::cout << "Final cell count on level " << level <<" : " << Grid.Info.cellCount << std::endl;
 		return;
 	}
@@ -1067,10 +1063,5 @@ void buildDIADGrid( std::vector<DIADGridStruct> &grids, std::vector<STLStruct> S
 			" invalid coarse-to-fine connections found on level " + std::to_string(level) 
 		);
 	}
-	
-	//PLOT
-	exportSectionCutPlotXY( Grid, kCut, level );
-	system("python3 ../include/plotter/plotter.py");
-	//PLOT END
 	std::cout << "Final cell count on level " << level <<" : " << Grid.Info.cellCount << std::endl;
 }

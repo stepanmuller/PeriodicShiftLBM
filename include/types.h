@@ -153,4 +153,5 @@ struct DIADEsotwistConnectionsStruct { 	IntArrayType iNbrArray; IntArrayType jNb
 struct DIADGridStruct { InfoStruct Info; FloatArray2DType fArray; BoolArrayType bouncebackMarkerArray; 
 						IJKArrayStruct IJK; DIADEsotwistConnectionsStruct EsotwistConnections; 
 						IntArrayType fineToCoarseWriteArray; IntArrayType fineToCoarseReadArray; 
-						IntArrayType coarseToFineWriteArray; IntArrayType coarseToFineReadArray; }; 
+						IntArrayType coarseToFineWriteArray; IntArrayType coarseToFineReadArray; 
+						bool esotwistFlipper = 0; }; 
