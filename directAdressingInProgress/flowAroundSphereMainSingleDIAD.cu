@@ -21,8 +21,8 @@ const int cellCountX = static_cast<int>(std::ceil(domainSizePhys / resGlobal));
 const int cellCountY = cellCountX;
 const int cellCountZ = cellCountX;
 
-constexpr int iterationCount = 1;
-constexpr int iterationChunk = 1;
+constexpr int iterationCount = 20000;
+constexpr int iterationChunk = 1000;
 constexpr int gridLevelCount = 5;
 constexpr int wallRefinementSpan = 2;
 

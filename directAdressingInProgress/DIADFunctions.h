@@ -207,7 +207,7 @@ int countInvalidIndexes( IntArrayType &intArray )
 }
 
 // Receives sorted IJKSource that !must! be already sorted with key k, j, i so that k index changes the slowest
-// For each Wanted, find a matching cell in Source. If its found, write its index to resultArray. If there is no such cell, write -2.		
+// For each Wanted, find a matching cell in Source. If its found, write its index to resultArray. If there is no such cell, write -1.		
 void findMatchingIJKIndex( IJKArrayStruct &Wanted, IJKArrayStruct &Source, IntArrayType &resultArray )
 {
 	const int wantedCellCount = Wanted.iArray.getSize();
@@ -231,7 +231,7 @@ void findMatchingIJKIndex( IJKArrayStruct &Wanted, IJKArrayStruct &Source, IntAr
 		
 		int start = 0;
 		int end = sourceCellCount;
-		int result = -2;
+		int result = -1;
 		
 		// Search for k, j, and i in a single binary search
 		while ( end > start )
@@ -259,7 +259,7 @@ void findMatchingIJKIndex( IJKArrayStruct &Wanted, IJKArrayStruct &Source, IntAr
 				start = half + 1;
 			}
 		}
-		if ( result == -2 && start < sourceCellCount )
+		if ( result == -1 && start < sourceCellCount )
 		{
 			if ( kSourceView[ start ] == kWanted && jSourceView[ start ] == jWanted && iSourceView[ start ] == iWanted )
 			{
@@ -336,7 +336,7 @@ void markWhereFinestFluidIs( BoolArrayType &fluidMarkerArray, IJKArrayStruct &IJ
 void getDIADNeighbours( IJKArrayStruct &IJK, std::vector<IntArrayType> &nbrArrays )
 {
 	const int cellCount = IJK.iArray.getSize();
-	for ( int i = 0; i < 26; i++ ) { nbrArrays[i].setSize( cellCount ); nbrArrays[i].setValue( -2 ); }
+	for ( int i = 0; i < 26; i++ ) { nbrArrays[i].setSize( cellCount ); nbrArrays[i].setValue( -1 ); }
 	
 	const int cxArray[27] = { 0, 1,-1, 0, 0, 0, 0, 1,-1, 1,-1,-1, 1, 0, 0,-1, 1, 0, 0,-1, 1,-1, 1, 1,-1,-1, 1 };
 	const int cyArray[27] = { 0, 0, 0, 0, 0,-1, 1, 0, 0, 0, 0,-1, 1, 1,-1, 1,-1, 1,-1, 1,-1,-1, 1,-1, 1,-1, 1 };
@@ -364,79 +364,32 @@ void getDIADEsotwistNbrArray( DIADGridStruct &Grid )
 	Grid.EsotwistNbrArray.ikNbrArray.setSize( cellCount );
 	Grid.EsotwistNbrArray.jkNbrArray.setSize( cellCount );
 	Grid.EsotwistNbrArray.ijkNbrArray.setSize( cellCount );
-	Grid.EsotwistNbrArray.iNbrArray.setValue( -2 );
-	Grid.EsotwistNbrArray.jNbrArray.setValue( -2 );
-	Grid.EsotwistNbrArray.kNbrArray.setValue( -2 );
-	Grid.EsotwistNbrArray.ijNbrArray.setValue( -2 );
-	Grid.EsotwistNbrArray.ikNbrArray.setValue( -2 );
-	Grid.EsotwistNbrArray.jkNbrArray.setValue( -2 );
-	Grid.EsotwistNbrArray.ijkNbrArray.setValue( -2 );
+	Grid.EsotwistNbrArray.iNbrArray.setValue( -1 );
+	Grid.EsotwistNbrArray.jNbrArray.setValue( -1 );
+	Grid.EsotwistNbrArray.kNbrArray.setValue( -1 );
+	Grid.EsotwistNbrArray.ijNbrArray.setValue( -1 );
+	Grid.EsotwistNbrArray.ikNbrArray.setValue( -1 );
+	Grid.EsotwistNbrArray.jkNbrArray.setValue( -1 );
+	Grid.EsotwistNbrArray.ijkNbrArray.setValue( -1 );
 	
-	IJKArrayStruct IJKShifted;
-	int invalidNeighbourCount;
-	
-	IJKShifted = IJK;
-	invalidNeighbourCount = 1;
-	while ( invalidNeighbourCount > 0 )
+	auto directionLambda = [&](int cx, int cy, int cz, IntArrayType& targetNbrArray) 
 	{
-		shiftIJKPeriodic( IJKShifted, 1, 0, 0, Info );
-		findMatchingIJKIndex( IJKShifted, IJK, Grid.EsotwistNbrArray.iNbrArray );
-		invalidNeighbourCount = countInvalidIndexes( Grid.EsotwistNbrArray.iNbrArray );
-	}
+		IJKArrayStruct IJKShifted = IJK;
+		int invalidNeighbourCount = 1;
+		while ( invalidNeighbourCount > 0 ) {
+			shiftIJKPeriodic( IJKShifted, cx, cy, cz, Info );
+			findMatchingIJKIndex( IJKShifted, IJK, targetNbrArray );
+			invalidNeighbourCount = countInvalidIndexes( targetNbrArray );
+		}
+	};
 
-	IJKShifted = IJK;
-	invalidNeighbourCount = 1;
-	while ( invalidNeighbourCount > 0 )
-	{
-		shiftIJKPeriodic( IJKShifted, 0, 1, 0, Info );
-		findMatchingIJKIndex( IJKShifted, IJK, Grid.EsotwistNbrArray.jNbrArray );
-		invalidNeighbourCount = countInvalidIndexes( Grid.EsotwistNbrArray.jNbrArray );
-	}
-	
-	IJKShifted = IJK;
-	invalidNeighbourCount = 1;
-	while ( invalidNeighbourCount > 0 )
-	{
-		shiftIJKPeriodic( IJKShifted, 0, 0, 1, Info );
-		findMatchingIJKIndex( IJKShifted, IJK, Grid.EsotwistNbrArray.kNbrArray );
-		invalidNeighbourCount = countInvalidIndexes( Grid.EsotwistNbrArray.kNbrArray );
-	}
-	
-	IJKShifted = IJK;
-	invalidNeighbourCount = 1;
-	while ( invalidNeighbourCount > 0 )
-	{
-		shiftIJKPeriodic( IJKShifted, 1, 1, 0, Info );
-		findMatchingIJKIndex( IJKShifted, IJK, Grid.EsotwistNbrArray.ijNbrArray );
-		invalidNeighbourCount = countInvalidIndexes( Grid.EsotwistNbrArray.ijNbrArray );
-	}
-	
-	IJKShifted = IJK;
-	invalidNeighbourCount = 1;
-	while ( invalidNeighbourCount > 0 )
-	{
-		shiftIJKPeriodic( IJKShifted, 1, 0, 1, Info );
-		findMatchingIJKIndex( IJKShifted, IJK, Grid.EsotwistNbrArray.ikNbrArray );
-		invalidNeighbourCount = countInvalidIndexes( Grid.EsotwistNbrArray.ikNbrArray );
-	}
-	
-	IJKShifted = IJK;
-	invalidNeighbourCount = 1;
-	while ( invalidNeighbourCount > 0 )
-	{
-		shiftIJKPeriodic( IJKShifted, 0, 1, 1, Info );
-		findMatchingIJKIndex( IJKShifted, IJK, Grid.EsotwistNbrArray.jkNbrArray );
-		invalidNeighbourCount = countInvalidIndexes( Grid.EsotwistNbrArray.jkNbrArray );
-	}
-	
-	IJKShifted = IJK;
-	invalidNeighbourCount = 1;
-	while ( invalidNeighbourCount > 0 )
-	{
-		shiftIJKPeriodic( IJKShifted, 1, 1, 1, Info );
-		findMatchingIJKIndex( IJKShifted, IJK, Grid.EsotwistNbrArray.ijkNbrArray );
-		invalidNeighbourCount = countInvalidIndexes( Grid.EsotwistNbrArray.ijkNbrArray );
-	}
+	directionLambda(1, 0, 0, Grid.EsotwistNbrArray.iNbrArray );
+	directionLambda(0, 1, 0, Grid.EsotwistNbrArray.jNbrArray );
+	directionLambda(0, 0, 1, Grid.EsotwistNbrArray.kNbrArray );
+	directionLambda(1, 1, 0, Grid.EsotwistNbrArray.ijNbrArray );
+	directionLambda(1, 0, 1, Grid.EsotwistNbrArray.ikNbrArray );
+	directionLambda(0, 1, 1, Grid.EsotwistNbrArray.jkNbrArray );
+	directionLambda(1, 1, 1, Grid.EsotwistNbrArray.ijkNbrArray );
 }
 
 // Mark target cell as 1 if at least one of its neighbours in source is 1
@@ -567,38 +520,20 @@ void buildDIADGrids( std::vector<DIADGridStruct> &grids, std::vector<STLStruct> 
 			const int iFine = iCoarse * 2;
 			const int jFine = jCoarse * 2;
 			const int kFine = kCoarse * 2;
-			IJKFineCPU.iArray[ cellFine ] = iFine;
-			IJKFineCPU.jArray[ cellFine ] = jFine;
-			IJKFineCPU.kArray[ cellFine ] = kFine;
-			cellFine++;
-			IJKFineCPU.iArray[ cellFine ] = iFine + 1;
-			IJKFineCPU.jArray[ cellFine ] = jFine;
-			IJKFineCPU.kArray[ cellFine ] = kFine;
-			cellFine++;
-			IJKFineCPU.iArray[ cellFine ] = iFine;
-			IJKFineCPU.jArray[ cellFine ] = jFine + 1;
-			IJKFineCPU.kArray[ cellFine ] = kFine;
-			cellFine++;
-			IJKFineCPU.iArray[ cellFine ] = iFine + 1;
-			IJKFineCPU.jArray[ cellFine ] = jFine + 1;
-			IJKFineCPU.kArray[ cellFine ] = kFine;
-			cellFine++;
-			IJKFineCPU.iArray[ cellFine ] = iFine;
-			IJKFineCPU.jArray[ cellFine ] = jFine;
-			IJKFineCPU.kArray[ cellFine ] = kFine + 1;
-			cellFine++;
-			IJKFineCPU.iArray[ cellFine ] = iFine + 1;
-			IJKFineCPU.jArray[ cellFine ] = jFine;
-			IJKFineCPU.kArray[ cellFine ] = kFine + 1;
-			cellFine++;
-			IJKFineCPU.iArray[ cellFine ] = iFine;
-			IJKFineCPU.jArray[ cellFine ] = jFine + 1;
-			IJKFineCPU.kArray[ cellFine ] = kFine + 1;
-			cellFine++;
-			IJKFineCPU.iArray[ cellFine ] = iFine + 1;
-			IJKFineCPU.jArray[ cellFine ] = jFine + 1;
-			IJKFineCPU.kArray[ cellFine ] = kFine + 1;
-			cellFine++;
+			
+			for ( int iPlus = 0; iPlus < 2; iPlus++ )
+			{
+				for ( int jPlus = 0; jPlus < 2; jPlus++ )
+				{
+					for ( int kPlus = 0; kPlus < 2; kPlus++ )
+					{
+						IJKFineCPU.iArray[ cellFine ] = iFine + iPlus;
+						IJKFineCPU.jArray[ cellFine ] = jFine + jPlus;
+						IJKFineCPU.kArray[ cellFine ] = kFine + kPlus;
+						cellFine++;
+					}
+				}
+			}
 		}
 	}
 	
@@ -648,101 +583,58 @@ void buildDIADGrids( std::vector<DIADGridStruct> &grids, std::vector<STLStruct> 
 	grids[level+1].Info.cellCountZ = Grid.Info.cellCountZ * 2;
 	buildDIADGrids( grids, STLs, level + 1 );
 	
-	// MAP INTERFACE COMMUNICATION PREPARATION
-	auto iView = Grid.IJK.iArray.getView();
-	auto jView = Grid.IJK.jArray.getView();
-	auto kView = Grid.IJK.kArray.getView();
-	IJKCPU = IJKArrayStructCPU( Grid.IJK );
-	IJKArrayStruct fineIJK;
-	const int coarseToFineCount = countMarkerCells( coarseToFineMarkerArray );
-	Grid.coarseToFineWriteArray.setSize( coarseToFineCount );
-	Grid.coarseToFineReadArray.setSize( coarseToFineCount );
-	Grid.coarseToFineWriteArray.setValue( -2 );
-	Grid.coarseToFineReadArray.setValue( -2 );
-	const int fineToCoarseCount = countMarkerCells( fineToCoarseMarkerArray );
-	Grid.fineToCoarseWriteArray.setSize( fineToCoarseCount );
-	Grid.fineToCoarseReadArray.setSize( fineToCoarseCount );
-	Grid.fineToCoarseWriteArray.setValue( -2 );
-	Grid.fineToCoarseReadArray.setValue( -2 );
-	int counter;
-	
-	// MAP INTERFACE COMMUNICATION COARSE TO FINE
-	BoolArrayTypeCPU coarseToFineMarkerArrayCPU;
-	coarseToFineMarkerArrayCPU = coarseToFineMarkerArray;
-	IntArrayTypeCPU coarseToFineReadArrayCPU;
-	coarseToFineReadArrayCPU = Grid.coarseToFineReadArray;
-	counter = 0;
-	for ( int cell = 0; cell < Grid.Info.cellCount; cell++ )
+	// MAP INTERFACE COMMUNICATION
+	auto mapInterfaceLambda = [&]( BoolArrayType& markerArray, IntArrayType& coarseArray, IntArrayType& fineArray ) 
 	{
-		if ( coarseToFineMarkerArrayCPU[ cell ] )
-		{
-			coarseToFineReadArrayCPU[ counter ] = cell;
-			counter++;
+		const int count = countMarkerCells( markerArray );
+		coarseArray.setSize( count );
+		fineArray.setSize( count );
+		coarseArray.setValue( -1 );
+		fineArray.setValue( -1 );
+
+		// CPU copy and compaction
+		BoolArrayTypeCPU markerArrayCPU;
+		markerArrayCPU = markerArray;
+		IntArrayTypeCPU coarseArrayCPU;
+		coarseArrayCPU = coarseArray;
+		int counter = 0;
+		for ( int cell = 0; cell < Grid.Info.cellCount; cell++ ) {
+			if ( markerArrayCPU[ cell ] ) coarseArrayCPU[ counter++ ] = cell;
 		}
-	}
-	Grid.coarseToFineReadArray = coarseToFineReadArrayCPU;
-	fineIJK.iArray.setSize( coarseToFineCount );
-	fineIJK.jArray.setSize( coarseToFineCount );
-	fineIJK.kArray.setSize( coarseToFineCount );
-	auto coarseToFineReadArrayView = Grid.coarseToFineReadArray.getConstView();
-	auto iFineView1 = fineIJK.iArray.getView();
-	auto jFineView1 = fineIJK.jArray.getView();
-	auto kFineView1 = fineIJK.kArray.getView();
-	auto cellLambda1 = [=] __cuda_callable__ ( const int counter ) mutable
-	{
-		const int cell = coarseToFineReadArrayView[ counter ];
-		iFineView1[ counter ] = iView[ cell ] * 2;
-		jFineView1[ counter ] = jView[ cell ] * 2;
-		kFineView1[ counter ] = kView[ cell ] * 2;
-	};
-	TNL::Algorithms::parallelFor<TNL::Devices::Cuda>( 0, coarseToFineCount, cellLambda1 );
-	findMatchingIJKIndex( fineIJK, grids[level+1].IJK, Grid.coarseToFineWriteArray );
-	const int invalidConnections1 = countInvalidIndexes( Grid.coarseToFineWriteArray );
-	if ( invalidConnections1 > 0 )
-	{
-		throw std::runtime_error( 
-			"DIAD Grid Generation Error: " + std::to_string(invalidConnections1) + 
-			" invalid coarse-to-fine connections found on level " + std::to_string(level) 
-		);
-	}
-	
-	// MAP INTERFACE COMMUNICATION FINE TO COARSE
-	BoolArrayTypeCPU fineToCoarseMarkerArrayCPU;
-	fineToCoarseMarkerArrayCPU = fineToCoarseMarkerArray;
-	IntArrayTypeCPU fineToCoarseWriteArrayCPU;
-	fineToCoarseWriteArrayCPU = Grid.fineToCoarseWriteArray;
-	counter = 0;
-	for ( int cell = 0; cell < Grid.Info.cellCount; cell++ )
-	{
-		if ( fineToCoarseMarkerArrayCPU[ cell ] )
-		{
-			fineToCoarseWriteArrayCPU[ counter ] = cell;
-			counter++;
+		coarseArray = coarseArrayCPU;
+
+		// Generate IJK for the finer level to search for
+		IJKArrayStruct fineIJK;
+		fineIJK.iArray.setSize( count );
+		fineIJK.jArray.setSize( count );
+		fineIJK.kArray.setSize( count );
+
+		auto coarseView = coarseArray.getConstView();
+		auto iFineView = fineIJK.iArray.getView();
+		auto jFineView = fineIJK.jArray.getView();
+		auto kFineView = fineIJK.kArray.getView();
+		auto iView = Grid.IJK.iArray.getView();
+		auto jView = Grid.IJK.jArray.getView();
+		auto kView = Grid.IJK.kArray.getView();
+
+		auto cellLambda = [=] __cuda_callable__ ( const int c ) mutable {
+			const int cell = coarseView[ c ];
+			iFineView[ c ] = iView[ cell ] * 2;
+			jFineView[ c ] = jView[ cell ] * 2;
+			kFineView[ c ] = kView[ cell ] * 2;
+		};
+		TNL::Algorithms::parallelFor<TNL::Devices::Cuda>( 0, count, cellLambda );
+
+		// Find the connections on the fine grid
+		findMatchingIJKIndex( fineIJK, grids[level+1].IJK, fineArray );
+		const int invalidConnections = countInvalidIndexes( fineArray );
+		if ( invalidConnections > 0 ) {
+			throw std::runtime_error( 
+				"DIAD Grid Generation Error: " + std::to_string(invalidConnections) + 
+				" invalid interface connections found on level " + std::to_string(level) 
+			);
 		}
-	}
-	Grid.fineToCoarseWriteArray = fineToCoarseWriteArrayCPU;
-	fineIJK.iArray.setSize( fineToCoarseCount );
-	fineIJK.jArray.setSize( fineToCoarseCount );
-	fineIJK.kArray.setSize( fineToCoarseCount );
-	auto fineToCoarseWriteArrayView = Grid.fineToCoarseWriteArray.getConstView();
-	auto iFineView2 = fineIJK.iArray.getView();
-	auto jFineView2 = fineIJK.jArray.getView();
-	auto kFineView2 = fineIJK.kArray.getView();
-	auto cellLambda2 = [=] __cuda_callable__ ( const int counter ) mutable
-	{
-		const int cell = fineToCoarseWriteArrayView[ counter ];
-		iFineView2[ counter ] = iView[ cell ] * 2;
-		jFineView2[ counter ] = jView[ cell ] * 2;
-		kFineView2[ counter ] = kView[ cell ] * 2;
 	};
-	TNL::Algorithms::parallelFor<TNL::Devices::Cuda>( 0, fineToCoarseCount, cellLambda2 );
-	findMatchingIJKIndex( fineIJK, grids[level+1].IJK, Grid.fineToCoarseReadArray );
-	const int invalidConnections2 = countInvalidIndexes( Grid.fineToCoarseReadArray );
-	if ( invalidConnections2 > 0 )
-	{
-		throw std::runtime_error( 
-			"DIAD Grid Generation Error: " + std::to_string(invalidConnections2) + 
-			" invalid coarse-to-fine connections found on level " + std::to_string(level) 
-		);
-	}
+	mapInterfaceLambda( coarseToFineMarkerArray, Grid.coarseToFineReadArray, Grid.coarseToFineWriteArray );
+	mapInterfaceLambda( fineToCoarseMarkerArray, Grid.fineToCoarseWriteArray, Grid.fineToCoarseReadArray );
 }
