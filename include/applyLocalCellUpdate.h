@@ -116,7 +116,7 @@ void applyLocalCellUpdate( DIADGridStruct &Grid )
 		Nbr.ij = ijNbrView( cell );
 		Nbr.ik = ikNbrView( cell );
 		Nbr.jk = jkNbrView( cell );
-		Nbr.ijk = ijkNbrView( cell );
+		Nbr.ijk = ijkNbrView( cell ); 
 		
 		MarkerStruct Marker;
 		if ( useBouncebackArray ) Marker.bounceback = bouncebackMarkerArrayView( cell );
@@ -173,6 +173,7 @@ void applyLocalCellUpdate( DIADGridStruct &Grid )
 		getEsotwistWriteIndex( cell, cellWriteIndex, fWriteIndex, Nbr, esotwistFlipper, Info );
 		
 		for ( int direction = 0; direction < 27; direction++ ) fArrayView( fWriteIndex[direction], cellWriteIndex[direction] ) = f[direction];
+		
 	};
 	TNL::Algorithms::parallelFor<TNL::Devices::Cuda>(0, Info.cellCount, cellLambda );
 }

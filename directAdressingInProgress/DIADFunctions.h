@@ -363,7 +363,7 @@ void markWhereFinestFluidIs( BoolArrayType &fluidMarkerArray, IJKArrayStruct &IJ
 				Info.oy = oyOriginal + shiftStart + shiftCountY * finestRes;
 				Info.oz = ozOriginal + shiftStart + shiftCountZ * finestRes;				
 				ApplyMarkersFromFunction( markerArray, IJK, Info );
-				for ( int STLIndex = 0; STLIndex < STLs.size(); STLIndex++ )
+				for ( int STLIndex = 0; STLIndex < (int)STLs.size(); STLIndex++ )
 				{
 					const bool insideMarkerValue = 1;
 					ApplyMarkersInsideSTL( markerArraySTL, IJK, STLs[STLIndex], insideMarkerValue, Info );
@@ -805,8 +805,6 @@ void buildDIADGrids( std::vector<DIADGridStruct> &grids, std::vector<STLStruct> 
 {
 	DIADGridStruct &Grid = grids[level];
 	std::cout << "Initial cell count on level " << level <<" : " << Grid.Info.cellCount << std::endl;
-	
-	const int kCut = Grid.Info.cellCountZ / 2;
 
 	sortIJK( Grid.IJK );
 	DIADNeighboursStruct Neighbours;
@@ -962,7 +960,7 @@ void buildDIADGrids( std::vector<DIADGridStruct> &grids, std::vector<STLStruct> 
 	Grid.bouncebackMarkerArray.setValue( 0 );
 	BoolArrayType markerArraySTL = BoolArrayType( Grid.Info.cellCount );	
 	ApplyMarkersFromFunction( Grid.bouncebackMarkerArray, Grid.IJK, Grid.Info );
-	for ( int STLIndex = 0; STLIndex < STLs.size(); STLIndex++ )
+	for ( int STLIndex = 0; STLIndex < (int)STLs.size(); STLIndex++ )
 	{
 		const bool insideMarkerValue = 1;
 		ApplyMarkersInsideSTL( markerArraySTL, Grid.IJK, STLs[STLIndex], insideMarkerValue, Grid.Info );

@@ -534,3 +534,176 @@ void fillCoarseGridFromFine( GridStruct &GridCoarse, GridStruct &GridFine )
 	
 	writeToCoarseGridInterface( GridCoarse, GridFine, start, end );
 }
+
+// DIAD VERSION //
+
+void writeToCoarseGridInterface( DIADGridStruct &GridCoarse, DIADGridStruct &GridFine )
+{
+	auto fArrayViewCoarse = GridCoarse.fArray.getView();
+	const InfoStruct InfoCoarse = GridCoarse.Info;
+	auto fArrayViewFine  = GridFine.fArray.getView();
+	const InfoStruct InfoFine = GridFine.Info;
+	
+	bool esotwistFlipperCoarse = GridCoarse.esotwistFlipper;
+	auto iNbrViewCoarse = GridCoarse.EsotwistConnections.iNbrArray.getConstView();
+	auto jNbrViewCoarse = GridCoarse.EsotwistConnections.jNbrArray.getConstView();
+	auto kNbrViewCoarse = GridCoarse.EsotwistConnections.kNbrArray.getConstView();
+	auto ijNbrViewCoarse = GridCoarse.EsotwistConnections.ijNbrArray.getConstView();
+	auto ikNbrViewCoarse = GridCoarse.EsotwistConnections.ikNbrArray.getConstView();
+	auto jkNbrViewCoarse = GridCoarse.EsotwistConnections.jkNbrArray.getConstView();
+	auto ijkNbrViewCoarse = GridCoarse.EsotwistConnections.ijkNbrArray.getConstView();
+	
+	bool esotwistFlipperFine = GridFine.esotwistFlipper;
+	auto iNbrViewFine = GridFine.EsotwistConnections.iNbrArray.getConstView();
+	auto jNbrViewFine = GridFine.EsotwistConnections.jNbrArray.getConstView();
+	auto kNbrViewFine = GridFine.EsotwistConnections.kNbrArray.getConstView();
+	auto ijNbrViewFine = GridFine.EsotwistConnections.ijNbrArray.getConstView();
+	auto ikNbrViewFine = GridFine.EsotwistConnections.ikNbrArray.getConstView();
+	auto jkNbrViewFine = GridFine.EsotwistConnections.jkNbrArray.getConstView();
+	auto ijkNbrViewFine = GridFine.EsotwistConnections.ijkNbrArray.getConstView();
+	
+	auto writeView = GridCoarse.fineToCoarseWriteArray.getConstView();
+	auto readView = GridCoarse.fineToCoarseReadArray.getConstView();
+	
+	auto cellLambda = [=] __cuda_callable__ ( const int cell ) mutable
+	{
+		const int writeCell = writeView( cell );
+		const int readCell = readView( cell );
+		
+		int fineCellList[8] = {};
+		fineCellList[0] = readCell;
+		fineCellList[1] = iNbrViewFine( readCell );
+		fineCellList[2] = jNbrViewFine( readCell );
+		fineCellList[3] = kNbrViewFine( readCell );
+		fineCellList[4] = ijNbrViewFine( readCell );
+		fineCellList[5] = ikNbrViewFine( readCell );
+		fineCellList[6] = jkNbrViewFine( readCell );
+		fineCellList[7] = ijkNbrViewFine( readCell );
+		
+		float f[27] = {0};
+		
+		for ( int which = 0; which < 8; which++ )
+		{
+			const int fine = fineCellList[which];
+			DIADEsotwistNbrStruct Nbr;
+			Nbr.i = iNbrViewFine( fine );
+			Nbr.j = jNbrViewFine( fine );
+			Nbr.k = kNbrViewFine( fine );
+			Nbr.ij = ijNbrViewFine( fine );
+			Nbr.ik = ikNbrViewFine( fine );
+			Nbr.jk = jkNbrViewFine( fine );
+			Nbr.ijk = ijkNbrViewFine( fine );
+			
+			float fFine[27];
+			int cellReadIndex[27];
+			int fReadIndex[27];
+			getEsotwistWriteIndex( fine, cellReadIndex, fReadIndex, Nbr, esotwistFlipperFine, InfoFine );
+			for ( int direction = 0; direction < 27; direction++ )	fFine[direction] = fArrayViewFine(fReadIndex[direction], cellReadIndex[direction]);
+			for (int direction = 0; direction < 27; direction++) f[direction] += fFine[direction];	
+		}
+		for (int direction = 0; direction < 27; direction++) f[direction] = f[direction] * 0.125f;
+		
+		rescaleF( f, false );
+		
+		DIADEsotwistNbrStruct Nbr;
+		Nbr.i = iNbrViewCoarse( writeCell );
+		Nbr.j = jNbrViewCoarse( writeCell );
+		Nbr.k = kNbrViewCoarse( writeCell );
+		Nbr.ij = ijNbrViewCoarse( writeCell );
+		Nbr.ik = ikNbrViewCoarse( writeCell );
+		Nbr.jk = jkNbrViewCoarse( writeCell );
+		Nbr.ijk = ijkNbrViewCoarse( writeCell );
+		int cellWriteIndex[27];
+		int fWriteIndex[27];
+		getEsotwistWriteIndex( writeCell, cellWriteIndex, fWriteIndex, Nbr, esotwistFlipperCoarse, InfoCoarse );
+		for ( int direction = 0; direction < 27; direction++ ) fArrayViewCoarse( fWriteIndex[direction], cellWriteIndex[direction] ) = f[direction];
+	};
+	TNL::Algorithms::parallelFor<TNL::Devices::Cuda>(0, GridCoarse.fineToCoarseWriteArray.getSize(), cellLambda );
+}
+
+void writeToFineGridInterface( DIADGridStruct &GridCoarse, DIADGridStruct &GridFine )
+{
+	auto fArrayViewCoarse = GridCoarse.fArray.getView();
+	const InfoStruct InfoCoarse = GridCoarse.Info;
+	auto fArrayViewFine  = GridFine.fArray.getView();
+	const InfoStruct InfoFine = GridFine.Info;
+	
+	bool esotwistFlipperCoarse = GridCoarse.esotwistFlipper;
+	auto iNbrViewCoarse = GridCoarse.EsotwistConnections.iNbrArray.getConstView();
+	auto jNbrViewCoarse = GridCoarse.EsotwistConnections.jNbrArray.getConstView();
+	auto kNbrViewCoarse = GridCoarse.EsotwistConnections.kNbrArray.getConstView();
+	auto ijNbrViewCoarse = GridCoarse.EsotwistConnections.ijNbrArray.getConstView();
+	auto ikNbrViewCoarse = GridCoarse.EsotwistConnections.ikNbrArray.getConstView();
+	auto jkNbrViewCoarse = GridCoarse.EsotwistConnections.jkNbrArray.getConstView();
+	auto ijkNbrViewCoarse = GridCoarse.EsotwistConnections.ijkNbrArray.getConstView();
+	
+	bool esotwistFlipperFine = GridFine.esotwistFlipper;
+	auto iNbrViewFine = GridFine.EsotwistConnections.iNbrArray.getConstView();
+	auto jNbrViewFine = GridFine.EsotwistConnections.jNbrArray.getConstView();
+	auto kNbrViewFine = GridFine.EsotwistConnections.kNbrArray.getConstView();
+	auto ijNbrViewFine = GridFine.EsotwistConnections.ijNbrArray.getConstView();
+	auto ikNbrViewFine = GridFine.EsotwistConnections.ikNbrArray.getConstView();
+	auto jkNbrViewFine = GridFine.EsotwistConnections.jkNbrArray.getConstView();
+	auto ijkNbrViewFine = GridFine.EsotwistConnections.ijkNbrArray.getConstView();
+	
+	auto writeView = GridCoarse.coarseToFineWriteArray.getConstView();
+	auto readView = GridCoarse.coarseToFineReadArray.getConstView();
+	
+	auto cellLambda = [=] __cuda_callable__ ( const int cell ) mutable
+	{
+		const int writeCell = writeView( cell );
+		const int readCell = readView( cell );
+		
+		int fineCellList[8] = {};
+		fineCellList[0] = writeCell;
+		fineCellList[1] = iNbrViewFine( writeCell );
+		fineCellList[2] = jNbrViewFine( writeCell );
+		fineCellList[3] = kNbrViewFine( writeCell );
+		fineCellList[4] = ijNbrViewFine( writeCell );
+		fineCellList[5] = ikNbrViewFine( writeCell );
+		fineCellList[6] = jkNbrViewFine( writeCell );
+		fineCellList[7] = ijkNbrViewFine( writeCell );
+		
+		float f[27] = {0};
+		
+		DIADEsotwistNbrStruct Nbr;
+		Nbr.i = iNbrViewCoarse( readCell );
+		Nbr.j = jNbrViewCoarse( readCell );
+		Nbr.k = kNbrViewCoarse( readCell );
+		Nbr.ij = ijNbrViewCoarse( readCell );
+		Nbr.ik = ikNbrViewCoarse( readCell );
+		Nbr.jk = jkNbrViewCoarse( readCell );
+		Nbr.ijk = ijkNbrViewCoarse( readCell );
+		int cellReadIndex[27];
+		int fReadIndex[27];
+		getEsotwistWriteIndex( readCell, cellReadIndex, fReadIndex, Nbr, esotwistFlipperCoarse, InfoCoarse );
+		for ( int direction = 0; direction < 27; direction++ )	f[direction] = fArrayViewCoarse(fReadIndex[direction], cellReadIndex[direction]);
+		
+		rescaleF( f, true );
+		
+		for ( int which = 0; which < 8; which++ )
+		{
+			const int fine = fineCellList[which];
+			DIADEsotwistNbrStruct Nbr;
+			Nbr.i = iNbrViewFine( fine );
+			Nbr.j = jNbrViewFine( fine );
+			Nbr.k = kNbrViewFine( fine );
+			Nbr.ij = ijNbrViewFine( fine );
+			Nbr.ik = ikNbrViewFine( fine );
+			Nbr.jk = jkNbrViewFine( fine );
+			Nbr.ijk = ijkNbrViewFine( fine );
+			int cellWriteIndex[27];
+			int fWriteIndex[27];
+			getEsotwistWriteIndex( fine, cellWriteIndex, fWriteIndex, Nbr, esotwistFlipperFine, InfoFine );
+			for ( int direction = 0; direction < 27; direction++ ) fArrayViewFine( fWriteIndex[direction], cellWriteIndex[direction] ) = f[direction];
+		}
+		
+	};
+	TNL::Algorithms::parallelFor<TNL::Devices::Cuda>(0, GridCoarse.coarseToFineWriteArray.getSize(), cellLambda );
+}
+
+void applyCoarseFineGridCommunication( DIADGridStruct &GridCoarse, DIADGridStruct &GridFine )
+{
+	writeToCoarseGridInterface( GridCoarse, GridFine );
+	writeToFineGridInterface( GridCoarse, GridFine );
+}

@@ -1,8 +1,8 @@
 constexpr float sphereDiameterPhys = 2000.f;											// mm
-constexpr float resGlobal = 200.f; 														// mm
+constexpr float resGlobal = 100.f; 														// mm
 constexpr float uxInlet = 0.07f; 														// also works as nominal LBM Mach number
 constexpr float reynoldsNumber = 1000000.f;
-constexpr float SmagorinskyConstantGlobal = 0.0f; 										// set to zero to turn off LES
+constexpr float SmagorinskyConstantGlobal = 0.1f; 										// set to zero to turn off LES
 
 constexpr float sphereRadiusPhys = 0.5 * sphereDiameterPhys;							// mm
 constexpr float uxInletPhys = uxInlet; 													// m/s, physical velocity set to same as LBM velocity
@@ -23,7 +23,7 @@ const int cellCountZ = cellCountX;
 
 constexpr int iterationCount = 20000;
 constexpr int iterationChunk = 1000;
-constexpr int gridLevelCount = 1;
+constexpr int gridLevelCount = 5;
 constexpr int wallRefinementSpan = 2;
 
 #include "../include/types.h"
@@ -102,13 +102,11 @@ void updateGrid( std::vector<DIADGridStruct>& grids, int level )
 {
     applyStreaming(grids[level]);
     applyLocalCellUpdate(grids[level]);
-    /*
     if (level < gridLevelCount - 1) 
     {
         for (int i = 0; i < 2; i++) updateGrid(grids, level + 1);
         applyCoarseFineGridCommunication(grids[level], grids[level + 1]);
     }
-    */
 }
 
 int main(int argc, char **argv)
@@ -127,8 +125,11 @@ int main(int argc, char **argv)
 	buildIJKFromInfo( grids[0].IJK, grids[0].Info );
 	buildDIADGrids( grids, STLs, 0 );
 	
-	grids[0].fArray.setSizes( 27, grids[0].Info.cellCount );
-	fillEquilibriumFromFunction( grids[0] );
+	for ( int level = 0; level < gridLevelCount; level++ )
+	{
+		grids[level].fArray.setSizes( 27, grids[level].Info.cellCount );
+		fillEquilibriumFromFunction( grids[level] );
+	}
 	
 	int cellCountTotal = 0;
 	long int cellUpdatesPerIteration = 0;
