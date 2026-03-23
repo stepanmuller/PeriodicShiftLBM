@@ -272,7 +272,7 @@ void findMatchingIJKIndex( IJKArrayStruct &Wanted, IJKArrayStruct &Source, IntAr
 }
 
 // Applies the bounceback marker onto an array using the getMarkers function
-void ApplyMarkersFromFunction( BoolArrayType &markerArray, IJKArrayStruct &IJK, InfoStruct &Info )
+void applyBouncebackMarkerFromFunction( BoolArrayType &markerArray, IJKArrayStruct &IJK, InfoStruct &Info )
 {
 	auto markerArrayView = markerArray.getView();
 	
@@ -288,6 +288,28 @@ void ApplyMarkersFromFunction( BoolArrayType &markerArray, IJKArrayStruct &IJK, 
 		MarkerStruct Marker;
 		getMarkers( iCell, jCell, kCell, Marker, Info );
 		markerArrayView( cell ) = Marker.bounceback;
+	};
+	TNL::Algorithms::parallelFor<TNL::Devices::Cuda>(0, Info.cellCount, cellLambda );	
+}
+
+// Applies the refinement marker onto an array using the getMarkers function
+void applyRefinementMarkerFromFunction( BoolArrayType &markerArray, IJKArrayStruct &IJK, InfoStruct &Info )
+{
+	auto markerArrayView = markerArray.getView();
+	
+	auto iArrayView = IJK.iArray.getView();
+	auto jArrayView = IJK.jArray.getView();
+	auto kArrayView = IJK.kArray.getView();
+	
+	auto cellLambda = [=] __cuda_callable__ ( const int cell ) mutable
+	{
+		const int iCell = iArrayView[ cell ];
+		const int jCell = jArrayView[ cell ];
+		const int kCell = kArrayView[ cell ];
+		MarkerStruct Marker;
+		Marker.refinement = markerArrayView( cell );
+		getMarkers( iCell, jCell, kCell, Marker, Info );
+		markerArrayView( cell ) = Marker.refinement;
 	};
 	TNL::Algorithms::parallelFor<TNL::Devices::Cuda>(0, Info.cellCount, cellLambda );	
 }
@@ -316,7 +338,7 @@ void markWhereFinestFluidIs( BoolArrayType &fluidMarkerArray, IJKArrayStruct &IJ
 				Info.ox = oxOriginal + shiftStart + shiftCountX * finestRes;
 				Info.oy = oyOriginal + shiftStart + shiftCountY * finestRes;
 				Info.oz = ozOriginal + shiftStart + shiftCountZ * finestRes;				
-				ApplyMarkersFromFunction( markerArray, IJK, Info );
+				applyBouncebackMarkerFromFunction( markerArray, IJK, Info );
 				for ( int STLIndex = 0; STLIndex < (int)STLs.size(); STLIndex++ )
 				{
 					const bool insideMarkerValue = 1;
@@ -472,6 +494,9 @@ void buildDIADGrids( std::vector<DIADGridStruct> &grids, std::vector<STLStruct> 
 		multiplyBoolArrays( newRefinementMarkerArray, keepCellMarkerArray, refinementMarkerArray );
 	}
 	
+	// MODIFICATION OF THE REFINEMENT REGION USING getMarkers FUNCTION
+	applyRefinementMarkerFromFunction( refinementMarkerArray, Grid.IJK, Grid.Info );
+	
 	// FINE TO COARSE COMMUNICATION INTERFACE
 	BoolArrayType fineToCoarseMarkerArray = BoolArrayType( Grid.Info.cellCount );
 	fineToCoarseMarkerArray.setValue( 0 );
@@ -492,6 +517,9 @@ void buildDIADGrids( std::vector<DIADGridStruct> &grids, std::vector<STLStruct> 
 	invertBoolArray( fineToCoarseInverseMarkerArray );
 	multiplyBoolArrays( coarseToFineMarkerArray, fineToCoarseInverseMarkerArray, coarseToFineMarkerArray );
 	multiplyBoolArrays( coarseToFineMarkerArray, refinementInverseMarkerArray, coarseToFineMarkerArray );
+	
+	// NOW nbrArrays are not needed anymore
+	for ( int i = 0; i < 26; i++ ) nbrArrays[i].resize( 0 );
 	
 	// NOW ALSO ADD THE INTERFACE INTO THE REFINEMENT AREA
 	sumBoolArrays( refinementMarkerArray, fineToCoarseMarkerArray, refinementMarkerArray );
@@ -559,7 +587,7 @@ void buildDIADGrids( std::vector<DIADGridStruct> &grids, std::vector<STLStruct> 
 	Grid.bouncebackMarkerArray.setSize(Grid.Info.cellCount);
 	Grid.bouncebackMarkerArray.setValue( 0 );
 	BoolArrayType markerArraySTL = BoolArrayType( Grid.Info.cellCount );	
-	ApplyMarkersFromFunction( Grid.bouncebackMarkerArray, Grid.IJK, Grid.Info );
+	applyBouncebackMarkerFromFunction( Grid.bouncebackMarkerArray, Grid.IJK, Grid.Info );
 	for ( int STLIndex = 0; STLIndex < (int)STLs.size(); STLIndex++ )
 	{
 		const bool insideMarkerValue = 1;

@@ -73,5 +73,5 @@ setup_plot(ax2, p, "Static pressure [Pa]")
 
 # 4. Save
 os.makedirs("results", exist_ok=True)
-plt.savefig(f"results/{plotNumber}.png", dpi=300, bbox_inches="tight")
+plt.savefig(f"results/{plotNumber}.png", dpi=min(1000, max([300, nVertical/3, nHorizontal/3])), bbox_inches="tight")
 plt.close()

@@ -1,5 +1,5 @@
 constexpr float sphereDiameterPhys = 2000.f;											// mm
-constexpr float resGlobal = 200.f; 														// mm
+constexpr float resGlobal = 100.f; 														// mm
 constexpr float uxInlet = 0.07f; 														// also works as nominal LBM Mach number
 constexpr float reynoldsNumber = 1000000.f;
 constexpr float SmagorinskyConstantGlobal = 0.1f; 										// set to zero to turn off LES
@@ -13,18 +13,18 @@ constexpr float invSqrt3 = 0.577350269f;
 constexpr float soundspeedPhys = invSqrt3 * (resGlobal/1000) / dtPhysGlobal; 			// m/s
 
 constexpr float domainSizePhys = 11.f * sphereDiameterPhys;								// mm
-constexpr float sphereXPhys = 2.f * sphereDiameterPhys;									// mm
-constexpr float sphereYPhys = 5.5f * sphereDiameterPhys;								// mm
-constexpr float sphereZPhys = 5.5f * sphereDiameterPhys;								// mm
+constexpr float sphereXPhys = 0.f;														// mm
+constexpr float sphereYPhys = 0.f;														// mm
+constexpr float sphereZPhys = 0.f;														// mm
 
 const int cellCountX = static_cast<int>(std::ceil(domainSizePhys / resGlobal));
 const int cellCountY = cellCountX;
 const int cellCountZ = cellCountX;
 
 constexpr int iterationCount = 20000;
-constexpr int iterationChunk = 1000;
-constexpr int gridLevelCount = 5;
-constexpr int wallRefinementSpan = 2;
+constexpr int iterationChunk = 100;
+constexpr int gridLevelCount = 6;
+constexpr int wallRefinementSpan = 3;
 
 #include "../include/types.h"
 
@@ -45,6 +45,18 @@ __cuda_callable__ void getMarkers( 	const int& iCell, const int& jCell, const in
    	const float xPhys = iCell * Info.res + Info.ox;
 	const float yPhys = jCell * Info.res + Info.oy;
 	const float zPhys = kCell * Info.res + Info.oz;
+	
+	// Enlarge the refinement area
+	if ( Info.gridID == 0 )
+	{
+		if (xPhys > -1.5f*sphereDiameterPhys && xPhys < 4.f * sphereDiameterPhys
+			&& fabsf(yPhys) < 1.5f*sphereDiameterPhys && fabsf(zPhys) < 1.5f*sphereDiameterPhys ) Marker.refinement = 1;
+	}
+	if ( Info.gridID == 1 )
+	{
+		if (xPhys > -sphereDiameterPhys && xPhys < 2.5f * sphereDiameterPhys
+			&& fabsf(yPhys) < sphereDiameterPhys && fabsf(zPhys) < sphereDiameterPhys ) Marker.refinement = 1;
+	}
 	
 	const float r2 = (xPhys-sphereXPhys) * (xPhys - sphereXPhys) + (yPhys - sphereYPhys) * (yPhys - sphereYPhys) + (zPhys - sphereZPhys) * (zPhys - sphereZPhys);
 	
@@ -121,6 +133,9 @@ int main(int argc, char **argv)
 	grids[0].Info.cellCountX = cellCountX;
 	grids[0].Info.cellCountY = cellCountY;
 	grids[0].Info.cellCountZ = cellCountZ;
+	grids[0].Info.ox = - 2.f * sphereDiameterPhys;
+	grids[0].Info.oy = - 5.5f * sphereDiameterPhys;
+	grids[0].Info.oz = - 5.5f * sphereDiameterPhys;
 	grids[0].Info.cellCount = grids[0].Info.cellCountX * grids[0].Info.cellCountY * grids[0].Info.cellCountZ;
 	buildIJKFromInfo( grids[0].IJK, grids[0].Info );
 	
@@ -132,12 +147,6 @@ int main(int argc, char **argv)
 	auto buildIJKTime = buildIJKTimer.getRealTime();
 	std::cout << "This took " << buildIJKTime << " s" << std::endl; //7.11 before find IJK rewrite
 	
-	for ( int level = 0; level < gridLevelCount; level++ )
-	{
-		grids[level].fArray.setSizes( 27, grids[level].Info.cellCount );
-		fillEquilibriumFromFunction( grids[level] );
-	}
-	
 	int cellCountTotal = 0;
 	long int cellUpdatesPerIteration = 0;
 	for ( int level = 0; level < gridLevelCount; level++ )
@@ -148,6 +157,61 @@ int main(int argc, char **argv)
 	}
 	std::cout << "Cell count total: " << cellCountTotal << std::endl;
 	std::cout << "Cell updates per iteration: " << cellUpdatesPerIteration << std::endl;
+	
+	// DEBUG START
+	for ( int level = 0; level < gridLevelCount; level++ )
+	{
+		std::cout << "checking Esotwist nbr on level " << level << std::endl;
+		DIADGridStruct &Grid = grids[level];
+		
+		IntArrayTypeCPU iNbrArrayCPU;
+		IntArrayTypeCPU jNbrArrayCPU;
+		IntArrayTypeCPU kNbrArrayCPU;
+		IntArrayTypeCPU ijNbrArrayCPU;
+		IntArrayTypeCPU ikNbrArrayCPU;
+		IntArrayTypeCPU jkNbrArrayCPU;
+		IntArrayTypeCPU ijkNbrArrayCPU;
+		
+		iNbrArrayCPU = Grid.EsotwistNbrArray.iNbrArray;
+		jNbrArrayCPU = Grid.EsotwistNbrArray.jNbrArray;
+		kNbrArrayCPU = Grid.EsotwistNbrArray.kNbrArray;
+		ijNbrArrayCPU = Grid.EsotwistNbrArray.ijNbrArray;
+		ikNbrArrayCPU = Grid.EsotwistNbrArray.ikNbrArray;
+		jkNbrArrayCPU = Grid.EsotwistNbrArray.jkNbrArray;
+		ijkNbrArrayCPU = Grid.EsotwistNbrArray.ijkNbrArray;
+		
+		for ( int cell = 0; cell < Grid.Info.cellCount; cell++ )
+		{
+			if ( iNbrArrayCPU[ cell ] < 0 || iNbrArrayCPU[ cell ] >= Grid.Info.cellCount ) 
+				std::cout << "Error found on cell " << cell << ", iNbr value " << iNbrArrayCPU[ cell ] << std::endl;
+				
+			if ( jNbrArrayCPU[ cell ] < 0 || jNbrArrayCPU[ cell ] >= Grid.Info.cellCount ) 
+				std::cout << "Error found on cell " << cell << ", jNbr value " << jNbrArrayCPU[ cell ] << std::endl;
+				
+			if ( kNbrArrayCPU[ cell ] < 0 || kNbrArrayCPU[ cell ] >= Grid.Info.cellCount ) 
+				std::cout << "Error found on cell " << cell << ", kNbr value " << kNbrArrayCPU[ cell ] << std::endl;
+				
+			if ( ijNbrArrayCPU[ cell ] < 0 || ijNbrArrayCPU[ cell ] >= Grid.Info.cellCount ) 
+				std::cout << "Error found on cell " << cell << ", ijNbr value " << ijNbrArrayCPU[ cell ] << std::endl;
+				
+			if ( ikNbrArrayCPU[ cell ] < 0 || ikNbrArrayCPU[ cell ] >= Grid.Info.cellCount ) 
+				std::cout << "Error found on cell " << cell << ", ikNbr value " << ikNbrArrayCPU[ cell ] << std::endl;
+				
+			if ( jkNbrArrayCPU[ cell ] < 0 || jkNbrArrayCPU[ cell ] >= Grid.Info.cellCount ) 
+				std::cout << "Error found on cell " << cell << ", jkNbr value " << jkNbrArrayCPU[ cell ] << std::endl;
+				
+			if ( ijkNbrArrayCPU[ cell ] < 0 || ijkNbrArrayCPU[ cell ] >= Grid.Info.cellCount ) 
+				std::cout << "Error found on cell " << cell << ", ijkNbr value " << ijkNbrArrayCPU[ cell ] << std::endl;
+		}
+	}
+	// DEBUG END
+	
+	for ( int level = 0; level < gridLevelCount; level++ )
+	{	
+		grids[level].fArray.setSizes( 27, grids[level].Info.cellCount );
+		std::cout << "filling level " << level << std::endl;
+		fillEquilibriumFromFunction( grids[level] );
+	}
 	
 	std::cout << "Starting simulation" << std::endl;
 	
@@ -175,19 +239,9 @@ int main(int argc, char **argv)
 			const float glups = updateCount / lapTime / 1000000000.f;
 			std::cout << "GLUPS: " << glups << std::endl;
 			
-			/*
-			for ( int level = gridLevelCount-2; level >= 0; level-- )
-			{
-				fillCoarseGridFromFine( grids[level], grids[level+1] );
-			}
-			*/
-			
-			for ( int level = 0; level < gridLevelCount; level++ )
-			{
-				const int kCut = grids[level].Info.cellCountZ / 2;
-				exportSectionCutPlotXY( grids[level], kCut, iteration + level );
-				system("python3 ../include/plotter/plotter.py");
-			}
+			const int kCut = grids[gridLevelCount-1].Info.cellCountZ / 2;
+			exportSectionCutPlotXY( grids, kCut, iteration );
+			system("python3 ../include/plotter/plotter.py");
 			
 			//exportHistoryData( historyDragCoefficient, iteration );
 			
