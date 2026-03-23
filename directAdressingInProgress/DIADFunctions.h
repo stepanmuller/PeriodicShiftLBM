@@ -206,38 +206,12 @@ int countInvalidIndexes( IntArrayType &intArray )
 	return result;
 }
 
-// Helper for the findMatchingIJKIndex function
-void getIJKStepArray( IJKArrayStruct &Source, IntArrayType &kStepArray )
-{
-	const int sourceCellCount = Source.iArray.getSize();
-	
-	IntArrayTypeCPU kSourceArrayCPU;
-	kSourceArrayCPU = Source.kArray;
-	IntArrayTypeCPU kStepArrayCPU = IntArrayTypeCPU( sourceCellCount );
-	int counter = 0;
-	int lastIndex = -2;
-	for ( int cell = 0; cell < sourceCellCount; cell++ )
-	{
-		int currentIndex = kSourceArrayCPU[ cell ];
-		if ( currentIndex != lastIndex )
-		{
-			kStepArrayCPU[ counter ] = cell;
-			lastIndex = currentIndex;
-			counter++;
-		}
-	}
-	const int kStepCount = counter;
-	kStepArrayCPU.resize( kStepCount );
-	kStepArray = kStepArrayCPU;
-}
-
 // Receives sorted IJKSource that !must! be already sorted with key k, j, i so that k index changes the slowest
 // For each Wanted, find a matching cell in Source. If its found, write its index to resultArray. If there is no such cell, write -2.		
-void findMatchingIJKIndex( 	IJKArrayStruct &Wanted, IJKArrayStruct &Source, IntArrayType &resultArray, IntArrayType &kStepArray )
+void findMatchingIJKIndex( IJKArrayStruct &Wanted, IJKArrayStruct &Source, IntArrayType &resultArray )
 {
 	const int wantedCellCount = Wanted.iArray.getSize();
 	const int sourceCellCount = Source.iArray.getSize();
-	const int kStepCount = kStepArray.getSize();
 	
 	auto iWantedView = Wanted.iArray.getConstView();
 	auto jWantedView = Wanted.jArray.getConstView();
@@ -246,74 +220,54 @@ void findMatchingIJKIndex( 	IJKArrayStruct &Wanted, IJKArrayStruct &Source, IntA
 	auto jSourceView = Source.jArray.getConstView();
 	auto kSourceView = Source.kArray.getConstView();
 	auto resultView = resultArray.getView();
-	auto kStepView = kStepArray.getConstView();
 	
 	auto cellLambda = [=] __cuda_callable__ ( const int cellWanted ) mutable
 	{
 		if ( resultView[ cellWanted ] >= 0 ) return; // Do not overwrite the cell if its already valid from before
+		
 		const int iWanted = iWantedView[ cellWanted ];
 		const int jWanted = jWantedView[ cellWanted ];
 		const int kWanted = kWantedView[ cellWanted ];
+		
 		int start = 0;
-		int end = kStepCount;
+		int end = sourceCellCount;
 		int result = -2;
-		// Now by using the kIndexChanges array, we will reduce the search interval
+		
+		// Search for k, j, and i in a single binary search
 		while ( end > start )
 		{
 			int half = start + ( end - start ) / 2;
-			if ( kSourceView[kStepView[half]] == kWanted )
-			{
-				result = half;
-				break;
-			}
-			if ( kSourceView[kStepView[half]] > kWanted ) end = half;
-			else start = half + 1;
-		}
-		if ( start < kStepCount && kSourceView[kStepView[start]] == kWanted )
-		{
-			result = start;
-		}
-		if ( result == -2 )
-		{
-			resultView[ cellWanted ] = -2;
-			return;
-		}
-		
-		start = kStepView[ result ];
-		end = sourceCellCount;
-		if ( result < kStepCount - 1 ) end = kStepView[ result + 1 ];
-		result = -2;
-		
-		// Now find the exact match for j and i in the already reduced interval
-		// We search for both simultaneously to avoid writing multiple binary searches
-		while ( end > start )
-		{
-			int half = start + ( end - start ) / 2;
+			int kHalf = kSourceView[ half ];
 			int jHalf = jSourceView[ half ];
 			int iHalf = iSourceView[ half ];
 			
-			if ( jHalf == jWanted && iHalf == iWanted )
+			if ( kHalf == kWanted && jHalf == jWanted && iHalf == iWanted )
 			{
 				result = half;
 				break;
 			}
 			
-			// Move the end bound if j is too big, OR if j matches but i is too big
-			if ( jHalf > jWanted || ( jHalf == jWanted && iHalf > iWanted ) ) end = half;
-			else start = half + 1;
+			// Move the end bound if k is too big, OR if k matches but j is too big, OR if k and j match but i is too big
+			if ( kHalf > kWanted || 
+			   ( kHalf == kWanted && jHalf > jWanted ) || 
+			   ( kHalf == kWanted && jHalf == jWanted && iHalf > iWanted ) ) 
+			{
+				end = half;
+			}
+			else 
+			{
+				start = half + 1;
+			}
 		}
-		
 		if ( result == -2 && start < sourceCellCount )
 		{
-			if ( jSourceView[ start ] == jWanted && iSourceView[ start ] == iWanted )
+			if ( kSourceView[ start ] == kWanted && jSourceView[ start ] == jWanted && iSourceView[ start ] == iWanted )
 			{
 				result = start;
 			}
 		}
-		
 		resultView[ cellWanted ] = result;
 	};
-	
 	TNL::Algorithms::parallelFor<TNL::Devices::Cuda>( 0, wantedCellCount, cellLambda );
 }
 
@@ -394,34 +348,31 @@ void getDIADNeighbours( IJKArrayStruct &IJK, DIADNeighboursStruct &Neighbours )
 	Neighbours.iMinusArray.setValue( -2 );
 	Neighbours.jMinusArray.setValue( -2 );
 	Neighbours.kMinusArray.setValue( -2 );
-	
-	IntArrayType kStepArray;
-	getIJKStepArray( IJK, kStepArray );
 
 	IJKArrayStruct IJKShifted;
 	IJKShifted = IJK;
 	shiftIJK( IJKShifted, 1, 0, 0 );
-	findMatchingIJKIndex( IJKShifted, IJK, Neighbours.iPlusArray, kStepArray );
-
-	IJKShifted = IJK;
-	shiftIJK( IJKShifted, 0, 1, 0 );
-	findMatchingIJKIndex( IJKShifted, IJK, Neighbours.jPlusArray, kStepArray );
-	
-	IJKShifted = IJK;
-	shiftIJK( IJKShifted, 0, 0, 1 );
-	findMatchingIJKIndex( IJKShifted, IJK, Neighbours.kPlusArray, kStepArray );
-	
-	IJKShifted = IJK;
-	shiftIJK( IJKShifted, -1, 0, 0 );
-	findMatchingIJKIndex( IJKShifted, IJK, Neighbours.iMinusArray, kStepArray );
-	
-	IJKShifted = IJK;
-	shiftIJK( IJKShifted, 0, -1, 0 );
-	findMatchingIJKIndex( IJKShifted, IJK, Neighbours.jMinusArray, kStepArray );
-	
-	IJKShifted = IJK;
-	shiftIJK( IJKShifted, 0, 0, -1 );
-	findMatchingIJKIndex( IJKShifted, IJK, Neighbours.kMinusArray, kStepArray );
+	findMatchingIJKIndex( IJKShifted, IJK, Neighbours.iPlusArray );
+																 
+	IJKShifted = IJK;                                            
+	shiftIJK( IJKShifted, 0, 1, 0 );                             
+	findMatchingIJKIndex( IJKShifted, IJK, Neighbours.jPlusArray );
+																 
+	IJKShifted = IJK;                                            
+	shiftIJK( IJKShifted, 0, 0, 1 );                             
+	findMatchingIJKIndex( IJKShifted, IJK, Neighbours.kPlusArray );
+																 
+	IJKShifted = IJK;                                            
+	shiftIJK( IJKShifted, -1, 0, 0 );                            
+	findMatchingIJKIndex( IJKShifted, IJK, Neighbours.iMinusArray );
+																 
+	IJKShifted = IJK;                                            
+	shiftIJK( IJKShifted, 0, -1, 0 );                            
+	findMatchingIJKIndex( IJKShifted, IJK, Neighbours.jMinusArray );
+																 
+	IJKShifted = IJK;                                            
+	shiftIJK( IJKShifted, 0, 0, -1 );                            
+	findMatchingIJKIndex( IJKShifted, IJK, Neighbours.kMinusArray );
 }
 
 void getDIADEsotwistConnections( DIADGridStruct &Grid )
@@ -444,9 +395,6 @@ void getDIADEsotwistConnections( DIADGridStruct &Grid )
 	Grid.EsotwistConnections.jkNbrArray.setValue( -2 );
 	Grid.EsotwistConnections.ijkNbrArray.setValue( -2 );
 	
-	IntArrayType kStepArray;
-	getIJKStepArray( IJK, kStepArray );
-	
 	IJKArrayStruct IJKShifted;
 	int invalidNeighbourCount;
 	
@@ -455,7 +403,7 @@ void getDIADEsotwistConnections( DIADGridStruct &Grid )
 	while ( invalidNeighbourCount > 0 )
 	{
 		shiftIJKPeriodic( IJKShifted, 1, 0, 0, Info );
-		findMatchingIJKIndex( IJKShifted, IJK, Grid.EsotwistConnections.iNbrArray, kStepArray );
+		findMatchingIJKIndex( IJKShifted, IJK, Grid.EsotwistConnections.iNbrArray );
 		invalidNeighbourCount = countInvalidIndexes( Grid.EsotwistConnections.iNbrArray );
 	}
 
@@ -464,7 +412,7 @@ void getDIADEsotwistConnections( DIADGridStruct &Grid )
 	while ( invalidNeighbourCount > 0 )
 	{
 		shiftIJKPeriodic( IJKShifted, 0, 1, 0, Info );
-		findMatchingIJKIndex( IJKShifted, IJK, Grid.EsotwistConnections.jNbrArray, kStepArray );
+		findMatchingIJKIndex( IJKShifted, IJK, Grid.EsotwistConnections.jNbrArray );
 		invalidNeighbourCount = countInvalidIndexes( Grid.EsotwistConnections.jNbrArray );
 	}
 	
@@ -473,7 +421,7 @@ void getDIADEsotwistConnections( DIADGridStruct &Grid )
 	while ( invalidNeighbourCount > 0 )
 	{
 		shiftIJKPeriodic( IJKShifted, 0, 0, 1, Info );
-		findMatchingIJKIndex( IJKShifted, IJK, Grid.EsotwistConnections.kNbrArray, kStepArray );
+		findMatchingIJKIndex( IJKShifted, IJK, Grid.EsotwistConnections.kNbrArray );
 		invalidNeighbourCount = countInvalidIndexes( Grid.EsotwistConnections.kNbrArray );
 	}
 	
@@ -482,7 +430,7 @@ void getDIADEsotwistConnections( DIADGridStruct &Grid )
 	while ( invalidNeighbourCount > 0 )
 	{
 		shiftIJKPeriodic( IJKShifted, 1, 1, 0, Info );
-		findMatchingIJKIndex( IJKShifted, IJK, Grid.EsotwistConnections.ijNbrArray, kStepArray );
+		findMatchingIJKIndex( IJKShifted, IJK, Grid.EsotwistConnections.ijNbrArray );
 		invalidNeighbourCount = countInvalidIndexes( Grid.EsotwistConnections.ijNbrArray );
 	}
 	
@@ -491,7 +439,7 @@ void getDIADEsotwistConnections( DIADGridStruct &Grid )
 	while ( invalidNeighbourCount > 0 )
 	{
 		shiftIJKPeriodic( IJKShifted, 1, 0, 1, Info );
-		findMatchingIJKIndex( IJKShifted, IJK, Grid.EsotwistConnections.ikNbrArray, kStepArray );
+		findMatchingIJKIndex( IJKShifted, IJK, Grid.EsotwistConnections.ikNbrArray );
 		invalidNeighbourCount = countInvalidIndexes( Grid.EsotwistConnections.ikNbrArray );
 	}
 	
@@ -500,7 +448,7 @@ void getDIADEsotwistConnections( DIADGridStruct &Grid )
 	while ( invalidNeighbourCount > 0 )
 	{
 		shiftIJKPeriodic( IJKShifted, 0, 1, 1, Info );
-		findMatchingIJKIndex( IJKShifted, IJK, Grid.EsotwistConnections.jkNbrArray, kStepArray );
+		findMatchingIJKIndex( IJKShifted, IJK, Grid.EsotwistConnections.jkNbrArray );
 		invalidNeighbourCount = countInvalidIndexes( Grid.EsotwistConnections.jkNbrArray );
 	}
 	
@@ -509,7 +457,7 @@ void getDIADEsotwistConnections( DIADGridStruct &Grid )
 	while ( invalidNeighbourCount > 0 )
 	{
 		shiftIJKPeriodic( IJKShifted, 1, 1, 1, Info );
-		findMatchingIJKIndex( IJKShifted, IJK, Grid.EsotwistConnections.ijkNbrArray, kStepArray );
+		findMatchingIJKIndex( IJKShifted, IJK, Grid.EsotwistConnections.ijkNbrArray );
 		invalidNeighbourCount = countInvalidIndexes( Grid.EsotwistConnections.ijkNbrArray );
 	}
 }
@@ -954,6 +902,7 @@ void buildDIADGrids( std::vector<DIADGridStruct> &grids, std::vector<STLStruct> 
 	Grid.IJK.kArray.resize(Grid.Info.cellCount);
 	fineToCoarseMarkerArray.resize(Grid.Info.cellCount);
 	coarseToFineMarkerArray.resize(Grid.Info.cellCount);
+	std::cout << "Final cell count on level " << level <<" : " << Grid.Info.cellCount << std::endl;
 	
 	// FINAL BOUNCEBACK PASS IN CASE WE ARE NOT REFINING IN SOME WALL AREA
 	Grid.bouncebackMarkerArray.setSize(Grid.Info.cellCount);
@@ -1031,9 +980,7 @@ void buildDIADGrids( std::vector<DIADGridStruct> &grids, std::vector<STLStruct> 
 		kFineView1[ counter ] = kView[ cell ] * 2;
 	};
 	TNL::Algorithms::parallelFor<TNL::Devices::Cuda>( 0, coarseToFineCount, cellLambda1 );
-	IntArrayType kStepArray;
-	getIJKStepArray( grids[level+1].IJK, kStepArray );
-	findMatchingIJKIndex( fineIJK, grids[level+1].IJK, Grid.coarseToFineWriteArray, kStepArray );
+	findMatchingIJKIndex( fineIJK, grids[level+1].IJK, Grid.coarseToFineWriteArray );
 	const int invalidConnections1 = countInvalidIndexes( Grid.coarseToFineWriteArray );
 	if ( invalidConnections1 > 0 )
 	{
@@ -1073,8 +1020,7 @@ void buildDIADGrids( std::vector<DIADGridStruct> &grids, std::vector<STLStruct> 
 		kFineView2[ counter ] = kView[ cell ] * 2;
 	};
 	TNL::Algorithms::parallelFor<TNL::Devices::Cuda>( 0, fineToCoarseCount, cellLambda2 );
-	getIJKStepArray( grids[level+1].IJK, kStepArray );
-	findMatchingIJKIndex( fineIJK, grids[level+1].IJK, Grid.fineToCoarseReadArray, kStepArray );
+	findMatchingIJKIndex( fineIJK, grids[level+1].IJK, Grid.fineToCoarseReadArray );
 	const int invalidConnections2 = countInvalidIndexes( Grid.fineToCoarseReadArray );
 	if ( invalidConnections2 > 0 )
 	{
@@ -1083,5 +1029,4 @@ void buildDIADGrids( std::vector<DIADGridStruct> &grids, std::vector<STLStruct> 
 			" invalid coarse-to-fine connections found on level " + std::to_string(level) 
 		);
 	}
-	std::cout << "Final cell count on level " << level <<" : " << Grid.Info.cellCount << std::endl;
 }

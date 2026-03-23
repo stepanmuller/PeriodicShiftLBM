@@ -1,5 +1,5 @@
 constexpr float sphereDiameterPhys = 2000.f;											// mm
-constexpr float resGlobal = 100.f; 														// mm
+constexpr float resGlobal = 200.f; 														// mm
 constexpr float uxInlet = 0.07f; 														// also works as nominal LBM Mach number
 constexpr float reynoldsNumber = 1000000.f;
 constexpr float SmagorinskyConstantGlobal = 0.1f; 										// set to zero to turn off LES
@@ -21,8 +21,8 @@ const int cellCountX = static_cast<int>(std::ceil(domainSizePhys / resGlobal));
 const int cellCountY = cellCountX;
 const int cellCountZ = cellCountX;
 
-constexpr int iterationCount = 20000;
-constexpr int iterationChunk = 1000;
+constexpr int iterationCount = 1;
+constexpr int iterationChunk = 1;
 constexpr int gridLevelCount = 5;
 constexpr int wallRefinementSpan = 2;
 
@@ -123,7 +123,14 @@ int main(int argc, char **argv)
 	grids[0].Info.cellCountZ = cellCountZ;
 	grids[0].Info.cellCount = grids[0].Info.cellCountX * grids[0].Info.cellCountY * grids[0].Info.cellCountZ;
 	buildIJKFromInfo( grids[0].IJK, grids[0].Info );
+	
+	TNL::Timer buildIJKTimer;
+	buildIJKTimer.reset();
+	buildIJKTimer.start();
 	buildDIADGrids( grids, STLs, 0 );
+	buildIJKTimer.stop();
+	auto buildIJKTime = buildIJKTimer.getRealTime();
+	std::cout << "This took " << buildIJKTime << " s" << std::endl; //7.11 before find IJK rewrite
 	
 	for ( int level = 0; level < gridLevelCount; level++ )
 	{
