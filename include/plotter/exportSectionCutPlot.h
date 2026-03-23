@@ -237,13 +237,13 @@ void exportSectionCutPlotGeneral( DIADGridStruct &Grid, const int &cutIndex, con
 	auto kView = Grid.IJK.kArray.getConstView();
 	
 	bool esotwistFlipper = Grid.esotwistFlipper;
-	auto iNbrView = Grid.EsotwistConnections.iNbrArray.getConstView();
-	auto jNbrView = Grid.EsotwistConnections.jNbrArray.getConstView();
-	auto kNbrView = Grid.EsotwistConnections.kNbrArray.getConstView();
-	auto ijNbrView = Grid.EsotwistConnections.ijNbrArray.getConstView();
-	auto ikNbrView = Grid.EsotwistConnections.ikNbrArray.getConstView();
-	auto jkNbrView = Grid.EsotwistConnections.jkNbrArray.getConstView();
-	auto ijkNbrView = Grid.EsotwistConnections.ijkNbrArray.getConstView();
+	auto iNbrView = Grid.EsotwistNbrArray.iNbrArray.getConstView();
+	auto jNbrView = Grid.EsotwistNbrArray.jNbrArray.getConstView();
+	auto kNbrView = Grid.EsotwistNbrArray.kNbrArray.getConstView();
+	auto ijNbrView = Grid.EsotwistNbrArray.ijNbrArray.getConstView();
+	auto ikNbrView = Grid.EsotwistNbrArray.ikNbrArray.getConstView();
+	auto jkNbrView = Grid.EsotwistNbrArray.jkNbrArray.getConstView();
+	auto ijkNbrView = Grid.EsotwistNbrArray.ijkNbrArray.getConstView();
 	
 	SectionCutStruct SectionCut;
 	SectionCut.rhoArray.setSizes( cellCountVertical, cellCountHorizontal );

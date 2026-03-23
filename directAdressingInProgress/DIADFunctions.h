@@ -333,67 +333,44 @@ void markWhereFinestFluidIs( BoolArrayType &fluidMarkerArray, IJKArrayStruct &IJ
 	Info.oz = ozOriginal;
 }
 
-void getDIADNeighbours( IJKArrayStruct &IJK, DIADNeighboursStruct &Neighbours )
+void getDIADNeighbours( IJKArrayStruct &IJK, std::vector<IntArrayType> &nbrArrays )
 {
 	const int cellCount = IJK.iArray.getSize();
-	Neighbours.iPlusArray.setSize(cellCount);
-	Neighbours.jPlusArray.setSize(cellCount);
-	Neighbours.kPlusArray.setSize(cellCount);
-	Neighbours.iMinusArray.setSize(cellCount);
-	Neighbours.jMinusArray.setSize(cellCount);
-	Neighbours.kMinusArray.setSize(cellCount);
-	Neighbours.iPlusArray.setValue( -2 );
-	Neighbours.jPlusArray.setValue( -2 );
-	Neighbours.kPlusArray.setValue( -2 );
-	Neighbours.iMinusArray.setValue( -2 );
-	Neighbours.jMinusArray.setValue( -2 );
-	Neighbours.kMinusArray.setValue( -2 );
+	for ( int i = 0; i < 26; i++ ) { nbrArrays[i].setSize( cellCount ); nbrArrays[i].setValue( -2 ); }
+	
+	const int cxArray[27] = { 0, 1,-1, 0, 0, 0, 0, 1,-1, 1,-1,-1, 1, 0, 0,-1, 1, 0, 0,-1, 1,-1, 1, 1,-1,-1, 1 };
+	const int cyArray[27] = { 0, 0, 0, 0, 0,-1, 1, 0, 0, 0, 0,-1, 1, 1,-1, 1,-1, 1,-1, 1,-1,-1, 1,-1, 1,-1, 1 };
+	const int czArray[27] = { 0, 0, 0,-1, 1, 0, 0,-1, 1, 1,-1, 0, 0,-1, 1, 0, 0, 1,-1,-1, 1, 1,-1,-1, 1,-1, 1 };
 
 	IJKArrayStruct IJKShifted;
-	IJKShifted = IJK;
-	shiftIJK( IJKShifted, 1, 0, 0 );
-	findMatchingIJKIndex( IJKShifted, IJK, Neighbours.iPlusArray );
-																 
-	IJKShifted = IJK;                                            
-	shiftIJK( IJKShifted, 0, 1, 0 );                             
-	findMatchingIJKIndex( IJKShifted, IJK, Neighbours.jPlusArray );
-																 
-	IJKShifted = IJK;                                            
-	shiftIJK( IJKShifted, 0, 0, 1 );                             
-	findMatchingIJKIndex( IJKShifted, IJK, Neighbours.kPlusArray );
-																 
-	IJKShifted = IJK;                                            
-	shiftIJK( IJKShifted, -1, 0, 0 );                            
-	findMatchingIJKIndex( IJKShifted, IJK, Neighbours.iMinusArray );
-																 
-	IJKShifted = IJK;                                            
-	shiftIJK( IJKShifted, 0, -1, 0 );                            
-	findMatchingIJKIndex( IJKShifted, IJK, Neighbours.jMinusArray );
-																 
-	IJKShifted = IJK;                                            
-	shiftIJK( IJKShifted, 0, 0, -1 );                            
-	findMatchingIJKIndex( IJKShifted, IJK, Neighbours.kMinusArray );
+	
+	for ( int direction = 1; direction < 27; direction++ )
+	{
+		IJKShifted = IJK;
+		shiftIJK( IJKShifted, cxArray[direction], cyArray[direction], czArray[direction] );
+		findMatchingIJKIndex( IJKShifted, IJK, nbrArrays[direction-1] );
+	}
 }
 
-void getDIADEsotwistConnections( DIADGridStruct &Grid )
+void getDIADEsotwistNbrArray( DIADGridStruct &Grid )
 {
 	InfoStruct Info = Grid.Info;
 	IJKArrayStruct IJK = Grid.IJK;
 	const int cellCount = Info.cellCount;
-	Grid.EsotwistConnections.iNbrArray.setSize( cellCount );
-	Grid.EsotwistConnections.jNbrArray.setSize( cellCount );
-	Grid.EsotwistConnections.kNbrArray.setSize( cellCount );
-	Grid.EsotwistConnections.ijNbrArray.setSize( cellCount );
-	Grid.EsotwistConnections.ikNbrArray.setSize( cellCount );
-	Grid.EsotwistConnections.jkNbrArray.setSize( cellCount );
-	Grid.EsotwistConnections.ijkNbrArray.setSize( cellCount );
-	Grid.EsotwistConnections.iNbrArray.setValue( -2 );
-	Grid.EsotwistConnections.jNbrArray.setValue( -2 );
-	Grid.EsotwistConnections.kNbrArray.setValue( -2 );
-	Grid.EsotwistConnections.ijNbrArray.setValue( -2 );
-	Grid.EsotwistConnections.ikNbrArray.setValue( -2 );
-	Grid.EsotwistConnections.jkNbrArray.setValue( -2 );
-	Grid.EsotwistConnections.ijkNbrArray.setValue( -2 );
+	Grid.EsotwistNbrArray.iNbrArray.setSize( cellCount );
+	Grid.EsotwistNbrArray.jNbrArray.setSize( cellCount );
+	Grid.EsotwistNbrArray.kNbrArray.setSize( cellCount );
+	Grid.EsotwistNbrArray.ijNbrArray.setSize( cellCount );
+	Grid.EsotwistNbrArray.ikNbrArray.setSize( cellCount );
+	Grid.EsotwistNbrArray.jkNbrArray.setSize( cellCount );
+	Grid.EsotwistNbrArray.ijkNbrArray.setSize( cellCount );
+	Grid.EsotwistNbrArray.iNbrArray.setValue( -2 );
+	Grid.EsotwistNbrArray.jNbrArray.setValue( -2 );
+	Grid.EsotwistNbrArray.kNbrArray.setValue( -2 );
+	Grid.EsotwistNbrArray.ijNbrArray.setValue( -2 );
+	Grid.EsotwistNbrArray.ikNbrArray.setValue( -2 );
+	Grid.EsotwistNbrArray.jkNbrArray.setValue( -2 );
+	Grid.EsotwistNbrArray.ijkNbrArray.setValue( -2 );
 	
 	IJKArrayStruct IJKShifted;
 	int invalidNeighbourCount;
@@ -403,8 +380,8 @@ void getDIADEsotwistConnections( DIADGridStruct &Grid )
 	while ( invalidNeighbourCount > 0 )
 	{
 		shiftIJKPeriodic( IJKShifted, 1, 0, 0, Info );
-		findMatchingIJKIndex( IJKShifted, IJK, Grid.EsotwistConnections.iNbrArray );
-		invalidNeighbourCount = countInvalidIndexes( Grid.EsotwistConnections.iNbrArray );
+		findMatchingIJKIndex( IJKShifted, IJK, Grid.EsotwistNbrArray.iNbrArray );
+		invalidNeighbourCount = countInvalidIndexes( Grid.EsotwistNbrArray.iNbrArray );
 	}
 
 	IJKShifted = IJK;
@@ -412,8 +389,8 @@ void getDIADEsotwistConnections( DIADGridStruct &Grid )
 	while ( invalidNeighbourCount > 0 )
 	{
 		shiftIJKPeriodic( IJKShifted, 0, 1, 0, Info );
-		findMatchingIJKIndex( IJKShifted, IJK, Grid.EsotwistConnections.jNbrArray );
-		invalidNeighbourCount = countInvalidIndexes( Grid.EsotwistConnections.jNbrArray );
+		findMatchingIJKIndex( IJKShifted, IJK, Grid.EsotwistNbrArray.jNbrArray );
+		invalidNeighbourCount = countInvalidIndexes( Grid.EsotwistNbrArray.jNbrArray );
 	}
 	
 	IJKShifted = IJK;
@@ -421,8 +398,8 @@ void getDIADEsotwistConnections( DIADGridStruct &Grid )
 	while ( invalidNeighbourCount > 0 )
 	{
 		shiftIJKPeriodic( IJKShifted, 0, 0, 1, Info );
-		findMatchingIJKIndex( IJKShifted, IJK, Grid.EsotwistConnections.kNbrArray );
-		invalidNeighbourCount = countInvalidIndexes( Grid.EsotwistConnections.kNbrArray );
+		findMatchingIJKIndex( IJKShifted, IJK, Grid.EsotwistNbrArray.kNbrArray );
+		invalidNeighbourCount = countInvalidIndexes( Grid.EsotwistNbrArray.kNbrArray );
 	}
 	
 	IJKShifted = IJK;
@@ -430,8 +407,8 @@ void getDIADEsotwistConnections( DIADGridStruct &Grid )
 	while ( invalidNeighbourCount > 0 )
 	{
 		shiftIJKPeriodic( IJKShifted, 1, 1, 0, Info );
-		findMatchingIJKIndex( IJKShifted, IJK, Grid.EsotwistConnections.ijNbrArray );
-		invalidNeighbourCount = countInvalidIndexes( Grid.EsotwistConnections.ijNbrArray );
+		findMatchingIJKIndex( IJKShifted, IJK, Grid.EsotwistNbrArray.ijNbrArray );
+		invalidNeighbourCount = countInvalidIndexes( Grid.EsotwistNbrArray.ijNbrArray );
 	}
 	
 	IJKShifted = IJK;
@@ -439,8 +416,8 @@ void getDIADEsotwistConnections( DIADGridStruct &Grid )
 	while ( invalidNeighbourCount > 0 )
 	{
 		shiftIJKPeriodic( IJKShifted, 1, 0, 1, Info );
-		findMatchingIJKIndex( IJKShifted, IJK, Grid.EsotwistConnections.ikNbrArray );
-		invalidNeighbourCount = countInvalidIndexes( Grid.EsotwistConnections.ikNbrArray );
+		findMatchingIJKIndex( IJKShifted, IJK, Grid.EsotwistNbrArray.ikNbrArray );
+		invalidNeighbourCount = countInvalidIndexes( Grid.EsotwistNbrArray.ikNbrArray );
 	}
 	
 	IJKShifted = IJK;
@@ -448,8 +425,8 @@ void getDIADEsotwistConnections( DIADGridStruct &Grid )
 	while ( invalidNeighbourCount > 0 )
 	{
 		shiftIJKPeriodic( IJKShifted, 0, 1, 1, Info );
-		findMatchingIJKIndex( IJKShifted, IJK, Grid.EsotwistConnections.jkNbrArray );
-		invalidNeighbourCount = countInvalidIndexes( Grid.EsotwistConnections.jkNbrArray );
+		findMatchingIJKIndex( IJKShifted, IJK, Grid.EsotwistNbrArray.jkNbrArray );
+		invalidNeighbourCount = countInvalidIndexes( Grid.EsotwistNbrArray.jkNbrArray );
 	}
 	
 	IJKShifted = IJK;
@@ -457,296 +434,35 @@ void getDIADEsotwistConnections( DIADGridStruct &Grid )
 	while ( invalidNeighbourCount > 0 )
 	{
 		shiftIJKPeriodic( IJKShifted, 1, 1, 1, Info );
-		findMatchingIJKIndex( IJKShifted, IJK, Grid.EsotwistConnections.ijkNbrArray );
-		invalidNeighbourCount = countInvalidIndexes( Grid.EsotwistConnections.ijkNbrArray );
+		findMatchingIJKIndex( IJKShifted, IJK, Grid.EsotwistNbrArray.ijkNbrArray );
+		invalidNeighbourCount = countInvalidIndexes( Grid.EsotwistNbrArray.ijkNbrArray );
 	}
 }
 
 // Mark target cell as 1 if at least one of its neighbours in source is 1
-void markDIADNeighbours( DIADNeighboursStruct &Neighbours, BoolArrayType &sourceArray, BoolArrayType &targetArray )
+void markDIADNeighbours( std::vector<IntArrayType> &nbrArrays, BoolArrayType &sourceArray, BoolArrayType &targetArray )
 {
-	const int cellCount = Neighbours.iPlusArray.getSize();
-	
-	auto iPlusView = Neighbours.iPlusArray.getConstView();
-	auto jPlusView = Neighbours.jPlusArray.getConstView();
-	auto kPlusView = Neighbours.kPlusArray.getConstView();
-	auto iMinusView = Neighbours.iMinusArray.getConstView();
-	auto jMinusView = Neighbours.jMinusArray.getConstView();
-	auto kMinusView = Neighbours.kMinusArray.getConstView();
-	
+	const int cellCount = nbrArrays[0].getSize();
+		
 	auto sourceView = sourceArray.getConstView();
 	auto targetView = targetArray.getView();
 	
-	auto cellLambda = [=] __cuda_callable__ ( const int cell ) mutable
+	for ( int i = 0; i < 26; i++ )
 	{
-		const int ip = iPlusView[ cell ];
-		const int jp = jPlusView[ cell ];
-		const int kp = kPlusView[ cell ];
-		const int im = iMinusView[ cell ];
-		const int jm = jMinusView[ cell ];
-		const int km = kMinusView[ cell ];
-		// Now I need to browse all directions including all diagonals (the iPlus, jPlus etc are indexes of neighbours only in the main directions)
-		// The neighbour arrays can also contain indexes lower than zero, that is when there no neighbour exists
-		
-		// ---------------------------------------------------------
-        // Direct neighbors (6 Faces)
-        // ---------------------------------------------------------
-        if (ip >= 0 && sourceView[ip]) { targetView[cell] = true; return; }
-        if (im >= 0 && sourceView[im]) { targetView[cell] = true; return; }
-        if (jp >= 0 && sourceView[jp]) { targetView[cell] = true; return; }
-        if (jm >= 0 && sourceView[jm]) { targetView[cell] = true; return; }
-        if (kp >= 0 && sourceView[kp]) { targetView[cell] = true; return; }
-        if (km >= 0 && sourceView[km]) { targetView[cell] = true; return; }
-
-        // ---------------------------------------------------------
-        // Direct diagonals (12 edges) and indirect diagonals (8 corners)
-        // ---------------------------------------------------------
-		// 1. Traverse starting along X (+i, -i)
-		// Covers paths: X->Y->Z, X->Z->Y and X->Y, X->Z
-		// ---------------------------------------------------------
-		if (ip >= 0) 
+		auto nbrView = nbrArrays[i].getConstView();
+		auto cellLambda = [=] __cuda_callable__ ( const int cell ) mutable
 		{
-			// Path: X -> Z -> Y
-			const int ip_kp = kPlusView[ip];
-			if (ip_kp >= 0) {
-				if (sourceView[ip_kp]) { targetView[cell] = true; return; }
-				const int ip_kp_jp = jPlusView[ip_kp];
-				if (ip_kp_jp >= 0 && sourceView[ip_kp_jp]) { targetView[cell] = true; return; }
-				const int ip_kp_jm = jMinusView[ip_kp];
-				if (ip_kp_jm >= 0 && sourceView[ip_kp_jm]) { targetView[cell] = true; return; }
+			for ( int i = 0; i < 26; i++ ) 
+			{
+				if ( nbrView[cell] >=0 && sourceView[ nbrView[cell] ] ) 
+				{ 
+					targetView[cell] = true; 
+					return; 
+				}
 			}
-			const int ip_km = kMinusView[ip];
-			if (ip_km >= 0) {
-				if (sourceView[ip_km]) { targetView[cell] = true; return; }
-				const int ip_km_jp = jPlusView[ip_km];
-				if (ip_km_jp >= 0 && sourceView[ip_km_jp]) { targetView[cell] = true; return; }
-				const int ip_km_jm = jMinusView[ip_km];
-				if (ip_km_jm >= 0 && sourceView[ip_km_jm]) { targetView[cell] = true; return; }
-			}
-			
-			// Path: X -> Y -> Z
-			const int ip_jp = jPlusView[ip];
-			if (ip_jp >= 0) {
-				if (sourceView[ip_jp]) { targetView[cell] = true; return; }
-				const int ip_jp_kp = kPlusView[ip_jp];
-				if (ip_jp_kp >= 0 && sourceView[ip_jp_kp]) { targetView[cell] = true; return; }
-				const int ip_jp_km = kMinusView[ip_jp];
-				if (ip_jp_km >= 0 && sourceView[ip_jp_km]) { targetView[cell] = true; return; }
-			}
-			const int ip_jm = jMinusView[ip];
-			if (ip_jm >= 0) {
-				if (sourceView[ip_jm]) { targetView[cell] = true; return; }
-				const int ip_jm_kp = kPlusView[ip_jm];
-				if (ip_jm_kp >= 0 && sourceView[ip_jm_kp]) { targetView[cell] = true; return; }
-				const int ip_jm_km = kMinusView[ip_jm];
-				if (ip_jm_km >= 0 && sourceView[ip_jm_km]) { targetView[cell] = true; return; }
-			}
-		}
-
-		if (im >= 0) 
-		{
-			// Path: -X -> Z -> Y
-			const int im_kp = kPlusView[im];
-			if (im_kp >= 0) {
-				if (sourceView[im_kp]) { targetView[cell] = true; return; }
-				const int im_kp_jp = jPlusView[im_kp];
-				if (im_kp_jp >= 0 && sourceView[im_kp_jp]) { targetView[cell] = true; return; }
-				const int im_kp_jm = jMinusView[im_kp];
-				if (im_kp_jm >= 0 && sourceView[im_kp_jm]) { targetView[cell] = true; return; }
-			}
-			const int im_km = kMinusView[im];
-			if (im_km >= 0) {
-				if (sourceView[im_km]) { targetView[cell] = true; return; }
-				const int im_km_jp = jPlusView[im_km];
-				if (im_km_jp >= 0 && sourceView[im_km_jp]) { targetView[cell] = true; return; }
-				const int im_km_jm = jMinusView[im_km];
-				if (im_km_jm >= 0 && sourceView[im_km_jm]) { targetView[cell] = true; return; }
-			}
-			
-			// Path: -X -> Y -> Z
-			const int im_jp = jPlusView[im];
-			if (im_jp >= 0) {
-				if (sourceView[im_jp]) { targetView[cell] = true; return; }
-				const int im_jp_kp = kPlusView[im_jp];
-				if (im_jp_kp >= 0 && sourceView[im_jp_kp]) { targetView[cell] = true; return; }
-				const int im_jp_km = kMinusView[im_jp];
-				if (im_jp_km >= 0 && sourceView[im_jp_km]) { targetView[cell] = true; return; }
-			}
-			const int im_jm = jMinusView[im];
-			if (im_jm >= 0) {
-				if (sourceView[im_jm]) { targetView[cell] = true; return; }
-				const int im_jm_kp = kPlusView[im_jm];
-				if (im_jm_kp >= 0 && sourceView[im_jm_kp]) { targetView[cell] = true; return; }
-				const int im_jm_km = kMinusView[im_jm];
-				if (im_jm_km >= 0 && sourceView[im_jm_km]) { targetView[cell] = true; return; }
-			}
-		}
-
-		// ---------------------------------------------------------
-		// 2. Traverse starting along Y (+j, -j)
-		// Covers paths: Y->X->Z, Y->Z->X and Y->X, Y->Z
-		// ---------------------------------------------------------
-		if (jp >= 0) 
-		{
-			// Path: Y -> X -> Z
-			const int jp_ip = iPlusView[jp];
-			if (jp_ip >= 0) {
-				if (sourceView[jp_ip]) { targetView[cell] = true; return; }
-				const int jp_ip_kp = kPlusView[jp_ip];
-				if (jp_ip_kp >= 0 && sourceView[jp_ip_kp]) { targetView[cell] = true; return; }
-				const int jp_ip_km = kMinusView[jp_ip];
-				if (jp_ip_km >= 0 && sourceView[jp_ip_km]) { targetView[cell] = true; return; }
-			}
-			const int jp_im = iMinusView[jp];
-			if (jp_im >= 0) {
-				if (sourceView[jp_im]) { targetView[cell] = true; return; }
-				const int jp_im_kp = kPlusView[jp_im];
-				if (jp_im_kp >= 0 && sourceView[jp_im_kp]) { targetView[cell] = true; return; }
-				const int jp_im_km = kMinusView[jp_im];
-				if (jp_im_km >= 0 && sourceView[jp_im_km]) { targetView[cell] = true; return; }
-			}
-
-			// Path: Y -> Z -> X
-			const int jp_kp = kPlusView[jp];
-			if (jp_kp >= 0) {
-				if (sourceView[jp_kp]) { targetView[cell] = true; return; }
-				const int jp_kp_ip = iPlusView[jp_kp];
-				if (jp_kp_ip >= 0 && sourceView[jp_kp_ip]) { targetView[cell] = true; return; }
-				const int jp_kp_im = iMinusView[jp_kp];
-				if (jp_kp_im >= 0 && sourceView[jp_kp_im]) { targetView[cell] = true; return; }
-			}
-			const int jp_km = kMinusView[jp];
-			if (jp_km >= 0) {
-				if (sourceView[jp_km]) { targetView[cell] = true; return; }
-				const int jp_km_ip = iPlusView[jp_km];
-				if (jp_km_ip >= 0 && sourceView[jp_km_ip]) { targetView[cell] = true; return; }
-				const int jp_km_im = iMinusView[jp_km];
-				if (jp_km_im >= 0 && sourceView[jp_km_im]) { targetView[cell] = true; return; }
-			}
-		}
-
-		if (jm >= 0) 
-		{
-			// Path: -Y -> X -> Z
-			const int jm_ip = iPlusView[jm];
-			if (jm_ip >= 0) {
-				if (sourceView[jm_ip]) { targetView[cell] = true; return; }
-				const int jm_ip_kp = kPlusView[jm_ip];
-				if (jm_ip_kp >= 0 && sourceView[jm_ip_kp]) { targetView[cell] = true; return; }
-				const int jm_ip_km = kMinusView[jm_ip];
-				if (jm_ip_km >= 0 && sourceView[jm_ip_km]) { targetView[cell] = true; return; }
-			}
-			const int jm_im = iMinusView[jm];
-			if (jm_im >= 0) {
-				if (sourceView[jm_im]) { targetView[cell] = true; return; }
-				const int jm_im_kp = kPlusView[jm_im];
-				if (jm_im_kp >= 0 && sourceView[jm_im_kp]) { targetView[cell] = true; return; }
-				const int jm_im_km = kMinusView[jm_im];
-				if (jm_im_km >= 0 && sourceView[jm_im_km]) { targetView[cell] = true; return; }
-			}
-
-			// Path: -Y -> Z -> X
-			const int jm_kp = kPlusView[jm];
-			if (jm_kp >= 0) {
-				if (sourceView[jm_kp]) { targetView[cell] = true; return; }
-				const int jm_kp_ip = iPlusView[jm_kp];
-				if (jm_kp_ip >= 0 && sourceView[jm_kp_ip]) { targetView[cell] = true; return; }
-				const int jm_kp_im = iMinusView[jm_kp];
-				if (jm_kp_im >= 0 && sourceView[jm_kp_im]) { targetView[cell] = true; return; }
-			}
-			const int jm_km = kMinusView[jm];
-			if (jm_km >= 0) {
-				if (sourceView[jm_km]) { targetView[cell] = true; return; }
-				const int jm_km_ip = iPlusView[jm_km];
-				if (jm_km_ip >= 0 && sourceView[jm_km_ip]) { targetView[cell] = true; return; }
-				const int jm_km_im = iMinusView[jm_km];
-				if (jm_km_im >= 0 && sourceView[jm_km_im]) { targetView[cell] = true; return; }
-			}
-		}
-
-		// ---------------------------------------------------------
-		// 3. Traverse starting along Z (+k, -k)
-		// Covers paths: Z->X->Y, Z->Y->X and Z->X, Z->Y
-		// ---------------------------------------------------------
-		if (kp >= 0) 
-		{
-			// Path: Z -> X -> Y
-			const int kp_ip = iPlusView[kp];
-			if (kp_ip >= 0) {
-				if (sourceView[kp_ip]) { targetView[cell] = true; return; }
-				const int kp_ip_jp = jPlusView[kp_ip];
-				if (kp_ip_jp >= 0 && sourceView[kp_ip_jp]) { targetView[cell] = true; return; }
-				const int kp_ip_jm = jMinusView[kp_ip];
-				if (kp_ip_jm >= 0 && sourceView[kp_ip_jm]) { targetView[cell] = true; return; }
-			}
-			const int kp_im = iMinusView[kp];
-			if (kp_im >= 0) {
-				if (sourceView[kp_im]) { targetView[cell] = true; return; }
-				const int kp_im_jp = jPlusView[kp_im];
-				if (kp_im_jp >= 0 && sourceView[kp_im_jp]) { targetView[cell] = true; return; }
-				const int kp_im_jm = jMinusView[kp_im];
-				if (kp_im_jm >= 0 && sourceView[kp_im_jm]) { targetView[cell] = true; return; }
-			}
-
-			// Path: Z -> Y -> X
-			const int kp_jp = jPlusView[kp];
-			if (kp_jp >= 0) {
-				if (sourceView[kp_jp]) { targetView[cell] = true; return; }
-				const int kp_jp_ip = iPlusView[kp_jp];
-				if (kp_jp_ip >= 0 && sourceView[kp_jp_ip]) { targetView[cell] = true; return; }
-				const int kp_jp_im = iMinusView[kp_jp];
-				if (kp_jp_im >= 0 && sourceView[kp_jp_im]) { targetView[cell] = true; return; }
-			}
-			const int kp_jm = jMinusView[kp];
-			if (kp_jm >= 0) {
-				if (sourceView[kp_jm]) { targetView[cell] = true; return; }
-				const int kp_jm_ip = iPlusView[kp_jm];
-				if (kp_jm_ip >= 0 && sourceView[kp_jm_ip]) { targetView[cell] = true; return; }
-				const int kp_jm_im = iMinusView[kp_jm];
-				if (kp_jm_im >= 0 && sourceView[kp_jm_im]) { targetView[cell] = true; return; }
-			}
-		}
-
-		if (km >= 0) 
-		{
-			// Path: -Z -> X -> Y
-			const int km_ip = iPlusView[km];
-			if (km_ip >= 0) {
-				if (sourceView[km_ip]) { targetView[cell] = true; return; }
-				const int km_ip_jp = jPlusView[km_ip];
-				if (km_ip_jp >= 0 && sourceView[km_ip_jp]) { targetView[cell] = true; return; }
-				const int km_ip_jm = jMinusView[km_ip];
-				if (km_ip_jm >= 0 && sourceView[km_ip_jm]) { targetView[cell] = true; return; }
-			}
-			const int km_im = iMinusView[km];
-			if (km_im >= 0) {
-				if (sourceView[km_im]) { targetView[cell] = true; return; }
-				const int km_im_jp = jPlusView[km_im];
-				if (km_im_jp >= 0 && sourceView[km_im_jp]) { targetView[cell] = true; return; }
-				const int km_im_jm = jMinusView[km_im];
-				if (km_im_jm >= 0 && sourceView[km_im_jm]) { targetView[cell] = true; return; }
-			}
-
-			// Path: -Z -> Y -> X
-			const int km_jp = jPlusView[km];
-			if (km_jp >= 0) {
-				if (sourceView[km_jp]) { targetView[cell] = true; return; }
-				const int km_jp_ip = iPlusView[km_jp];
-				if (km_jp_ip >= 0 && sourceView[km_jp_ip]) { targetView[cell] = true; return; }
-				const int km_jp_im = iMinusView[km_jp];
-				if (km_jp_im >= 0 && sourceView[km_jp_im]) { targetView[cell] = true; return; }
-			}
-			const int km_jm = jMinusView[km];
-			if (km_jm >= 0) {
-				if (sourceView[km_jm]) { targetView[cell] = true; return; }
-				const int km_jm_ip = iPlusView[km_jm];
-				if (km_jm_ip >= 0 && sourceView[km_jm_ip]) { targetView[cell] = true; return; }
-				const int km_jm_im = iMinusView[km_jm];
-				if (km_jm_im >= 0 && sourceView[km_jm_im]) { targetView[cell] = true; return; }
-			}
-		}
-    };
-	TNL::Algorithms::parallelFor<TNL::Devices::Cuda>( 0, cellCount, cellLambda );
+		};
+		TNL::Algorithms::parallelFor<TNL::Devices::Cuda>( 0, cellCount, cellLambda );
+	}
 }
 
 void buildDIADGrids( std::vector<DIADGridStruct> &grids, std::vector<STLStruct> STLs, const int level )
@@ -755,8 +471,8 @@ void buildDIADGrids( std::vector<DIADGridStruct> &grids, std::vector<STLStruct> 
 	std::cout << "Initial cell count on level " << level <<" : " << Grid.Info.cellCount << std::endl;
 
 	sortIJK( Grid.IJK );
-	DIADNeighboursStruct Neighbours;
-	getDIADNeighbours( Grid.IJK, Neighbours );	
+	std::vector<IntArrayType> nbrArrays( 26 );
+	getDIADNeighbours( Grid.IJK, nbrArrays );	
 		
 	BoolArrayType fluidMarkerArray = BoolArrayType( Grid.Info.cellCount );
 	markWhereFinestFluidIs( fluidMarkerArray, Grid.IJK, STLs, Grid.Info );
@@ -764,7 +480,7 @@ void buildDIADGrids( std::vector<DIADGridStruct> &grids, std::vector<STLStruct> 
 	// BORDER
 	BoolArrayType borderMarkerArray = BoolArrayType( Grid.Info.cellCount );
 	borderMarkerArray.setValue( 0 );
-	markDIADNeighbours( Neighbours, fluidMarkerArray, borderMarkerArray );
+	markDIADNeighbours( nbrArrays, fluidMarkerArray, borderMarkerArray );
 	BoolArrayType fluidInverseMarkerArray = BoolArrayType( Grid.Info.cellCount );
 	fluidInverseMarkerArray = fluidMarkerArray;
 	invertBoolArray( fluidInverseMarkerArray );
@@ -785,7 +501,7 @@ void buildDIADGrids( std::vector<DIADGridStruct> &grids, std::vector<STLStruct> 
 		Grid.IJK.jArray.resize(Grid.Info.cellCount);
 		Grid.IJK.kArray.resize(Grid.Info.cellCount);
 		Grid.bouncebackMarkerArray.resize(Grid.Info.cellCount);
-		getDIADEsotwistConnections( Grid );
+		getDIADEsotwistNbrArray( Grid );
 		std::cout << "Final cell count on level " << level <<" : " << Grid.Info.cellCount << std::endl;
 		return;
 	}
@@ -799,14 +515,14 @@ void buildDIADGrids( std::vector<DIADGridStruct> &grids, std::vector<STLStruct> 
 	const int thickness = std::max({wallRefinementSpan, 2}) + (gridLevelCount - level - 1);
 	for ( int layer = 0; layer < thickness; layer++ )
 	{
-		markDIADNeighbours( Neighbours, refinementMarkerArray, newRefinementMarkerArray );
+		markDIADNeighbours( nbrArrays, refinementMarkerArray, newRefinementMarkerArray );
 		multiplyBoolArrays( newRefinementMarkerArray, keepCellMarkerArray, refinementMarkerArray );
 	}
 	
 	// FINE TO COARSE COMMUNICATION INTERFACE
 	BoolArrayType fineToCoarseMarkerArray = BoolArrayType( Grid.Info.cellCount );
 	fineToCoarseMarkerArray.setValue( 0 );
-	markDIADNeighbours( Neighbours, refinementMarkerArray, fineToCoarseMarkerArray );
+	markDIADNeighbours( nbrArrays, refinementMarkerArray, fineToCoarseMarkerArray );
 	multiplyBoolArrays( fluidMarkerArray, fineToCoarseMarkerArray, fineToCoarseMarkerArray );
 	BoolArrayType refinementInverseMarkerArray = BoolArrayType( Grid.Info.cellCount );
 	refinementInverseMarkerArray = refinementMarkerArray;
@@ -816,7 +532,7 @@ void buildDIADGrids( std::vector<DIADGridStruct> &grids, std::vector<STLStruct> 
 	// COARSE TO FINE COMMUNICATION INTERFACE
 	BoolArrayType coarseToFineMarkerArray = BoolArrayType( Grid.Info.cellCount );
 	coarseToFineMarkerArray.setValue( 0 );
-	markDIADNeighbours( Neighbours, fineToCoarseMarkerArray, coarseToFineMarkerArray );
+	markDIADNeighbours( nbrArrays, fineToCoarseMarkerArray, coarseToFineMarkerArray );
 	multiplyBoolArrays( fluidMarkerArray, coarseToFineMarkerArray, coarseToFineMarkerArray );
 	BoolArrayType fineToCoarseInverseMarkerArray = BoolArrayType( Grid.Info.cellCount );
 	fineToCoarseInverseMarkerArray = fineToCoarseMarkerArray;
@@ -917,7 +633,7 @@ void buildDIADGrids( std::vector<DIADGridStruct> &grids, std::vector<STLStruct> 
 	}
 	
 	// BUILD ESOTWIST CONNECTIONS
-	getDIADEsotwistConnections( Grid ); // <- NEED TO FINISH THIS!
+	getDIADEsotwistNbrArray( Grid ); // <- NEED TO FINISH THIS!
 	
 	// CALL THE FUNCTION RECURSIVELY TO BUILD THE NEXT FINER GRID LEVEL
 	grids[level+1].Info.gridID = Grid.Info.gridID + 1;

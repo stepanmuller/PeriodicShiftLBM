@@ -141,12 +141,8 @@ inline IJKArrayStruct::IJKArrayStruct(const IJKArrayStructCPU& IJKCPU) {
     kArray = IJKCPU.kArray;
 }
 
-// This holds cell indexes of the neighbour cells in the main positive and negative i,j,k directions for finding geometric neighbours.
-struct DIADNeighboursStruct { 	IntArrayType iPlusArray; IntArrayType jPlusArray; IntArrayType kPlusArray; 
-								IntArrayType iMinusArray; IntArrayType jMinusArray; IntArrayType kMinusArray; };
-
 // This holds cell indexes of the neighbour cells in only positive i,j,k directions for Esotwist streaming for all cells
-struct DIADEsotwistConnectionsStruct { 	IntArrayType iNbrArray; IntArrayType jNbrArray; IntArrayType kNbrArray; 
+struct DIADEsotwistNbrArrayStruct { 	IntArrayType iNbrArray; IntArrayType jNbrArray; IntArrayType kNbrArray; 
 										IntArrayType ijNbrArray; IntArrayType ikNbrArray; IntArrayType jkNbrArray; 
 										IntArrayType ijkNbrArray; }; 
 										
@@ -154,7 +150,7 @@ struct DIADEsotwistConnectionsStruct { 	IntArrayType iNbrArray; IntArrayType jNb
 struct DIADEsotwistNbrStruct { int i; int j; int k; int ij; int ik; int jk; int ijk; }; 
 
 struct DIADGridStruct { InfoStruct Info; FloatArray2DType fArray; BoolArrayType bouncebackMarkerArray; 
-						IJKArrayStruct IJK; DIADEsotwistConnectionsStruct EsotwistConnections; 
+						IJKArrayStruct IJK; DIADEsotwistNbrArrayStruct EsotwistNbrArray; 
 						IntArrayType fineToCoarseWriteArray; IntArrayType fineToCoarseReadArray; 
 						IntArrayType coarseToFineWriteArray; IntArrayType coarseToFineReadArray; 
 						bool esotwistFlipper = 0; }; 

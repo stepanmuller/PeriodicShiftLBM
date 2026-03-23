@@ -545,22 +545,22 @@ void writeToCoarseGridInterface( DIADGridStruct &GridCoarse, DIADGridStruct &Gri
 	const InfoStruct InfoFine = GridFine.Info;
 	
 	bool esotwistFlipperCoarse = GridCoarse.esotwistFlipper;
-	auto iNbrViewCoarse = GridCoarse.EsotwistConnections.iNbrArray.getConstView();
-	auto jNbrViewCoarse = GridCoarse.EsotwistConnections.jNbrArray.getConstView();
-	auto kNbrViewCoarse = GridCoarse.EsotwistConnections.kNbrArray.getConstView();
-	auto ijNbrViewCoarse = GridCoarse.EsotwistConnections.ijNbrArray.getConstView();
-	auto ikNbrViewCoarse = GridCoarse.EsotwistConnections.ikNbrArray.getConstView();
-	auto jkNbrViewCoarse = GridCoarse.EsotwistConnections.jkNbrArray.getConstView();
-	auto ijkNbrViewCoarse = GridCoarse.EsotwistConnections.ijkNbrArray.getConstView();
+	auto iNbrViewCoarse = GridCoarse.EsotwistNbrArray.iNbrArray.getConstView();
+	auto jNbrViewCoarse = GridCoarse.EsotwistNbrArray.jNbrArray.getConstView();
+	auto kNbrViewCoarse = GridCoarse.EsotwistNbrArray.kNbrArray.getConstView();
+	auto ijNbrViewCoarse = GridCoarse.EsotwistNbrArray.ijNbrArray.getConstView();
+	auto ikNbrViewCoarse = GridCoarse.EsotwistNbrArray.ikNbrArray.getConstView();
+	auto jkNbrViewCoarse = GridCoarse.EsotwistNbrArray.jkNbrArray.getConstView();
+	auto ijkNbrViewCoarse = GridCoarse.EsotwistNbrArray.ijkNbrArray.getConstView();
 	
 	bool esotwistFlipperFine = GridFine.esotwistFlipper;
-	auto iNbrViewFine = GridFine.EsotwistConnections.iNbrArray.getConstView();
-	auto jNbrViewFine = GridFine.EsotwistConnections.jNbrArray.getConstView();
-	auto kNbrViewFine = GridFine.EsotwistConnections.kNbrArray.getConstView();
-	auto ijNbrViewFine = GridFine.EsotwistConnections.ijNbrArray.getConstView();
-	auto ikNbrViewFine = GridFine.EsotwistConnections.ikNbrArray.getConstView();
-	auto jkNbrViewFine = GridFine.EsotwistConnections.jkNbrArray.getConstView();
-	auto ijkNbrViewFine = GridFine.EsotwistConnections.ijkNbrArray.getConstView();
+	auto iNbrViewFine = GridFine.EsotwistNbrArray.iNbrArray.getConstView();
+	auto jNbrViewFine = GridFine.EsotwistNbrArray.jNbrArray.getConstView();
+	auto kNbrViewFine = GridFine.EsotwistNbrArray.kNbrArray.getConstView();
+	auto ijNbrViewFine = GridFine.EsotwistNbrArray.ijNbrArray.getConstView();
+	auto ikNbrViewFine = GridFine.EsotwistNbrArray.ikNbrArray.getConstView();
+	auto jkNbrViewFine = GridFine.EsotwistNbrArray.jkNbrArray.getConstView();
+	auto ijkNbrViewFine = GridFine.EsotwistNbrArray.ijkNbrArray.getConstView();
 	
 	auto writeView = GridCoarse.fineToCoarseWriteArray.getConstView();
 	auto readView = GridCoarse.fineToCoarseReadArray.getConstView();
@@ -629,22 +629,22 @@ void writeToFineGridInterface( DIADGridStruct &GridCoarse, DIADGridStruct &GridF
 	const InfoStruct InfoFine = GridFine.Info;
 	
 	bool esotwistFlipperCoarse = GridCoarse.esotwistFlipper;
-	auto iNbrViewCoarse = GridCoarse.EsotwistConnections.iNbrArray.getConstView();
-	auto jNbrViewCoarse = GridCoarse.EsotwistConnections.jNbrArray.getConstView();
-	auto kNbrViewCoarse = GridCoarse.EsotwistConnections.kNbrArray.getConstView();
-	auto ijNbrViewCoarse = GridCoarse.EsotwistConnections.ijNbrArray.getConstView();
-	auto ikNbrViewCoarse = GridCoarse.EsotwistConnections.ikNbrArray.getConstView();
-	auto jkNbrViewCoarse = GridCoarse.EsotwistConnections.jkNbrArray.getConstView();
-	auto ijkNbrViewCoarse = GridCoarse.EsotwistConnections.ijkNbrArray.getConstView();
+	auto iNbrViewCoarse = GridCoarse.EsotwistNbrArray.iNbrArray.getConstView();
+	auto jNbrViewCoarse = GridCoarse.EsotwistNbrArray.jNbrArray.getConstView();
+	auto kNbrViewCoarse = GridCoarse.EsotwistNbrArray.kNbrArray.getConstView();
+	auto ijNbrViewCoarse = GridCoarse.EsotwistNbrArray.ijNbrArray.getConstView();
+	auto ikNbrViewCoarse = GridCoarse.EsotwistNbrArray.ikNbrArray.getConstView();
+	auto jkNbrViewCoarse = GridCoarse.EsotwistNbrArray.jkNbrArray.getConstView();
+	auto ijkNbrViewCoarse = GridCoarse.EsotwistNbrArray.ijkNbrArray.getConstView();
 	
 	bool esotwistFlipperFine = GridFine.esotwistFlipper;
-	auto iNbrViewFine = GridFine.EsotwistConnections.iNbrArray.getConstView();
-	auto jNbrViewFine = GridFine.EsotwistConnections.jNbrArray.getConstView();
-	auto kNbrViewFine = GridFine.EsotwistConnections.kNbrArray.getConstView();
-	auto ijNbrViewFine = GridFine.EsotwistConnections.ijNbrArray.getConstView();
-	auto ikNbrViewFine = GridFine.EsotwistConnections.ikNbrArray.getConstView();
-	auto jkNbrViewFine = GridFine.EsotwistConnections.jkNbrArray.getConstView();
-	auto ijkNbrViewFine = GridFine.EsotwistConnections.ijkNbrArray.getConstView();
+	auto iNbrViewFine = GridFine.EsotwistNbrArray.iNbrArray.getConstView();
+	auto jNbrViewFine = GridFine.EsotwistNbrArray.jNbrArray.getConstView();
+	auto kNbrViewFine = GridFine.EsotwistNbrArray.kNbrArray.getConstView();
+	auto ijNbrViewFine = GridFine.EsotwistNbrArray.ijNbrArray.getConstView();
+	auto ikNbrViewFine = GridFine.EsotwistNbrArray.ikNbrArray.getConstView();
+	auto jkNbrViewFine = GridFine.EsotwistNbrArray.jkNbrArray.getConstView();
+	auto ijkNbrViewFine = GridFine.EsotwistNbrArray.ijkNbrArray.getConstView();
 	
 	auto writeView = GridCoarse.coarseToFineWriteArray.getConstView();
 	auto readView = GridCoarse.coarseToFineReadArray.getConstView();
