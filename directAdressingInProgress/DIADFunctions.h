@@ -315,8 +315,9 @@ void applyRefinementMarkerFromFunction( BoolArrayType &markerArray, IJKArrayStru
 }
 
 // Do a repetetive fluid marking in order to find which of our coarse cells could possibly contain at least one finest (maximum refinement level) fluid cell. 
+// Similarly, find which of our coarse cells could possibly contain at least one finest (maximum refinement level) bounceback cell. 
 // To do this we will be repeatedly temporarily shifting the origin of our grid, to simulate being on a finer grid.
-void markWhereFinestFluidIs( BoolArrayType &fluidMarkerArray, IJKArrayStruct &IJK, std::vector<STLStruct> STLs, InfoStruct &Info )
+void markFinestFluidBounceback( BoolArrayType &fluidMarkerArray, BoolArrayType &finestBouncebackMarkerArray, IJKArrayStruct &IJK, std::vector<STLStruct> STLs, InfoStruct &Info )
 {
 	const int shiftCount = std::pow(2, (gridLevelCount - Info.gridID - 1));
 	const float finestRes = Info.res / ( std::pow(2, (gridLevelCount - Info.gridID - 1)) );
@@ -325,6 +326,7 @@ void markWhereFinestFluidIs( BoolArrayType &fluidMarkerArray, IJKArrayStruct &IJ
 	const float oyOriginal = Info.oy;
 	const float ozOriginal = Info.oz;
 	fluidMarkerArray.setValue( 0 );
+	finestBouncebackMarkerArray.setValue( 0 );
 	BoolArrayType markerArray = BoolArrayType( Info.cellCount );
 	markerArray.setValue( 0 );
 	BoolArrayType markerArraySTL = BoolArrayType( Info.cellCount );
@@ -345,6 +347,7 @@ void markWhereFinestFluidIs( BoolArrayType &fluidMarkerArray, IJKArrayStruct &IJ
 					ApplyMarkersInsideSTL( markerArraySTL, IJK, STLs[STLIndex], insideMarkerValue, Info );
 					sumBoolArrays( markerArray, markerArraySTL, markerArray );
 				}
+				sumBoolArrays( finestBouncebackMarkerArray, markerArray, finestBouncebackMarkerArray );
 				invertBoolArray( markerArray );
 				sumBoolArrays( fluidMarkerArray, markerArray, fluidMarkerArray );
 			}
@@ -450,7 +453,8 @@ void buildDIADGrids( std::vector<DIADGridStruct> &grids, std::vector<STLStruct> 
 	getDIADNeighbours( Grid.IJK, nbrArrays );	
 		
 	BoolArrayType fluidMarkerArray = BoolArrayType( Grid.Info.cellCount );
-	markWhereFinestFluidIs( fluidMarkerArray, Grid.IJK, STLs, Grid.Info );
+	BoolArrayType finestBouncebackMarkerArray = BoolArrayType( Grid.Info.cellCount );
+	markFinestFluidBounceback( fluidMarkerArray, finestBouncebackMarkerArray, Grid.IJK, STLs, Grid.Info );
 	
 	// BORDER
 	BoolArrayType borderMarkerArray = BoolArrayType( Grid.Info.cellCount );
@@ -484,10 +488,10 @@ void buildDIADGrids( std::vector<DIADGridStruct> &grids, std::vector<STLStruct> 
 	// COARSE GRID BRANCH
 	// THICK REFINEMENT REGION
 	BoolArrayType refinementMarkerArray = BoolArrayType( Grid.Info.cellCount );
-	refinementMarkerArray = borderMarkerArray;
+	refinementMarkerArray = finestBouncebackMarkerArray; // make sure to refine areas where at least one finest bounceback cell is
 	BoolArrayType newRefinementMarkerArray = BoolArrayType( Grid.Info.cellCount );
 	newRefinementMarkerArray.setValue( 0 );
-	const int thickness = std::max({wallRefinementSpan, 2}) + (gridLevelCount - level - 1);
+	const int thickness = wallRefinementSpan + (gridLevelCount - level - 1);
 	for ( int layer = 0; layer < thickness; layer++ )
 	{
 		markDIADNeighbours( nbrArrays, refinementMarkerArray, newRefinementMarkerArray );
