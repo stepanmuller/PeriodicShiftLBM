@@ -1,7 +1,7 @@
 constexpr int caseID = 1;
 
 constexpr float widthGlobal = 145.f; 													// mm
-constexpr float zMinGlobal = -160.f; 													// mm
+constexpr float zMinGlobal = -155.f; 													// mm
 constexpr float zMaxGlobal = 58.f; 														// mm
 constexpr float yMinGlobal = -80.f; 													// mm
 constexpr float yMaxGlobal = 20.f; 														// mm
@@ -50,6 +50,7 @@ __cuda_callable__ void getMarkers( 	const int& iCell, const int& jCell, const in
 	const float yPhys = jCell * Info.res + Info.oy;
 	const float zPhys = kCell * Info.res + Info.oz;
 	// Reduce the refinement area
+	
 	if ( Info.gridID == 2 )
 	{
 		if ( fabs(xPhys) > 30.f ) Marker.refinement = 0;
@@ -58,6 +59,7 @@ __cuda_callable__ void getMarkers( 	const int& iCell, const int& jCell, const in
 	{
 		if ( fabs(xPhys) > 16.f ) Marker.refinement = 0;
 	}
+	
 	if ( Marker.bounceback ) return;
 	if ( kCell == 0 || jCell == 0 ) Marker.givenUxUyUz = 1;
 	else if ( iCell == 0 || iCell == Info.cellCountX-1 ) Marker.givenUxUyUz = 1;

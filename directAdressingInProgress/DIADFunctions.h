@@ -489,6 +489,7 @@ void buildDIADGrids( std::vector<DIADGridStruct> &grids, std::vector<STLStruct> 
 	// THICK REFINEMENT REGION
 	BoolArrayType refinementMarkerArray = BoolArrayType( Grid.Info.cellCount );
 	refinementMarkerArray = finestBouncebackMarkerArray; // make sure to refine areas where at least one finest bounceback cell is
+	sumBoolArrays( refinementMarkerArray, borderMarkerArray, refinementMarkerArray ); // add border.. idk just to make sure
 	BoolArrayType newRefinementMarkerArray = BoolArrayType( Grid.Info.cellCount );
 	newRefinementMarkerArray.setValue( 0 );
 	const int thickness = wallRefinementSpan + (gridLevelCount - level - 1);
@@ -530,6 +531,25 @@ void buildDIADGrids( std::vector<DIADGridStruct> &grids, std::vector<STLStruct> 
 	sumBoolArrays( refinementMarkerArray, coarseToFineMarkerArray, refinementMarkerArray );
 	refinementInverseMarkerArray = refinementMarkerArray;
 	invertBoolArray( refinementInverseMarkerArray );
+	
+	// PRELIMINARY BOUNCEBACK PASS IN CASE WE ARE NOT REFINING IN SOME WALL AREA
+	Grid.bouncebackMarkerArray.setSize(Grid.Info.cellCount);
+	Grid.bouncebackMarkerArray.setValue( 0 );
+	BoolArrayType markerArraySTL = BoolArrayType( Grid.Info.cellCount );	
+	applyBouncebackMarkerFromFunction( Grid.bouncebackMarkerArray, Grid.IJK, Grid.Info );
+	for ( int STLIndex = 0; STLIndex < (int)STLs.size(); STLIndex++ )
+	{
+		const bool insideMarkerValue = 1;
+		ApplyMarkersInsideSTL( markerArraySTL, Grid.IJK, STLs[STLIndex], insideMarkerValue, Grid.Info );
+		sumBoolArrays( Grid.bouncebackMarkerArray, markerArraySTL, Grid.bouncebackMarkerArray );
+	}
+	
+	// REMOVE BOUNCEBACK CELLS FROM BOTH INTERFACES, BOUNCEBACK ON INTERFACES WILL BE SOLVED PROPERLY BELOW
+	BoolArrayType bouncebackInverseMarkerArray;
+	bouncebackInverseMarkerArray = Grid.bouncebackMarkerArray;
+	invertBoolArray( bouncebackInverseMarkerArray );
+	multiplyBoolArrays( coarseToFineMarkerArray, bouncebackInverseMarkerArray, coarseToFineMarkerArray );	
+	multiplyBoolArrays( fineToCoarseMarkerArray, bouncebackInverseMarkerArray, fineToCoarseMarkerArray );	
 	
 	// ASSEMBLE IJK FOR THE NEXT LEVEL FINER GRID BASED ON THE REFINEMENT AREA
 	const int cellCountFine = 8 * countMarkerCells( refinementMarkerArray );
@@ -589,8 +609,7 @@ void buildDIADGrids( std::vector<DIADGridStruct> &grids, std::vector<STLStruct> 
 	
 	// FINAL BOUNCEBACK PASS IN CASE WE ARE NOT REFINING IN SOME WALL AREA
 	Grid.bouncebackMarkerArray.setSize(Grid.Info.cellCount);
-	Grid.bouncebackMarkerArray.setValue( 0 );
-	BoolArrayType markerArraySTL = BoolArrayType( Grid.Info.cellCount );	
+	Grid.bouncebackMarkerArray.setValue( 0 );	
 	applyBouncebackMarkerFromFunction( Grid.bouncebackMarkerArray, Grid.IJK, Grid.Info );
 	for ( int STLIndex = 0; STLIndex < (int)STLs.size(); STLIndex++ )
 	{
