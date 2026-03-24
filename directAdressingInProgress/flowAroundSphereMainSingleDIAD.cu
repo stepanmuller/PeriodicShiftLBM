@@ -21,8 +21,8 @@ const int cellCountX = static_cast<int>(std::ceil(domainSizePhys / resGlobal));
 const int cellCountY = cellCountX;
 const int cellCountZ = cellCountX;
 
-constexpr int iterationCount = 20000;
-constexpr int iterationChunk = 100;
+constexpr int iterationCount = 1000000;
+constexpr int iterationChunk = 5000;
 constexpr int gridLevelCount = 6;
 constexpr int wallRefinementSpan = 3;
 
@@ -45,20 +45,38 @@ __cuda_callable__ void getMarkers( 	const int& iCell, const int& jCell, const in
    	const float xPhys = iCell * Info.res + Info.ox;
 	const float yPhys = jCell * Info.res + Info.oy;
 	const float zPhys = kCell * Info.res + Info.oz;
+	const float r2 = (xPhys-sphereXPhys) * (xPhys - sphereXPhys) + (yPhys - sphereYPhys) * (yPhys - sphereYPhys) + (zPhys - sphereZPhys) * (zPhys - sphereZPhys);
+	const float axialDistance = (yPhys - sphereYPhys) * (yPhys - sphereYPhys) + (zPhys - sphereZPhys) * (zPhys - sphereZPhys);
 	
 	// Enlarge the refinement area
 	if ( Info.gridID == 0 )
 	{
-		if (xPhys > -1.5f*sphereDiameterPhys && xPhys < 4.f * sphereDiameterPhys
-			&& fabsf(yPhys) < 1.5f*sphereDiameterPhys && fabsf(zPhys) < 1.5f*sphereDiameterPhys ) Marker.refinement = 1;
+		const float widthHalf = 1.5f * sphereDiameterPhys;
+		const float length = 4.f * sphereDiameterPhys;
+		if (xPhys > 0 && xPhys < length	&& axialDistance < widthHalf * widthHalf ) Marker.refinement = 1;
+		else if ( r2 < widthHalf * widthHalf ) Marker.refinement = 1;
 	}
-	if ( Info.gridID == 1 )
+	else if ( Info.gridID == 1 )
 	{
-		if (xPhys > -sphereDiameterPhys && xPhys < 2.5f * sphereDiameterPhys
-			&& fabsf(yPhys) < sphereDiameterPhys && fabsf(zPhys) < sphereDiameterPhys ) Marker.refinement = 1;
+		const float widthHalf = 1.f * sphereDiameterPhys;
+		const float length = 2.5f * sphereDiameterPhys;
+		if (xPhys > 0 && xPhys < length	&& axialDistance < widthHalf * widthHalf ) Marker.refinement = 1;
+		else if ( r2 < widthHalf * widthHalf ) Marker.refinement = 1;
 	}
-	
-	const float r2 = (xPhys-sphereXPhys) * (xPhys - sphereXPhys) + (yPhys - sphereYPhys) * (yPhys - sphereYPhys) + (zPhys - sphereZPhys) * (zPhys - sphereZPhys);
+	else if ( Info.gridID == 2 )
+	{
+		const float widthHalf = 0.7f * sphereDiameterPhys;
+		const float length = 1.0f * sphereDiameterPhys;
+		if (xPhys > 0 && xPhys < length	&& axialDistance < widthHalf * widthHalf ) Marker.refinement = 1;
+		else if ( r2 < widthHalf * widthHalf ) Marker.refinement = 1;
+	}
+	else if ( Info.gridID == 3 )
+	{
+		const float widthHalf = 0.6f * sphereDiameterPhys;
+		const float length = 0.6f * sphereDiameterPhys;
+		if (xPhys > 0 && xPhys < length	&& axialDistance < widthHalf * widthHalf ) Marker.refinement = 1;
+		else if ( r2 < widthHalf * widthHalf ) Marker.refinement = 1;
+	}
 	
 	if ( Info.gridID != 0 ) // if not zero, we are on a finer grid
 	{
@@ -97,8 +115,9 @@ __cuda_callable__ float getSmagorinskyConstant( const int  &iCell, const int &jC
 __cuda_callable__ void getInitialRhoUxUyUz( const int &iCell, const int &jCell, const int &kCell, float &rho, float &ux, float &uy, float &uz, const MarkerStruct &Marker, const InfoStruct &Info )
 {
 	rho = 1.f;
-	if ( Marker.bounceback ) ux = uxInlet;
-	else ux = 0.f;
+	//if ( Marker.bounceback ) ux = uxInlet;
+	//else ux = 0.f;
+	ux = 0.f;
 	uy = 0.f;
 	uz = 0.f;
 }
@@ -109,6 +128,74 @@ __cuda_callable__ void getInitialRhoUxUyUz( const int &iCell, const int &jCell, 
 #include "../include/gridRefinementFunctions.h"
 
 #include "./DIADFunctions.h"
+
+float getSphereDrag( DIADGridStruct &Grid )
+{
+	auto fArrayView  = Grid.fArray.getConstView();
+	InfoStruct Info = Grid.Info;
+	
+	bool esotwistFlipper = Grid.esotwistFlipper;
+	auto iNbrView = Grid.EsotwistNbrArray.iNbrArray.getConstView();
+	auto jNbrView = Grid.EsotwistNbrArray.jNbrArray.getConstView();
+	auto kNbrView = Grid.EsotwistNbrArray.kNbrArray.getConstView();
+	auto ijNbrView = Grid.EsotwistNbrArray.ijNbrArray.getConstView();
+	auto ikNbrView = Grid.EsotwistNbrArray.ikNbrArray.getConstView();
+	auto jkNbrView = Grid.EsotwistNbrArray.jkNbrArray.getConstView();
+	auto ijkNbrView = Grid.EsotwistNbrArray.ijkNbrArray.getConstView();
+	
+	auto iView = Grid.IJK.iArray.getConstView();
+	auto jView = Grid.IJK.jArray.getConstView();
+	auto kView = Grid.IJK.kArray.getConstView();
+	
+	bool useBouncebackArray = ( Grid.bouncebackMarkerArray.getSize() > 0 );
+	auto bouncebackMarkerArrayView = Grid.bouncebackMarkerArray.getConstView();
+	
+	auto fetch = [ = ] __cuda_callable__( const int cell )
+	{		
+		const int iCell = iView( cell );
+		const int jCell = jView( cell );
+		const int kCell = kView( cell );
+		
+		MarkerStruct Marker;
+		if ( useBouncebackArray ) Marker.bounceback = bouncebackMarkerArrayView( cell );
+		getMarkers( iCell, jCell, kCell, Marker, Info );
+		
+		if ( !Marker.bounceback ) return 0.f;
+		
+		DIADEsotwistNbrStruct Nbr;
+		Nbr.i = iNbrView( cell );
+		Nbr.j = jNbrView( cell );
+		Nbr.k = kNbrView( cell );
+		Nbr.ij = ijNbrView( cell );
+		Nbr.ik = ikNbrView( cell );
+		Nbr.jk = jkNbrView( cell );
+		Nbr.ijk = ijkNbrView( cell );
+		
+		float f[27];
+		int cellReadIndex[27];
+		int fReadIndex[27];
+		getEsotwistWriteIndex( cell, cellReadIndex, fReadIndex, Nbr, esotwistFlipper, Info ); 
+		// Using the write index because plotting is happening after collision and we want to be consistent with that last write
+		for ( int direction = 0; direction < 27; direction++ )	f[direction] = fArrayView(fReadIndex[direction], cellReadIndex[direction]);
+		
+		float rho, ux, uy, uz;
+		getRhoUxUyUz( rho, ux, uy, uz, f );
+		applyBounceback( f );
+		float rhoPrev, uxPrev, uyPrev, uzPrev;
+		getRhoUxUyUz( rhoPrev, uxPrev, uyPrev, uzPrev, f );
+		const float gx = rho * (ux -  uxPrev);
+		return gx;
+	};
+	auto reduction = [] __cuda_callable__( const float& a, const float& b )
+	{
+		return a + b;
+	};
+	
+	float gxSum = TNL::Algorithms::reduce<TNL::Devices::Cuda>( 0, Info.cellCount, fetch, reduction, 0.f );
+	float gy, gz = 0;
+	convertToPhysicalForce( gxSum, gy, gz, Info );
+	return gxSum;
+}
 
 void updateGrid( std::vector<DIADGridStruct>& grids, int level ) 
 {
@@ -139,13 +226,7 @@ int main(int argc, char **argv)
 	grids[0].Info.cellCount = grids[0].Info.cellCountX * grids[0].Info.cellCountY * grids[0].Info.cellCountZ;
 	buildIJKFromInfo( grids[0].IJK, grids[0].Info );
 	
-	TNL::Timer buildIJKTimer;
-	buildIJKTimer.reset();
-	buildIJKTimer.start();
 	buildDIADGrids( grids, STLs, 0 );
-	buildIJKTimer.stop();
-	auto buildIJKTime = buildIJKTimer.getRealTime();
-	std::cout << "This took " << buildIJKTime << " s" << std::endl; //7.11 before find IJK rewrite
 	
 	int cellCountTotal = 0;
 	long int cellUpdatesPerIteration = 0;
@@ -158,64 +239,17 @@ int main(int argc, char **argv)
 	std::cout << "Cell count total: " << cellCountTotal << std::endl;
 	std::cout << "Cell updates per iteration: " << cellUpdatesPerIteration << std::endl;
 	
-	// DEBUG START
-	for ( int level = 0; level < gridLevelCount; level++ )
-	{
-		std::cout << "checking Esotwist nbr on level " << level << std::endl;
-		DIADGridStruct &Grid = grids[level];
-		
-		IntArrayTypeCPU iNbrArrayCPU;
-		IntArrayTypeCPU jNbrArrayCPU;
-		IntArrayTypeCPU kNbrArrayCPU;
-		IntArrayTypeCPU ijNbrArrayCPU;
-		IntArrayTypeCPU ikNbrArrayCPU;
-		IntArrayTypeCPU jkNbrArrayCPU;
-		IntArrayTypeCPU ijkNbrArrayCPU;
-		
-		iNbrArrayCPU = Grid.EsotwistNbrArray.iNbrArray;
-		jNbrArrayCPU = Grid.EsotwistNbrArray.jNbrArray;
-		kNbrArrayCPU = Grid.EsotwistNbrArray.kNbrArray;
-		ijNbrArrayCPU = Grid.EsotwistNbrArray.ijNbrArray;
-		ikNbrArrayCPU = Grid.EsotwistNbrArray.ikNbrArray;
-		jkNbrArrayCPU = Grid.EsotwistNbrArray.jkNbrArray;
-		ijkNbrArrayCPU = Grid.EsotwistNbrArray.ijkNbrArray;
-		
-		for ( int cell = 0; cell < Grid.Info.cellCount; cell++ )
-		{
-			if ( iNbrArrayCPU[ cell ] < 0 || iNbrArrayCPU[ cell ] >= Grid.Info.cellCount ) 
-				std::cout << "Error found on cell " << cell << ", iNbr value " << iNbrArrayCPU[ cell ] << std::endl;
-				
-			if ( jNbrArrayCPU[ cell ] < 0 || jNbrArrayCPU[ cell ] >= Grid.Info.cellCount ) 
-				std::cout << "Error found on cell " << cell << ", jNbr value " << jNbrArrayCPU[ cell ] << std::endl;
-				
-			if ( kNbrArrayCPU[ cell ] < 0 || kNbrArrayCPU[ cell ] >= Grid.Info.cellCount ) 
-				std::cout << "Error found on cell " << cell << ", kNbr value " << kNbrArrayCPU[ cell ] << std::endl;
-				
-			if ( ijNbrArrayCPU[ cell ] < 0 || ijNbrArrayCPU[ cell ] >= Grid.Info.cellCount ) 
-				std::cout << "Error found on cell " << cell << ", ijNbr value " << ijNbrArrayCPU[ cell ] << std::endl;
-				
-			if ( ikNbrArrayCPU[ cell ] < 0 || ikNbrArrayCPU[ cell ] >= Grid.Info.cellCount ) 
-				std::cout << "Error found on cell " << cell << ", ikNbr value " << ikNbrArrayCPU[ cell ] << std::endl;
-				
-			if ( jkNbrArrayCPU[ cell ] < 0 || jkNbrArrayCPU[ cell ] >= Grid.Info.cellCount ) 
-				std::cout << "Error found on cell " << cell << ", jkNbr value " << jkNbrArrayCPU[ cell ] << std::endl;
-				
-			if ( ijkNbrArrayCPU[ cell ] < 0 || ijkNbrArrayCPU[ cell ] >= Grid.Info.cellCount ) 
-				std::cout << "Error found on cell " << cell << ", ijkNbr value " << ijkNbrArrayCPU[ cell ] << std::endl;
-		}
-	}
-	// DEBUG END
-	
 	for ( int level = 0; level < gridLevelCount; level++ )
 	{	
 		grids[level].fArray.setSizes( 27, grids[level].Info.cellCount );
-		std::cout << "filling level " << level << std::endl;
 		fillEquilibriumFromFunction( grids[level] );
 	}
 	
-	std::cout << "Starting simulation" << std::endl;
+	std::vector<float> historyVector( iterationCount, 0.f );
 	
-	//std::vector<float> historyDragCoefficient( iterationCount, 0.f );
+	std::cout << "Finest cells per sphere diameter: " << (int)std::round(sphereDiameterPhys / grids[gridLevelCount-1].Info.res) << std::endl;
+	
+	std::cout << "Starting simulation" << std::endl;
 	
 	TNL::Timer lapTimer;
 	lapTimer.reset();
@@ -224,10 +258,10 @@ int main(int argc, char **argv)
 	{
 		updateGrid( grids, 0 );
 		
-		//const float drag = getSphereDrag( grids[gridLevelCount-1] );
-		//const float dragCoefficient = - (8 * drag) / (rhoNominalPhys * uxInletPhys * uxInletPhys * 3.14159f * (sphereDiameterPhys / 1000.f) * (sphereDiameterPhys / 1000.f));
+		const float drag = getSphereDrag( grids[gridLevelCount-1] );
+		const float dragCoefficient = - (8 * drag) / (rhoNominalPhys * uxInletPhys * uxInletPhys * 3.14159f * (sphereDiameterPhys / 1000.f) * (sphereDiameterPhys / 1000.f));
 		
-		//historyDragCoefficient[iteration] = dragCoefficient;
+		historyVector[iteration] = dragCoefficient;
 		
 		if (iteration%iterationChunk == 0 && iteration!=0)
 		{
@@ -241,9 +275,10 @@ int main(int argc, char **argv)
 			
 			const int kCut = grids[gridLevelCount-1].Info.cellCountZ / 2;
 			exportSectionCutPlotXY( grids, kCut, iteration );
-			system("python3 ../include/plotter/plotter.py");
+			system("python3 ../include/plotter/plotterGridID.py");
 			
-			//exportHistoryData( historyDragCoefficient, iteration );
+			exportHistoryData( historyVector, iteration );
+			system("python3 historyPlotter.py &"); 
 			
 			lapTimer.reset();
 			lapTimer.start();

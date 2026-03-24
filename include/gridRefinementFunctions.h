@@ -684,7 +684,6 @@ void writeToFineGridInterface( DIADGridStruct &GridCoarse, DIADGridStruct &GridF
 		for ( int which = 0; which < 8; which++ )
 		{
 			const int fine = fineCellList[which];
-			DIADEsotwistNbrStruct Nbr;
 			Nbr.i = iNbrViewFine( fine );
 			Nbr.j = jNbrViewFine( fine );
 			Nbr.k = kNbrViewFine( fine );

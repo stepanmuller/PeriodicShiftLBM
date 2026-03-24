@@ -1,8 +1,8 @@
 constexpr float sphereDiameterPhys = 2000.f;											// mm
-constexpr float resGlobal = 200.f; 														// mm
+constexpr float resGlobal = 100.f; 														// mm
 constexpr float uxInlet = 0.07f; 														// also works as nominal LBM Mach number
 constexpr float reynoldsNumber = 1000000.f;
-constexpr float SmagorinskyConstantGlobal = 0.0f; 										// set to zero to turn off LES
+constexpr float SmagorinskyConstantGlobal = 0.1f; 										// set to zero to turn off LES
 
 constexpr float sphereRadiusPhys = 0.5 * sphereDiameterPhys;							// mm
 constexpr float uxInletPhys = uxInlet; 													// m/s, physical velocity set to same as LBM velocity
@@ -21,9 +21,9 @@ const int cellCountX = static_cast<int>(std::ceil(domainSizePhys / resGlobal));
 const int cellCountY = cellCountX;
 const int cellCountZ = cellCountX;
 
-constexpr int iterationCount = 20000;
+constexpr int iterationCount = 200000;
 constexpr int iterationChunk = 1000;
-constexpr int gridLevelCount = 1;
+constexpr int gridLevelCount = 4;
 
 #include "../include/types.h"
 
@@ -84,8 +84,9 @@ __cuda_callable__ float getSmagorinskyConstant( const int  &iCell, const int &jC
 __cuda_callable__ void getInitialRhoUxUyUz( const int &iCell, const int &jCell, const int &kCell, float &rho, float &ux, float &uy, float &uz, const MarkerStruct &Marker, const InfoStruct &Info )
 {
 	rho = 1.f;
-	if ( Marker.bounceback ) ux = uxInlet;
-	else ux = 0.f;
+	//if ( Marker.bounceback ) ux = uxInlet;
+	//else ux = 0.f;
+	ux = 0.f;
 	uy = 0.f;
 	uz = 0.f;
 }
@@ -152,16 +153,6 @@ float getSphereDrag( GridStruct &Grid )
 	float gy, gz = 0;
 	convertToPhysicalForce( gxSum, gy, gz, Info );
 	return gxSum;
-}
-
-void exportHistoryData( const std::vector<float>& historyDragCoefficient, const int &currentIteration ) {
-    FILE* fp = fopen("/dev/shm/historyData.bin", "wb");
-    if (!fp) return;
-    int count = currentIteration + 1;
-    fwrite(&count, sizeof(int), 1, fp);
-    fwrite(historyDragCoefficient.data(), sizeof(float), count, fp);
-    fclose(fp);
-    system("python3 historyPlotter.py &"); 
 }
 
 void updateGrid( std::vector<GridStruct>& grids, int level ) 
@@ -285,6 +276,8 @@ int main(int argc, char **argv)
 			}
 			
 			exportHistoryData( historyDragCoefficient, iteration );
+			std::string cmd = "python3 historyPlotter.py " + std::to_string(iteration) + " &";
+			system(cmd.c_str());
 			
 			lapTimer.reset();
 			lapTimer.start();

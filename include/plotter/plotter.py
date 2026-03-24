@@ -35,16 +35,15 @@ def setup_plot(ax, data_array, label):
 	# Get only the fluid data (ignore solid mask for scale calculation)
     fluid_data = data_array[mask <= 0.5]
     
-    # Calculate 5th and 95th percentiles (removes 2% smallest and 2% largest)
-    vmin = np.nanpercentile(fluid_data, 2)
-    vmax = np.nanpercentile(fluid_data, 98)
+    vmin = np.nanpercentile(fluid_data, 1)
+    vmax = np.nanpercentile(fluid_data, 99)
     
     # If the range is zero (constant field), default to data min/max
     if vmin == vmax:
         vmin, vmax = np.min(fluid_data), np.max(fluid_data)
         
     masked_data = ma.array(data_array, mask=is_solid)
-    img = ax.imshow(masked_data, origin="lower", cmap="viridis", aspect="equal")
+    img = ax.imshow(masked_data, origin="lower", cmap="viridis", aspect="equal", interpolation="nearest")
     # REMOVE THE FRAME (SPINES)
     for spine in ax.spines.values():
         spine.set_visible(False)
@@ -73,5 +72,5 @@ setup_plot(ax2, p, "Static pressure [Pa]")
 
 # 4. Save
 os.makedirs("results", exist_ok=True)
-plt.savefig(f"results/{plotNumber}.png", dpi=min(1000, max([300, nVertical/3, nHorizontal/3])), bbox_inches="tight")
+plt.savefig(f"results/{plotNumber}.png", dpi=min(1000, max([300, nVertical/2, nHorizontal/2])), bbox_inches="tight")
 plt.close()
