@@ -193,7 +193,7 @@ yStyleList.append("+")
 
 # DIAD Cumulant AllOne, D/res = 640, LES Sm 0.1
 xList.append(np.array([1000000]))
-yList.append(np.array([0.213]))
+yList.append(np.array([0.210]))
 yLegendList.append("DIAD Cumulant AllOne, D/res = 640, LES 0.1")
 yColorList.append("red")
 yStyleList.append("*") 
