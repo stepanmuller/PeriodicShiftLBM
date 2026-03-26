@@ -6,12 +6,12 @@ constexpr float zMaxGlobal = 58.f; 														// mm
 constexpr float yMinGlobal = -80.f; 													// mm
 constexpr float yMaxGlobal = 20.f; 														// mm
 
-constexpr float resGlobal = 2.f; 														// mm
-constexpr int gridLevelCount = 5;
+constexpr float resGlobal = 2.4f; 														// mm
+constexpr int gridLevelCount = 4;
 constexpr int wallRefinementSpan = 1;
 
-constexpr int iterationCount = 1;
-constexpr int iterationChunk = 1;
+constexpr int iterationCount = 100000;
+constexpr int iterationChunk = 1000;
 
 constexpr float SmagorinskyConstantGlobal = 0.1f; 										// set to zero to turn off LES
 
@@ -53,7 +53,7 @@ __cuda_callable__ void getMarkers( 	const int& iCell, const int& jCell, const in
 	
 	if ( Info.gridID == 2 )
 	{
-		if ( fabs(xPhys) > 30.f ) Marker.refinement = 0;
+		if ( fabs(xPhys) > 20.f ) Marker.refinement = 0;
 	}
 	if ( Info.gridID == 3 )
 	{
