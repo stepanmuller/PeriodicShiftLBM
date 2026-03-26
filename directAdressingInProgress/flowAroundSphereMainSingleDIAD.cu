@@ -22,7 +22,7 @@ const int cellCountY = cellCountX;
 const int cellCountZ = cellCountX;
 
 constexpr int iterationCount = 1000000;
-constexpr int iterationChunk = 5000;
+constexpr int iterationChunk = 2000;
 constexpr int gridLevelCount = 6;
 constexpr int wallRefinementSpan = 3;
 

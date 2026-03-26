@@ -187,9 +187,16 @@ yStyleList.append("X")
 # Cumulant AllOne, D/res = 160, LES Sm 0.1
 xList.append(np.array([100, 200, 500, 1000, 2000, 5000, 10000, 20000, 50000, 100000, 200000, 500000, 1000000, 2000000, 5000000, 10000000]))
 yList.append(np.array([1.150, 0.832, 0.624, 0.514, 0.467, 0.468, 0.481, 0.5, 0.501, 0.507, 0.504, 0.503, 0.505, 0.519, 0.523, 0.519]))
-yLegendList.append("Cumulant AllOne, D/res = 160, LES Sm = 0.1")
+yLegendList.append("Cumulant AllOne, D/res = 160, LES 0.1")
 yColorList.append("teal")
 yStyleList.append("+") 
+
+# DIAD Cumulant AllOne, D/res = 640, LES Sm 0.1
+xList.append(np.array([1000000]))
+yList.append(np.array([0.213]))
+yLegendList.append("DIAD Cumulant AllOne, D/res = 640, LES 0.1")
+yColorList.append("red")
+yStyleList.append("*") 
 
 # ==========================================
 # 2. PLOT STYLING (LaTeX Enabled)
