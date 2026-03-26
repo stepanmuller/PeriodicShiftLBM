@@ -1,17 +1,17 @@
 constexpr int caseID = 1;
 
-constexpr float widthGlobal = 145.f; 													// mm
-constexpr float zMinGlobal = -155.f; 													// mm
-constexpr float zMaxGlobal = 58.f; 														// mm
+constexpr float widthGlobal = 150.f; 													// mm
+constexpr float zMinGlobal = -150.f; 													// mm
+constexpr float zMaxGlobal = 60.f; 														// mm
 constexpr float yMinGlobal = -80.f; 													// mm
 constexpr float yMaxGlobal = 20.f; 														// mm
 
-constexpr float resGlobal = 2.4f; 														// mm
-constexpr int gridLevelCount = 4;
+constexpr float resGlobal = 1.6f; 														// mm
+constexpr int gridLevelCount = 5;
 constexpr int wallRefinementSpan = 1;
 
-constexpr int iterationCount = 100000;
-constexpr int iterationChunk = 1000;
+constexpr int iterationCount = 1000000;
+constexpr int iterationChunk = 5000;
 
 constexpr float SmagorinskyConstantGlobal = 0.1f; 										// set to zero to turn off LES
 
@@ -49,15 +49,25 @@ __cuda_callable__ void getMarkers( 	const int& iCell, const int& jCell, const in
 	const float xPhys = iCell * Info.res + Info.ox;
 	const float yPhys = jCell * Info.res + Info.oy;
 	const float zPhys = kCell * Info.res + Info.oz;
-	// Reduce the refinement area
 	
+	if ( Info.gridID == 0 )
+	{
+		if ( fabs(xPhys) < 25.f && yPhys > -35.f ) Marker.refinement = 1;
+	}
+	// Reduce the refinement area
+	if ( Info.gridID == 1 )
+	{
+		if ( fabs(xPhys) > 35.f ) Marker.refinement = 0;
+		if ( fabs(xPhys) < 20.f && yPhys > -30.f ) Marker.refinement = 1;
+	}
 	if ( Info.gridID == 2 )
 	{
-		if ( fabs(xPhys) > 20.f ) Marker.refinement = 0;
+		if ( fabs(xPhys) > 25.f ) Marker.refinement = 0;
+		if ( fabs(xPhys) < 18.f && yPhys > -27.f ) Marker.refinement = 1;
 	}
 	if ( Info.gridID == 3 )
 	{
-		if ( fabs(xPhys) > 16.f ) Marker.refinement = 0;
+		if ( fabs(xPhys) > 17.f ) Marker.refinement = 0;
 	}
 	
 	if ( Marker.bounceback ) return;
@@ -93,7 +103,8 @@ __cuda_callable__ void getInitialRhoUxUyUz( const int &iCell, const int &jCell, 
 	rho = 1.f;
 	ux = 0.f;
 	uy = 0.f;
-	uz = 0.f;
+	uz = uzInlet;
+	if (Marker.bounceback) uz = 0.f;
 }
 
 #include "../include/applyLocalCellUpdate.h"
