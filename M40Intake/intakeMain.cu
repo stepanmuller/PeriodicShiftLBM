@@ -6,12 +6,12 @@ constexpr float zMaxGlobal = 60.f; 														// mm
 constexpr float yMinGlobal = -80.f; 													// mm
 constexpr float yMaxGlobal = 20.f; 														// mm
 
-constexpr float resGlobal = 1.6f; 														// mm
+constexpr float resGlobal = 3.0f; 														// mm
 constexpr int gridLevelCount = 5;
 constexpr int wallRefinementSpan = 1;
 
-constexpr int iterationCount = 1000000;
-constexpr int iterationChunk = 5000;
+constexpr int iterationCount = 1000;
+constexpr int iterationChunk = 100;
 
 constexpr float SmagorinskyConstantGlobal = 0.1f; 										// set to zero to turn off LES
 
@@ -77,8 +77,6 @@ __cuda_callable__ void getMarkers( 	const int& iCell, const int& jCell, const in
 	else Marker.fluid = 1;
 }
 
-#include "../directAdressingInProgress/DIADFunctions.h"
-
 __cuda_callable__ void getGivenRhoUxUyUz( 	const int& iCell, const int& jCell, const int& kCell, 
 											float& rho, float& ux, float& uy, float& uz,
 											InfoStruct& Info )
@@ -111,6 +109,7 @@ __cuda_callable__ void getInitialRhoUxUyUz( const int &iCell, const int &jCell, 
 #include "../include/plotter/exportSectionCutPlot.h"
 #include "../include/fillEquilibrium.h"
 #include "../include/gridRefinementFunctions.h"
+#include "../directAdressingInProgress/DIADFunctions.h"
 
 void updateGrid( std::vector<DIADGridStruct>& grids, int level ) 
 {
@@ -284,11 +283,53 @@ int main(int argc, char **argv)
 	std::cout << "Cell count total: " << cellCountTotal << std::endl;
 	std::cout << "Cell updates per iteration: " << cellUpdatesPerIteration << std::endl;
 	
+	// DEBUG START
 	for ( int level = 0; level < gridLevelCount; level++ )
-	{	
-		grids[level].fArray.setSizes( 27, grids[level].Info.cellCount );
-		fillEquilibriumFromFunction( grids[level] );
+	{
+		std::cout << "checking Esotwist nbr on level " << level << std::endl;
+		DIADGridStruct &Grid = grids[level];
+		
+		IntArrayTypeCPU iNbrArrayCPU;
+		IntArrayTypeCPU jNbrArrayCPU;
+		IntArrayTypeCPU kNbrArrayCPU;
+		IntArrayTypeCPU ijNbrArrayCPU;
+		IntArrayTypeCPU ikNbrArrayCPU;
+		IntArrayTypeCPU jkNbrArrayCPU;
+		IntArrayTypeCPU ijkNbrArrayCPU;
+		
+		iNbrArrayCPU = Grid.EsotwistNbrArray.iNbrArray;
+		jNbrArrayCPU = Grid.EsotwistNbrArray.jNbrArray;
+		kNbrArrayCPU = Grid.EsotwistNbrArray.kNbrArray;
+		ijNbrArrayCPU = Grid.EsotwistNbrArray.ijNbrArray;
+		ikNbrArrayCPU = Grid.EsotwistNbrArray.ikNbrArray;
+		jkNbrArrayCPU = Grid.EsotwistNbrArray.jkNbrArray;
+		ijkNbrArrayCPU = Grid.EsotwistNbrArray.ijkNbrArray;
+		
+		for ( int cell = 0; cell < Grid.Info.cellCount; cell++ )
+		{
+			if ( iNbrArrayCPU[ cell ] < 0 || iNbrArrayCPU[ cell ] >= Grid.Info.cellCount ) 
+				std::cout << "Error found on cell " << cell << ", iNbr value " << iNbrArrayCPU[ cell ] << std::endl;
+				
+			if ( jNbrArrayCPU[ cell ] < 0 || jNbrArrayCPU[ cell ] >= Grid.Info.cellCount ) 
+				std::cout << "Error found on cell " << cell << ", jNbr value " << jNbrArrayCPU[ cell ] << std::endl;
+				
+			if ( kNbrArrayCPU[ cell ] < 0 || kNbrArrayCPU[ cell ] >= Grid.Info.cellCount ) 
+				std::cout << "Error found on cell " << cell << ", kNbr value " << kNbrArrayCPU[ cell ] << std::endl;
+				
+			if ( ijNbrArrayCPU[ cell ] < 0 || ijNbrArrayCPU[ cell ] >= Grid.Info.cellCount ) 
+				std::cout << "Error found on cell " << cell << ", ijNbr value " << ijNbrArrayCPU[ cell ] << std::endl;
+				
+			if ( ikNbrArrayCPU[ cell ] < 0 || ikNbrArrayCPU[ cell ] >= Grid.Info.cellCount ) 
+				std::cout << "Error found on cell " << cell << ", ikNbr value " << ikNbrArrayCPU[ cell ] << std::endl;
+				
+			if ( jkNbrArrayCPU[ cell ] < 0 || jkNbrArrayCPU[ cell ] >= Grid.Info.cellCount ) 
+				std::cout << "Error found on cell " << cell << ", jkNbr value " << jkNbrArrayCPU[ cell ] << std::endl;
+				
+			if ( ijkNbrArrayCPU[ cell ] < 0 || ijkNbrArrayCPU[ cell ] >= Grid.Info.cellCount ) 
+				std::cout << "Error found on cell " << cell << ", ijkNbr value " << ijkNbrArrayCPU[ cell ] << std::endl;
+		}
 	}
+	// DEBUG END
 	
 	//std::vector<float> historyMassFlow( iterationCount, 0.f );
 	//std::vector<float> historyEta( iterationCount, 0.f );

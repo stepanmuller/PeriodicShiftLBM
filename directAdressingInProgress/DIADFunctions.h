@@ -85,6 +85,43 @@ void sortIJK( IJKArrayStruct &IJK )
 	TNL::Algorithms::sort<TNL::Devices::Cuda, size_t>( 0, cellCount, comparisonLambda, swapLambda );
 }
 
+// sort IJK arrays as ascending k, j, i so that k changes the slowest, also sort the bounceback array
+void sortIJK( IJKArrayStruct &IJK, BoolArrayType &markerArray, BoolArrayType &markerArray2 )
+{
+	const int cellCount = IJK.iArray.getSize();
+	auto iView = IJK.iArray.getView();
+	auto jView = IJK.jArray.getView();
+	auto kView = IJK.kArray.getView();
+	auto markerView = markerArray.getView();
+	auto markerView2 = markerArray2.getView();
+
+    auto comparisonLambda = [=] __cuda_callable__ ( const size_t a, const size_t b )
+	{
+		if ( kView[ a ] < kView[ b ] ) return true;
+		else if ( kView[ a ] > kView[ b ] ) return false;
+		else
+		{
+			if ( jView[ a ] < jView[ b ] ) return true;
+			else if ( jView[ a ] > jView[ b ] ) return false;
+			else
+			{
+				if ( iView[ a ] < iView[ b ] ) return true;
+				else if ( iView[ a ] > iView[ b ] ) return false;
+				else return false;
+			}
+		}
+	};
+	auto swapLambda = [=] __cuda_callable__ ( const size_t a, const size_t b ) mutable
+	{
+		TNL::swap( iView[ a ], iView[ b ] );
+		TNL::swap( jView[ a ], jView[ b ] );
+		TNL::swap( kView[ a ], kView[ b ] );
+		TNL::swap( markerView[ a ], markerView[ b ] );
+		TNL::swap( markerView2[ a ], markerView2[ b ] );
+	};
+	TNL::Algorithms::sort<TNL::Devices::Cuda, size_t>( 0, cellCount, comparisonLambda, swapLambda );
+}
+
 // final sort for finest grid
 void sortFinestGrid( DIADGridStruct &Grid, BoolArrayType &keepCellMarkerArray )
 {
@@ -446,129 +483,187 @@ void markDIADNeighbours( std::vector<IntArrayType> &nbrArrays, BoolArrayType &so
 void buildDIADGrids( std::vector<DIADGridStruct> &grids, std::vector<STLStruct> STLs, const int level )
 {
 	DIADGridStruct &Grid = grids[level];
-	std::cout << "Initial cell count on level " << level <<" : " << Grid.Info.cellCount << std::endl;
+	InfoStruct &Info = Grid.Info;
+	Grid.bouncebackMarkerArray.setSize( Info.cellCount );
+	Grid.enforceFluidMarkerArray.setSize( Info.cellCount );
+	std::cout << "Initial cell count on level " << level <<" : " << Info.cellCount << std::endl;
 
-	sortIJK( Grid.IJK );
-	std::vector<IntArrayType> nbrArrays( 26 );
-	getDIADNeighbours( Grid.IJK, nbrArrays );	
-		
-	BoolArrayType fluidMarkerArray = BoolArrayType( Grid.Info.cellCount );
-	BoolArrayType finestBouncebackMarkerArray = BoolArrayType( Grid.Info.cellCount );
-	markFinestFluidBounceback( fluidMarkerArray, finestBouncebackMarkerArray, Grid.IJK, STLs, Grid.Info );
-	
-	// BORDER
-	BoolArrayType borderMarkerArray = BoolArrayType( Grid.Info.cellCount );
-	borderMarkerArray.setValue( 0 );
-	markDIADNeighbours( nbrArrays, fluidMarkerArray, borderMarkerArray );
-	BoolArrayType fluidInverseMarkerArray = BoolArrayType( Grid.Info.cellCount );
-	fluidInverseMarkerArray = fluidMarkerArray;
-	invertBoolArray( fluidInverseMarkerArray );
-	multiplyBoolArrays( fluidInverseMarkerArray, borderMarkerArray, borderMarkerArray );
-	
-	// KEEP CELL ARRAY -> SO FAR KEEP FLUID AND BORDER
-	BoolArrayType keepCellMarkerArray = BoolArrayType( Grid.Info.cellCount );
-	keepCellMarkerArray = fluidMarkerArray;
-	sumBoolArrays( keepCellMarkerArray, borderMarkerArray, keepCellMarkerArray );
+	sortIJK( Grid.IJK, Grid.bouncebackMarkerArray, Grid.enforceFluidMarkerArray );
 	
 	// FINEST GRID BRANCH
 	if ( level == gridLevelCount - 1 )
 	{
-		Grid.bouncebackMarkerArray = borderMarkerArray;
-		sortFinestGrid( Grid, keepCellMarkerArray );
-		Grid.Info.cellCount = countMarkerCells( keepCellMarkerArray );
-		Grid.IJK.iArray.resize(Grid.Info.cellCount);
-		Grid.IJK.jArray.resize(Grid.Info.cellCount);
-		Grid.IJK.kArray.resize(Grid.Info.cellCount);
-		Grid.bouncebackMarkerArray.resize(Grid.Info.cellCount);
+		{ // SCOPE WITH LARGE ALLOCATED NEIGHBOUR ARRAYS
+			std::vector<IntArrayType> nbrArrays( 26 );
+			getDIADNeighbours( Grid.IJK, nbrArrays );	
+				
+			BoolArrayType fluidMarkerArray = BoolArrayType( Info.cellCount );
+			BoolArrayType finestBouncebackMarkerArray = BoolArrayType( Info.cellCount );
+			BoolArrayType keepCellMarkerArray = BoolArrayType( Info.cellCount );
+			
+			markFinestFluidBounceback( fluidMarkerArray, finestBouncebackMarkerArray, Grid.IJK, STLs, Info );
+			sumBoolArrays( fluidMarkerArray, Grid.enforceFluidMarkerArray, fluidMarkerArray );
+			
+			std::cout << "Inital BB on finest grid: " << countMarkerCells( Grid.bouncebackMarkerArray ) << std::endl;
+			
+			sumBoolArrays( Grid.bouncebackMarkerArray, finestBouncebackMarkerArray, Grid.bouncebackMarkerArray );
+			invertBoolArray( Grid.enforceFluidMarkerArray );
+			multiplyBoolArrays( Grid.bouncebackMarkerArray, Grid.enforceFluidMarkerArray, Grid.bouncebackMarkerArray );
+			
+			keepCellMarkerArray = fluidMarkerArray;
+			markDIADNeighbours( nbrArrays, fluidMarkerArray, keepCellMarkerArray );
+			sortFinestGrid( Grid, keepCellMarkerArray );
+			Info.cellCount = countMarkerCells( keepCellMarkerArray );
+		}
+		Grid.IJK.iArray.resize(Info.cellCount);
+		Grid.IJK.jArray.resize(Info.cellCount);
+		Grid.IJK.kArray.resize(Info.cellCount);
+		Grid.bouncebackMarkerArray.resize(Info.cellCount);
 		getDIADEsotwistNbrArray( Grid );
-		std::cout << "Final cell count on level " << level <<" : " << Grid.Info.cellCount << std::endl;
+		
+		// ALLOCATE fArray and initialize
+		Grid.fArray.setSizes( 27, Info.cellCount );
+		fillEquilibriumFromFunction( Grid );
+		
+		std::cout << "Final cell count on level " << level <<" : " << Info.cellCount << std::endl;
 		return;
 	}
 	
 	// COARSE GRID BRANCH
-	// THICK REFINEMENT REGION
-	BoolArrayType refinementMarkerArray = BoolArrayType( Grid.Info.cellCount );
-	refinementMarkerArray = finestBouncebackMarkerArray; // make sure to refine areas where at least one finest bounceback cell is
-	sumBoolArrays( refinementMarkerArray, borderMarkerArray, refinementMarkerArray ); // add border.. idk just to make sure
-	BoolArrayType newRefinementMarkerArray = BoolArrayType( Grid.Info.cellCount );
-	newRefinementMarkerArray.setValue( 0 );
-	const int thickness = wallRefinementSpan + (gridLevelCount - level - 1);
-	for ( int layer = 0; layer < thickness; layer++ )
-	{
-		markDIADNeighbours( nbrArrays, refinementMarkerArray, newRefinementMarkerArray );
-		multiplyBoolArrays( newRefinementMarkerArray, keepCellMarkerArray, refinementMarkerArray );
-	}
+	BoolArrayType keepCellMarkerArray = BoolArrayType( Info.cellCount );
+	BoolArrayType refinementMarkerArray = BoolArrayType( Info.cellCount );
+	BoolArrayType coarseToFineMarkerArray = BoolArrayType( Info.cellCount );
+	BoolArrayType fineToCoarseMarkerArray = BoolArrayType( Info.cellCount );
+	BoolArrayType bouncebackUnderInterface = BoolArrayType( Info.cellCount );
+	BoolArrayType fluidUnderInterface = BoolArrayType( Info.cellCount );
+	{ // SCOPE WITH LARGE ALLOCATED NEIGHBOUR ARRAYS
+		std::vector<IntArrayType> nbrArrays( 26 );
+		getDIADNeighbours( Grid.IJK, nbrArrays );	
+		
+		BoolArrayType fluidMarkerArray = BoolArrayType( Info.cellCount );
+		BoolArrayType finestBouncebackMarkerArray = BoolArrayType( Info.cellCount );
+		markFinestFluidBounceback( fluidMarkerArray, finestBouncebackMarkerArray, Grid.IJK, STLs, Info );
+		sumBoolArrays( fluidMarkerArray, Grid.enforceFluidMarkerArray, fluidMarkerArray );
 	
-	// MODIFICATION OF THE REFINEMENT REGION USING getMarkers FUNCTION
-	applyRefinementMarkerFromFunction( refinementMarkerArray, Grid.IJK, Grid.Info );
+		// BORDER
+		BoolArrayType borderMarkerArray = BoolArrayType( Info.cellCount );
+		borderMarkerArray.setValue( 0 );
+		markDIADNeighbours( nbrArrays, fluidMarkerArray, borderMarkerArray );
+		BoolArrayType fluidInverseMarkerArray = BoolArrayType( Info.cellCount );
+		fluidInverseMarkerArray = fluidMarkerArray;
+		invertBoolArray( fluidInverseMarkerArray );
+		multiplyBoolArrays( fluidInverseMarkerArray, borderMarkerArray, borderMarkerArray );
+		
+		// KEEP CELL ARRAY -> SO FAR KEEP FLUID AND BORDER
+		keepCellMarkerArray = fluidMarkerArray;
+		sumBoolArrays( keepCellMarkerArray, borderMarkerArray, keepCellMarkerArray );
+		
+		// THICK REFINEMENT REGION
+		refinementMarkerArray = finestBouncebackMarkerArray; // make sure to refine areas where at least one finest bounceback cell is
+		sumBoolArrays( refinementMarkerArray, borderMarkerArray, refinementMarkerArray ); // add border.. idk just to make sure
+		BoolArrayType newRefinementMarkerArray = BoolArrayType( Info.cellCount );
+		newRefinementMarkerArray.setValue( 0 );
+		const int thickness = wallRefinementSpan + (gridLevelCount - level - 1);
+		for ( int layer = 0; layer < thickness; layer++ )
+		{
+			markDIADNeighbours( nbrArrays, refinementMarkerArray, newRefinementMarkerArray );
+			sumBoolArrays( refinementMarkerArray, newRefinementMarkerArray, newRefinementMarkerArray );
+			multiplyBoolArrays( newRefinementMarkerArray, keepCellMarkerArray, refinementMarkerArray );
+		}
+		
+		// MODIFICATION OF THE REFINEMENT REGION USING getMarkers FUNCTION
+		applyRefinementMarkerFromFunction( refinementMarkerArray, Grid.IJK, Info );
+		
+		// FINE TO COARSE COMMUNICATION INTERFACE
+		fineToCoarseMarkerArray.setValue( 0 );
+		markDIADNeighbours( nbrArrays, refinementMarkerArray, fineToCoarseMarkerArray );
+		multiplyBoolArrays( fluidMarkerArray, fineToCoarseMarkerArray, fineToCoarseMarkerArray );
+		BoolArrayType refinementInverseMarkerArray = BoolArrayType( Info.cellCount );
+		refinementInverseMarkerArray = refinementMarkerArray;
+		invertBoolArray( refinementInverseMarkerArray );
+		multiplyBoolArrays( fineToCoarseMarkerArray, refinementInverseMarkerArray, fineToCoarseMarkerArray );
+		
+		// COARSE TO FINE COMMUNICATION INTERFACE
+		coarseToFineMarkerArray.setValue( 0 );
+		markDIADNeighbours( nbrArrays, fineToCoarseMarkerArray, coarseToFineMarkerArray );
+		multiplyBoolArrays( fluidMarkerArray, coarseToFineMarkerArray, coarseToFineMarkerArray );
+		BoolArrayType fineToCoarseInverseMarkerArray = BoolArrayType( Info.cellCount );
+		fineToCoarseInverseMarkerArray = fineToCoarseMarkerArray;
+		invertBoolArray( fineToCoarseInverseMarkerArray );
+		multiplyBoolArrays( coarseToFineMarkerArray, fineToCoarseInverseMarkerArray, coarseToFineMarkerArray );
+		multiplyBoolArrays( coarseToFineMarkerArray, refinementInverseMarkerArray, coarseToFineMarkerArray );
 	
-	// FINE TO COARSE COMMUNICATION INTERFACE
-	BoolArrayType fineToCoarseMarkerArray = BoolArrayType( Grid.Info.cellCount );
-	fineToCoarseMarkerArray.setValue( 0 );
-	markDIADNeighbours( nbrArrays, refinementMarkerArray, fineToCoarseMarkerArray );
-	multiplyBoolArrays( fluidMarkerArray, fineToCoarseMarkerArray, fineToCoarseMarkerArray );
-	BoolArrayType refinementInverseMarkerArray = BoolArrayType( Grid.Info.cellCount );
-	refinementInverseMarkerArray = refinementMarkerArray;
-	invertBoolArray( refinementInverseMarkerArray );
-	multiplyBoolArrays( fineToCoarseMarkerArray, refinementInverseMarkerArray, fineToCoarseMarkerArray );
+		// NOW ALSO ADD THE INTERFACE INTO THE REFINEMENT AREA
+		sumBoolArrays( refinementMarkerArray, fineToCoarseMarkerArray, refinementMarkerArray );
+		sumBoolArrays( refinementMarkerArray, coarseToFineMarkerArray, refinementMarkerArray );
+		refinementInverseMarkerArray = refinementMarkerArray;
+		invertBoolArray( refinementInverseMarkerArray );
 	
-	// COARSE TO FINE COMMUNICATION INTERFACE
-	BoolArrayType coarseToFineMarkerArray = BoolArrayType( Grid.Info.cellCount );
-	coarseToFineMarkerArray.setValue( 0 );
-	markDIADNeighbours( nbrArrays, fineToCoarseMarkerArray, coarseToFineMarkerArray );
-	multiplyBoolArrays( fluidMarkerArray, coarseToFineMarkerArray, coarseToFineMarkerArray );
-	BoolArrayType fineToCoarseInverseMarkerArray = BoolArrayType( Grid.Info.cellCount );
-	fineToCoarseInverseMarkerArray = fineToCoarseMarkerArray;
-	invertBoolArray( fineToCoarseInverseMarkerArray );
-	multiplyBoolArrays( coarseToFineMarkerArray, fineToCoarseInverseMarkerArray, coarseToFineMarkerArray );
-	multiplyBoolArrays( coarseToFineMarkerArray, refinementInverseMarkerArray, coarseToFineMarkerArray );
+		// IDENTIFY COARSE BOUNCEBACK CELLS AND REMOVE THEM FROM THE INTERFACES
+		BoolArrayType coarseBouncebackMarkerArray = BoolArrayType( Info.cellCount );
+		coarseBouncebackMarkerArray.setValue( 0 );
+		BoolArrayType markerArraySTL = BoolArrayType( Info.cellCount );	
+		applyBouncebackMarkerFromFunction( coarseBouncebackMarkerArray, Grid.IJK, Info );
+		for ( int STLIndex = 0; STLIndex < (int)STLs.size(); STLIndex++ )
+		{
+			const bool insideMarkerValue = 1;
+			ApplyMarkersInsideSTL( markerArraySTL, Grid.IJK, STLs[STLIndex], insideMarkerValue, Info );
+			sumBoolArrays( coarseBouncebackMarkerArray, markerArraySTL, coarseBouncebackMarkerArray );
+		}
+		BoolArrayType bouncebackInverseMarkerArray;
+		bouncebackInverseMarkerArray = coarseBouncebackMarkerArray;
+		invertBoolArray( bouncebackInverseMarkerArray );
+			
+		sumBoolArrays( coarseToFineMarkerArray, fineToCoarseMarkerArray, bouncebackUnderInterface );
+		multiplyBoolArrays( bouncebackUnderInterface, coarseBouncebackMarkerArray, bouncebackUnderInterface );
+		
+		sumBoolArrays( coarseToFineMarkerArray, fineToCoarseMarkerArray, fluidUnderInterface );
+		multiplyBoolArrays( fluidUnderInterface, bouncebackInverseMarkerArray, fluidUnderInterface );
+		
+		multiplyBoolArrays( coarseToFineMarkerArray, bouncebackInverseMarkerArray, coarseToFineMarkerArray );	
+		multiplyBoolArrays( fineToCoarseMarkerArray, bouncebackInverseMarkerArray, fineToCoarseMarkerArray );	
+		
+		sumBoolArrays( Grid.bouncebackMarkerArray, finestBouncebackMarkerArray, Grid.bouncebackMarkerArray );
+		invertBoolArray( Grid.enforceFluidMarkerArray );
+		multiplyBoolArrays( Grid.bouncebackMarkerArray, Grid.enforceFluidMarkerArray, Grid.bouncebackMarkerArray );
+		
+		// MARK KEEP CELLS TO BE ABLE TO DELETE ALL CELLS THAT ARE NOT NEEDED ON OUR COARSE GRID
+		keepCellMarkerArray = fluidMarkerArray;
+		sumBoolArrays( keepCellMarkerArray, borderMarkerArray, keepCellMarkerArray );
+		multiplyBoolArrays( keepCellMarkerArray, refinementInverseMarkerArray, keepCellMarkerArray );
+		sumBoolArrays( keepCellMarkerArray, coarseToFineMarkerArray, keepCellMarkerArray );
+		sumBoolArrays( keepCellMarkerArray, fineToCoarseMarkerArray, keepCellMarkerArray );
 	
-	// NOW nbrArrays are not needed anymore
-	for ( int i = 0; i < 26; i++ ) nbrArrays[i].resize( 0 );
-	
-	// NOW ALSO ADD THE INTERFACE INTO THE REFINEMENT AREA
-	sumBoolArrays( refinementMarkerArray, fineToCoarseMarkerArray, refinementMarkerArray );
-	sumBoolArrays( refinementMarkerArray, coarseToFineMarkerArray, refinementMarkerArray );
-	refinementInverseMarkerArray = refinementMarkerArray;
-	invertBoolArray( refinementInverseMarkerArray );
-	
-	// PRELIMINARY BOUNCEBACK PASS IN CASE WE ARE NOT REFINING IN SOME WALL AREA
-	Grid.bouncebackMarkerArray.setSize(Grid.Info.cellCount);
-	Grid.bouncebackMarkerArray.setValue( 0 );
-	BoolArrayType markerArraySTL = BoolArrayType( Grid.Info.cellCount );	
-	applyBouncebackMarkerFromFunction( Grid.bouncebackMarkerArray, Grid.IJK, Grid.Info );
-	for ( int STLIndex = 0; STLIndex < (int)STLs.size(); STLIndex++ )
-	{
-		const bool insideMarkerValue = 1;
-		ApplyMarkersInsideSTL( markerArraySTL, Grid.IJK, STLs[STLIndex], insideMarkerValue, Grid.Info );
-		sumBoolArrays( Grid.bouncebackMarkerArray, markerArraySTL, Grid.bouncebackMarkerArray );
-	}
-	
-	// REMOVE BOUNCEBACK CELLS FROM BOTH INTERFACES, BOUNCEBACK ON INTERFACES WILL BE SOLVED PROPERLY BELOW
-	BoolArrayType bouncebackInverseMarkerArray;
-	bouncebackInverseMarkerArray = Grid.bouncebackMarkerArray;
-	invertBoolArray( bouncebackInverseMarkerArray );
-	multiplyBoolArrays( coarseToFineMarkerArray, bouncebackInverseMarkerArray, coarseToFineMarkerArray );	
-	multiplyBoolArrays( fineToCoarseMarkerArray, bouncebackInverseMarkerArray, fineToCoarseMarkerArray );	
+	} // CLOSING THE SCOPE DEALOCATES LARGE nbrArrays and most marker arrays
 	
 	// ASSEMBLE IJK FOR THE NEXT LEVEL FINER GRID BASED ON THE REFINEMENT AREA
 	const int cellCountFine = 8 * countMarkerCells( refinementMarkerArray );
 	grids[level+1].Info.cellCount = cellCountFine;
-	BoolArrayTypeCPU refinementMarkerArrayCPU = BoolArrayTypeCPU( Grid.Info.cellCount );
+	BoolArrayTypeCPU refinementMarkerArrayCPU = BoolArrayTypeCPU( Info.cellCount );
 	refinementMarkerArrayCPU = refinementMarkerArray;
+	BoolArrayTypeCPU bouncebackUnderInterfaceCPU;
+	bouncebackUnderInterfaceCPU = bouncebackUnderInterface;
+	BoolArrayTypeCPU fluidUnderInterfaceCPU;
+	fluidUnderInterfaceCPU = fluidUnderInterface;
 	IJKArrayStructCPU IJKCPU = IJKArrayStructCPU( Grid.IJK );
+	BoolArrayTypeCPU fineBouncebackMarkerArrayCPU;
+	fineBouncebackMarkerArrayCPU.setSize( cellCountFine );
+	BoolArrayTypeCPU fineFluidMarkerArrayCPU;
+	fineFluidMarkerArrayCPU.setSize( cellCountFine );
 	IJKArrayStructCPU IJKFineCPU;
 	IJKFineCPU.iArray.setSize( cellCountFine );
 	IJKFineCPU.jArray.setSize( cellCountFine );
 	IJKFineCPU.kArray.setSize( cellCountFine );
 	int cellFine = 0;
-	for ( int cellCoarse = 0; cellCoarse < Grid.Info.cellCount; cellCoarse++ )
+	for ( int cellCoarse = 0; cellCoarse < Info.cellCount; cellCoarse++ )
 	{
 		if ( refinementMarkerArrayCPU[ cellCoarse ] )
 		{
 			const int iCoarse = IJKCPU.iArray[ cellCoarse ];
 			const int jCoarse = IJKCPU.jArray[ cellCoarse ];
 			const int kCoarse = IJKCPU.kArray[ cellCoarse ];
+			const bool bouncebackCoarse = bouncebackUnderInterfaceCPU[ cellCoarse ];
+			const bool fluidCoarse = fluidUnderInterfaceCPU[ cellCoarse ];
 			const int iFine = iCoarse * 2;
 			const int jFine = jCoarse * 2;
 			const int kFine = kCoarse * 2;
@@ -582,57 +677,59 @@ void buildDIADGrids( std::vector<DIADGridStruct> &grids, std::vector<STLStruct> 
 						IJKFineCPU.iArray[ cellFine ] = iFine + iPlus;
 						IJKFineCPU.jArray[ cellFine ] = jFine + jPlus;
 						IJKFineCPU.kArray[ cellFine ] = kFine + kPlus;
+						fineBouncebackMarkerArrayCPU[ cellFine ] = bouncebackCoarse;
+						fineFluidMarkerArrayCPU[ cellFine ] = fluidCoarse;
 						cellFine++;
 					}
 				}
 			}
 		}
 	}
-	
 	grids[level + 1].IJK = IJKArrayStruct( IJKFineCPU );
-	
-	// MARK KEEP CELLS TO BE ABLE TO DELETE ALL CELLS THAT ARE NOT NEEDED ON OUR COARSE GRID
-	keepCellMarkerArray = fluidMarkerArray;
-	sumBoolArrays( keepCellMarkerArray, borderMarkerArray, keepCellMarkerArray );
-	multiplyBoolArrays( keepCellMarkerArray, refinementInverseMarkerArray, keepCellMarkerArray );
-	sumBoolArrays( keepCellMarkerArray, coarseToFineMarkerArray, keepCellMarkerArray );
-	sumBoolArrays( keepCellMarkerArray, fineToCoarseMarkerArray, keepCellMarkerArray );
+	grids[level + 1].bouncebackMarkerArray = fineBouncebackMarkerArrayCPU;
+	grids[level + 1].enforceFluidMarkerArray = fineFluidMarkerArrayCPU;
 	
 	// SORT ALL CELLS BY KEY: keepCell, k, j, i
 	sortCoarseGrid( Grid, keepCellMarkerArray, fineToCoarseMarkerArray, coarseToFineMarkerArray );
-	Grid.Info.cellCount = countMarkerCells( keepCellMarkerArray );
-	Grid.IJK.iArray.resize(Grid.Info.cellCount);
-	Grid.IJK.jArray.resize(Grid.Info.cellCount);
-	Grid.IJK.kArray.resize(Grid.Info.cellCount);
-	fineToCoarseMarkerArray.resize(Grid.Info.cellCount);
-	coarseToFineMarkerArray.resize(Grid.Info.cellCount);
-	std::cout << "Final cell count on level " << level <<" : " << Grid.Info.cellCount << std::endl;
+	Info.cellCount = countMarkerCells( keepCellMarkerArray );
+	Grid.IJK.iArray.resize(Info.cellCount);
+	Grid.IJK.jArray.resize(Info.cellCount);
+	Grid.IJK.kArray.resize(Info.cellCount);
+	fineToCoarseMarkerArray.resize(Info.cellCount);
+	coarseToFineMarkerArray.resize(Info.cellCount);
+	std::cout << "Final cell count on level " << level <<" : " << Info.cellCount << std::endl;
 	
 	// FINAL BOUNCEBACK PASS IN CASE WE ARE NOT REFINING IN SOME WALL AREA
-	Grid.bouncebackMarkerArray.setSize(Grid.Info.cellCount);
+	Grid.bouncebackMarkerArray.setSize(Info.cellCount);
 	Grid.bouncebackMarkerArray.setValue( 0 );	
-	applyBouncebackMarkerFromFunction( Grid.bouncebackMarkerArray, Grid.IJK, Grid.Info );
+	BoolArrayType markerArraySTL = BoolArrayType( Info.cellCount );	
+	markerArraySTL.setValue( 0 );
+	applyBouncebackMarkerFromFunction( Grid.bouncebackMarkerArray, Grid.IJK, Info );
 	for ( int STLIndex = 0; STLIndex < (int)STLs.size(); STLIndex++ )
 	{
 		const bool insideMarkerValue = 1;
-		ApplyMarkersInsideSTL( markerArraySTL, Grid.IJK, STLs[STLIndex], insideMarkerValue, Grid.Info );
+		ApplyMarkersInsideSTL( markerArraySTL, Grid.IJK, STLs[STLIndex], insideMarkerValue, Info );
 		sumBoolArrays( Grid.bouncebackMarkerArray, markerArraySTL, Grid.bouncebackMarkerArray );
 	}
 	
 	// BUILD ESOTWIST CONNECTIONS
-	getDIADEsotwistNbrArray( Grid ); // <- NEED TO FINISH THIS!
+	getDIADEsotwistNbrArray( Grid );
+	
+	// ALLOCATE fArray and initialize
+	Grid.fArray.setSizes( 27, Info.cellCount );
+	fillEquilibriumFromFunction( Grid );
 	
 	// CALL THE FUNCTION RECURSIVELY TO BUILD THE NEXT FINER GRID LEVEL
-	grids[level+1].Info.gridID = Grid.Info.gridID + 1;
-	grids[level+1].Info.res = Grid.Info.res * 0.5f;
-	grids[level+1].Info.dtPhys = Grid.Info.dtPhys * 0.5f;
+	grids[level+1].Info.gridID = Info.gridID + 1;
+	grids[level+1].Info.res = Info.res * 0.5f;
+	grids[level+1].Info.dtPhys = Info.dtPhys * 0.5f;
 	grids[level+1].Info.nu = (grids[level+1].Info.dtPhys * nuPhys) / ((grids[level+1].Info.res/1000.f) * (grids[level+1].Info.res/1000.f));
-	grids[level+1].Info.ox = Grid.Info.ox - grids[level+1].Info.res * 0.5f;
-	grids[level+1].Info.oy = Grid.Info.oy - grids[level+1].Info.res * 0.5f;
-	grids[level+1].Info.oz = Grid.Info.oz - grids[level+1].Info.res * 0.5f;
-	grids[level+1].Info.cellCountX = Grid.Info.cellCountX * 2;
-	grids[level+1].Info.cellCountY = Grid.Info.cellCountY * 2;
-	grids[level+1].Info.cellCountZ = Grid.Info.cellCountZ * 2;
+	grids[level+1].Info.ox = Info.ox - grids[level+1].Info.res * 0.5f;
+	grids[level+1].Info.oy = Info.oy - grids[level+1].Info.res * 0.5f;
+	grids[level+1].Info.oz = Info.oz - grids[level+1].Info.res * 0.5f;
+	grids[level+1].Info.cellCountX = Info.cellCountX * 2;
+	grids[level+1].Info.cellCountY = Info.cellCountY * 2;
+	grids[level+1].Info.cellCountZ = Info.cellCountZ * 2;
 	buildDIADGrids( grids, STLs, level + 1 );
 	
 	// MAP INTERFACE COMMUNICATION
@@ -650,7 +747,7 @@ void buildDIADGrids( std::vector<DIADGridStruct> &grids, std::vector<STLStruct> 
 		IntArrayTypeCPU coarseArrayCPU;
 		coarseArrayCPU = coarseArray;
 		int counter = 0;
-		for ( int cell = 0; cell < Grid.Info.cellCount; cell++ ) {
+		for ( int cell = 0; cell < Info.cellCount; cell++ ) {
 			if ( markerArrayCPU[ cell ] ) coarseArrayCPU[ counter++ ] = cell;
 		}
 		coarseArray = coarseArrayCPU;
