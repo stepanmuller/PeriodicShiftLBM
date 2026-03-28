@@ -6,12 +6,12 @@ constexpr float zMaxGlobal = 60.f; 														// mm
 constexpr float yMinGlobal = -80.f; 													// mm
 constexpr float yMaxGlobal = 20.f; 														// mm
 
-constexpr float resGlobal = 3.0f; 														// mm
+constexpr float resGlobal = 1.6f; 														// mm
 constexpr int gridLevelCount = 5;
 constexpr int wallRefinementSpan = 1;
 
-constexpr int iterationCount = 1000;
-constexpr int iterationChunk = 100;
+constexpr int iterationCount = 1000000;
+constexpr int iterationChunk = 1000;
 
 constexpr float SmagorinskyConstantGlobal = 0.1f; 										// set to zero to turn off LES
 
@@ -109,7 +109,7 @@ __cuda_callable__ void getInitialRhoUxUyUz( const int &iCell, const int &jCell, 
 #include "../include/plotter/exportSectionCutPlot.h"
 #include "../include/fillEquilibrium.h"
 #include "../include/gridRefinementFunctions.h"
-#include "../directAdressingInProgress/DIADFunctions.h"
+#include "../include/DIADFunctions.h"
 
 void updateGrid( std::vector<DIADGridStruct>& grids, int level ) 
 {

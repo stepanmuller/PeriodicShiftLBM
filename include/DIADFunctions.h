@@ -484,11 +484,10 @@ void buildDIADGrids( std::vector<DIADGridStruct> &grids, std::vector<STLStruct> 
 {
 	DIADGridStruct &Grid = grids[level];
 	InfoStruct &Info = Grid.Info;
-	Grid.bouncebackMarkerArray.setSize( Info.cellCount );
-	Grid.enforceFluidMarkerArray.setSize( Info.cellCount );
 	std::cout << "Initial cell count on level " << level <<" : " << Info.cellCount << std::endl;
-
-	sortIJK( Grid.IJK, Grid.bouncebackMarkerArray, Grid.enforceFluidMarkerArray );
+	
+	if ( level == 0 ) sortIJK( Grid.IJK );
+	else sortIJK( Grid.IJK, Grid.enforceInterfaceBounceback, Grid.enforceInterfaceFluid );
 	
 	// FINEST GRID BRANCH
 	if ( level == gridLevelCount - 1 )
@@ -498,17 +497,31 @@ void buildDIADGrids( std::vector<DIADGridStruct> &grids, std::vector<STLStruct> 
 			getDIADNeighbours( Grid.IJK, nbrArrays );	
 				
 			BoolArrayType fluidMarkerArray = BoolArrayType( Info.cellCount );
-			BoolArrayType finestBouncebackMarkerArray = BoolArrayType( Info.cellCount );
+			BoolArrayType bouncebackMarkerArray = BoolArrayType( Info.cellCount );
+			BoolArrayType markerArraySTL = BoolArrayType( Info.cellCount );	
 			BoolArrayType keepCellMarkerArray = BoolArrayType( Info.cellCount );
 			
-			markFinestFluidBounceback( fluidMarkerArray, finestBouncebackMarkerArray, Grid.IJK, STLs, Info );
-			sumBoolArrays( fluidMarkerArray, Grid.enforceFluidMarkerArray, fluidMarkerArray );
+			applyBouncebackMarkerFromFunction( bouncebackMarkerArray, Grid.IJK, Info );
+			for ( int STLIndex = 0; STLIndex < (int)STLs.size(); STLIndex++ )
+			{
+				const bool insideMarkerValue = 1;
+				ApplyMarkersInsideSTL( markerArraySTL, Grid.IJK, STLs[STLIndex], insideMarkerValue, Info );
+				sumBoolArrays( bouncebackMarkerArray, markerArraySTL, bouncebackMarkerArray );
+			}
+			fluidMarkerArray = bouncebackMarkerArray;
+			invertBoolArray( fluidMarkerArray );
 			
-			std::cout << "Inital BB on finest grid: " << countMarkerCells( Grid.bouncebackMarkerArray ) << std::endl;
+			sumBoolArrays( fluidMarkerArray, Grid.enforceInterfaceFluid, fluidMarkerArray );
+			sumBoolArrays( bouncebackMarkerArray, Grid.enforceInterfaceBounceback, bouncebackMarkerArray );
+			invertBoolArray( Grid.enforceInterfaceFluid );
+			invertBoolArray( Grid.enforceInterfaceBounceback );
+			multiplyBoolArrays( fluidMarkerArray, Grid.enforceInterfaceBounceback, fluidMarkerArray );
+			multiplyBoolArrays( bouncebackMarkerArray, Grid.enforceInterfaceFluid, bouncebackMarkerArray );
 			
-			sumBoolArrays( Grid.bouncebackMarkerArray, finestBouncebackMarkerArray, Grid.bouncebackMarkerArray );
-			invertBoolArray( Grid.enforceFluidMarkerArray );
-			multiplyBoolArrays( Grid.bouncebackMarkerArray, Grid.enforceFluidMarkerArray, Grid.bouncebackMarkerArray );
+			Grid.bouncebackMarkerArray = bouncebackMarkerArray;
+			
+			Grid.enforceInterfaceFluid.resize( 0 );
+			Grid.enforceInterfaceBounceback.resize( 0 );
 			
 			keepCellMarkerArray = fluidMarkerArray;
 			markDIADNeighbours( nbrArrays, fluidMarkerArray, keepCellMarkerArray );
@@ -543,7 +556,6 @@ void buildDIADGrids( std::vector<DIADGridStruct> &grids, std::vector<STLStruct> 
 		BoolArrayType fluidMarkerArray = BoolArrayType( Info.cellCount );
 		BoolArrayType finestBouncebackMarkerArray = BoolArrayType( Info.cellCount );
 		markFinestFluidBounceback( fluidMarkerArray, finestBouncebackMarkerArray, Grid.IJK, STLs, Info );
-		sumBoolArrays( fluidMarkerArray, Grid.enforceFluidMarkerArray, fluidMarkerArray );
 	
 		// BORDER
 		BoolArrayType borderMarkerArray = BoolArrayType( Info.cellCount );
@@ -624,8 +636,6 @@ void buildDIADGrids( std::vector<DIADGridStruct> &grids, std::vector<STLStruct> 
 		multiplyBoolArrays( fineToCoarseMarkerArray, bouncebackInverseMarkerArray, fineToCoarseMarkerArray );	
 		
 		sumBoolArrays( Grid.bouncebackMarkerArray, finestBouncebackMarkerArray, Grid.bouncebackMarkerArray );
-		invertBoolArray( Grid.enforceFluidMarkerArray );
-		multiplyBoolArrays( Grid.bouncebackMarkerArray, Grid.enforceFluidMarkerArray, Grid.bouncebackMarkerArray );
 		
 		// MARK KEEP CELLS TO BE ABLE TO DELETE ALL CELLS THAT ARE NOT NEEDED ON OUR COARSE GRID
 		keepCellMarkerArray = fluidMarkerArray;
@@ -686,8 +696,8 @@ void buildDIADGrids( std::vector<DIADGridStruct> &grids, std::vector<STLStruct> 
 		}
 	}
 	grids[level + 1].IJK = IJKArrayStruct( IJKFineCPU );
-	grids[level + 1].bouncebackMarkerArray = fineBouncebackMarkerArrayCPU;
-	grids[level + 1].enforceFluidMarkerArray = fineFluidMarkerArrayCPU;
+	grids[level + 1].enforceInterfaceBounceback = fineBouncebackMarkerArrayCPU;
+	grids[level + 1].enforceInterfaceFluid = fineFluidMarkerArrayCPU;
 	
 	// SORT ALL CELLS BY KEY: keepCell, k, j, i
 	sortCoarseGrid( Grid, keepCellMarkerArray, fineToCoarseMarkerArray, coarseToFineMarkerArray );

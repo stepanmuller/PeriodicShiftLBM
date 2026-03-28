@@ -117,6 +117,9 @@ struct STLStruct { 	FloatArrayType axArray; FloatArrayType ayArray; FloatArrayTy
 
 struct ScalarTransportStruct { FloatArray2DType TArray; float tauT = 1.f; }; 
 
+struct FlowReportStruct { float ux = 0.f; float uy = 0.f; float uz = 0.f; float p = 0.f; float areamm2 = 0.f; }; 	
+struct XYZBoundsStruct { float xmin; float ymin; float zmin; float xmax; float ymax; float zmax; }; 	
+
 //------------------------------------------------------------------------------------
 //--------------------------------- DIAD SECTION -------------------------------------
 //------------------------------------------------------------------------------------
@@ -160,4 +163,5 @@ struct DIADGridStruct { InfoStruct Info; FloatArray2DType fArray; BoolArrayType 
 						IntArrayType fineToCoarseWriteArray; IntArrayType fineToCoarseReadArray; 
 						IntArrayType coarseToFineWriteArray; IntArrayType coarseToFineReadArray; 
 						BoolArrayType enforceInterfaceFluid; BoolArrayType enforceInterfaceBounceback;
-						bool esotwistFlipper = 0; }; 
+						bool esotwistFlipper = 0; }; 	
+						
