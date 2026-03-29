@@ -5,6 +5,7 @@
 #include <limits>
 #include <string>
 #include <vector>
+#include <algorithm>
 
 #include <TNL/Algorithms/parallelFor.h>
 #include <TNL/Algorithms/AtomicOperations.h>
@@ -117,7 +118,7 @@ struct STLStruct { 	FloatArrayType axArray; FloatArrayType ayArray; FloatArrayTy
 
 struct ScalarTransportStruct { FloatArray2DType TArray; float tauT = 1.f; }; 
 
-struct FlowReportStruct { float ux = 0.f; float uy = 0.f; float uz = 0.f; float p = 0.f; float areamm2 = 0.f; }; 	
+struct FlowReportStruct { float ux = 0.f; float uy = 0.f; float uz = 0.f; float rho = 1.f; float areamm2 = 0.f; }; 	
 struct XYZBoundsStruct { float xmin; float ymin; float zmin; float xmax; float ymax; float zmax; }; 	
 
 //------------------------------------------------------------------------------------

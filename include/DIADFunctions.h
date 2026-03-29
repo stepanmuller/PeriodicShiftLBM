@@ -174,6 +174,14 @@ void sortCoarseGrid( DIADGridStruct &Grid, BoolArrayType &keepCellMarkerArray, B
 	auto keepCellMarkerView = keepCellMarkerArray.getView();
 	auto fineToCoarseMarkerView = fineToCoarseMarkerArray.getView();
 	auto coarseToFineMarkerView = coarseToFineMarkerArray.getView();
+	auto enforceInterfaceBouncebackView = Grid.enforceInterfaceBounceback.getView();
+	auto enforceInterfaceFluidView = Grid.enforceInterfaceFluid.getView();
+	
+	bool useEnforces = false;
+	if ( Grid.enforceInterfaceBounceback.getSize() > 0 )
+	{
+		useEnforces = true;
+	}
 
     auto comparisonLambda = [=] __cuda_callable__ ( const size_t a, const size_t b )
 	{
@@ -204,6 +212,11 @@ void sortCoarseGrid( DIADGridStruct &Grid, BoolArrayType &keepCellMarkerArray, B
 		TNL::swap( keepCellMarkerView[ a ], keepCellMarkerView[ b ] );
 		TNL::swap( fineToCoarseMarkerView[ a ], fineToCoarseMarkerView[ b ] );
 		TNL::swap( coarseToFineMarkerView[ a ], coarseToFineMarkerView[ b ] );
+		if ( useEnforces )
+		{
+			TNL::swap( enforceInterfaceBouncebackView[ a ], enforceInterfaceBouncebackView[ b ] );
+			TNL::swap( enforceInterfaceFluidView[ a ], enforceInterfaceFluidView[ b ] );
+		}
 	};
 	TNL::Algorithms::sort<TNL::Devices::Cuda, size_t>( 0, cellCount, comparisonLambda, swapLambda );
 }
@@ -512,26 +525,30 @@ void buildDIADGrids( std::vector<DIADGridStruct> &grids, std::vector<STLStruct> 
 			invertBoolArray( fluidMarkerArray );
 			
 			sumBoolArrays( fluidMarkerArray, Grid.enforceInterfaceFluid, fluidMarkerArray );
-			sumBoolArrays( bouncebackMarkerArray, Grid.enforceInterfaceBounceback, bouncebackMarkerArray );
-			invertBoolArray( Grid.enforceInterfaceFluid );
 			invertBoolArray( Grid.enforceInterfaceBounceback );
 			multiplyBoolArrays( fluidMarkerArray, Grid.enforceInterfaceBounceback, fluidMarkerArray );
-			multiplyBoolArrays( bouncebackMarkerArray, Grid.enforceInterfaceFluid, bouncebackMarkerArray );
+			keepCellMarkerArray = fluidMarkerArray;
+			markDIADNeighbours( nbrArrays, fluidMarkerArray, keepCellMarkerArray );
 			
-			Grid.bouncebackMarkerArray = bouncebackMarkerArray;
+			Grid.bouncebackMarkerArray = BoolArrayType( Info.cellCount );
+			Grid.bouncebackMarkerArray.setValue( 1 );
+			invertBoolArray( fluidMarkerArray );
+			multiplyBoolArrays( fluidMarkerArray, Grid.bouncebackMarkerArray, Grid.bouncebackMarkerArray );
 			
 			Grid.enforceInterfaceFluid.resize( 0 );
 			Grid.enforceInterfaceBounceback.resize( 0 );
 			
-			keepCellMarkerArray = fluidMarkerArray;
-			markDIADNeighbours( nbrArrays, fluidMarkerArray, keepCellMarkerArray );
+			//keepCellMarkerArray.setValue( 1 );
+			
 			sortFinestGrid( Grid, keepCellMarkerArray );
 			Info.cellCount = countMarkerCells( keepCellMarkerArray );
 		}
+		
 		Grid.IJK.iArray.resize(Info.cellCount);
 		Grid.IJK.jArray.resize(Info.cellCount);
 		Grid.IJK.kArray.resize(Info.cellCount);
 		Grid.bouncebackMarkerArray.resize(Info.cellCount);
+		
 		getDIADEsotwistNbrArray( Grid );
 		
 		// ALLOCATE fArray and initialize
@@ -556,7 +573,18 @@ void buildDIADGrids( std::vector<DIADGridStruct> &grids, std::vector<STLStruct> 
 		BoolArrayType fluidMarkerArray = BoolArrayType( Info.cellCount );
 		BoolArrayType finestBouncebackMarkerArray = BoolArrayType( Info.cellCount );
 		markFinestFluidBounceback( fluidMarkerArray, finestBouncebackMarkerArray, Grid.IJK, STLs, Info );
-	
+		
+		if ( level != 0 )
+		{
+			sumBoolArrays( fluidMarkerArray, Grid.enforceInterfaceFluid, fluidMarkerArray );
+			
+			// NEW: Remove enforced bouncebacks from the fluid marker
+			BoolArrayType inverseEnforceBB = BoolArrayType( Info.cellCount );
+			inverseEnforceBB = Grid.enforceInterfaceBounceback;
+			invertBoolArray( inverseEnforceBB );
+			multiplyBoolArrays( fluidMarkerArray, inverseEnforceBB, fluidMarkerArray );
+		}
+		
 		// BORDER
 		BoolArrayType borderMarkerArray = BoolArrayType( Info.cellCount );
 		borderMarkerArray.setValue( 0 );
@@ -622,6 +650,7 @@ void buildDIADGrids( std::vector<DIADGridStruct> &grids, std::vector<STLStruct> 
 			ApplyMarkersInsideSTL( markerArraySTL, Grid.IJK, STLs[STLIndex], insideMarkerValue, Info );
 			sumBoolArrays( coarseBouncebackMarkerArray, markerArraySTL, coarseBouncebackMarkerArray );
 		}
+		
 		BoolArrayType bouncebackInverseMarkerArray;
 		bouncebackInverseMarkerArray = coarseBouncebackMarkerArray;
 		invertBoolArray( bouncebackInverseMarkerArray );
@@ -632,8 +661,8 @@ void buildDIADGrids( std::vector<DIADGridStruct> &grids, std::vector<STLStruct> 
 		sumBoolArrays( coarseToFineMarkerArray, fineToCoarseMarkerArray, fluidUnderInterface );
 		multiplyBoolArrays( fluidUnderInterface, bouncebackInverseMarkerArray, fluidUnderInterface );
 		
-		multiplyBoolArrays( coarseToFineMarkerArray, bouncebackInverseMarkerArray, coarseToFineMarkerArray );	
-		multiplyBoolArrays( fineToCoarseMarkerArray, bouncebackInverseMarkerArray, fineToCoarseMarkerArray );	
+		//multiplyBoolArrays( coarseToFineMarkerArray, bouncebackInverseMarkerArray, coarseToFineMarkerArray );	<-DISABLE
+		//multiplyBoolArrays( fineToCoarseMarkerArray, bouncebackInverseMarkerArray, fineToCoarseMarkerArray );	<-DISABLE
 		
 		sumBoolArrays( Grid.bouncebackMarkerArray, finestBouncebackMarkerArray, Grid.bouncebackMarkerArray );
 		
@@ -707,6 +736,13 @@ void buildDIADGrids( std::vector<DIADGridStruct> &grids, std::vector<STLStruct> 
 	Grid.IJK.kArray.resize(Info.cellCount);
 	fineToCoarseMarkerArray.resize(Info.cellCount);
 	coarseToFineMarkerArray.resize(Info.cellCount);
+	
+	if ( level != 0 )
+	{
+		Grid.enforceInterfaceBounceback.resize(Info.cellCount);
+		Grid.enforceInterfaceFluid.resize(Info.cellCount);
+	}
+	
 	std::cout << "Final cell count on level " << level <<" : " << Info.cellCount << std::endl;
 	
 	// FINAL BOUNCEBACK PASS IN CASE WE ARE NOT REFINING IN SOME WALL AREA
@@ -721,6 +757,16 @@ void buildDIADGrids( std::vector<DIADGridStruct> &grids, std::vector<STLStruct> 
 		ApplyMarkersInsideSTL( markerArraySTL, Grid.IJK, STLs[STLIndex], insideMarkerValue, Info );
 		sumBoolArrays( Grid.bouncebackMarkerArray, markerArraySTL, Grid.bouncebackMarkerArray );
 	}
+	
+	if ( level != 0 )
+	{
+		sumBoolArrays( Grid.bouncebackMarkerArray, Grid.enforceInterfaceBounceback, Grid.bouncebackMarkerArray );
+		invertBoolArray( Grid.enforceInterfaceFluid );
+		multiplyBoolArrays( Grid.bouncebackMarkerArray, Grid.enforceInterfaceFluid, Grid.bouncebackMarkerArray );
+	}
+	
+	Grid.enforceInterfaceFluid.resize( 0 );
+	Grid.enforceInterfaceBounceback.resize( 0 );
 	
 	// BUILD ESOTWIST CONNECTIONS
 	getDIADEsotwistNbrArray( Grid );
@@ -741,6 +787,14 @@ void buildDIADGrids( std::vector<DIADGridStruct> &grids, std::vector<STLStruct> 
 	grids[level+1].Info.cellCountY = Info.cellCountY * 2;
 	grids[level+1].Info.cellCountZ = Info.cellCountZ * 2;
 	buildDIADGrids( grids, STLs, level + 1 );
+	
+	// BEFORE MAPPING INTERFACE COMMUNICATION, REMOVE BOUNCEBACK FROM THE INTERFACES
+	BoolArrayType bouncebackInverseMarkerArray;
+	bouncebackInverseMarkerArray = Grid.bouncebackMarkerArray;
+	invertBoolArray( bouncebackInverseMarkerArray );
+	multiplyBoolArrays( coarseToFineMarkerArray, bouncebackInverseMarkerArray, coarseToFineMarkerArray );
+	multiplyBoolArrays( fineToCoarseMarkerArray, bouncebackInverseMarkerArray, fineToCoarseMarkerArray );
+	bouncebackInverseMarkerArray.resize(0);
 	
 	// MAP INTERFACE COMMUNICATION
 	auto mapInterfaceLambda = [&]( BoolArrayType& markerArray, IntArrayType& coarseArray, IntArrayType& fineArray ) 

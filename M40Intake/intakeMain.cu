@@ -7,11 +7,11 @@ constexpr float yMinGlobal = -80.f; 													// mm
 constexpr float yMaxGlobal = 20.f; 														// mm
 
 constexpr float resGlobal = 1.6f; 														// mm
-constexpr int gridLevelCount = 5;
-constexpr int wallRefinementSpan = 1;
+constexpr int gridLevelCount = 4;
+constexpr int wallRefinementSpan = 0;
 
-constexpr int iterationCount = 1000000;
-constexpr int iterationChunk = 1000;
+constexpr int iterationCount = 100;
+constexpr int iterationChunk = 100;
 
 constexpr float SmagorinskyConstantGlobal = 0.1f; 										// set to zero to turn off LES
 
@@ -58,12 +58,12 @@ __cuda_callable__ void getMarkers( 	const int& iCell, const int& jCell, const in
 	if ( Info.gridID == 1 )
 	{
 		if ( fabs(xPhys) > 35.f ) Marker.refinement = 0;
-		if ( fabs(xPhys) < 20.f && yPhys > -30.f ) Marker.refinement = 1;
+		//if ( fabs(xPhys) < 20.f && yPhys > -30.f ) Marker.refinement = 1;
 	}
 	if ( Info.gridID == 2 )
 	{
 		if ( fabs(xPhys) > 25.f ) Marker.refinement = 0;
-		if ( fabs(xPhys) < 18.f && yPhys > -27.f ) Marker.refinement = 1;
+		//if ( fabs(xPhys) < 18.f && yPhys > -27.f ) Marker.refinement = 1;
 	}
 	if ( Info.gridID == 3 )
 	{
@@ -110,6 +110,7 @@ __cuda_callable__ void getInitialRhoUxUyUz( const int &iCell, const int &jCell, 
 #include "../include/fillEquilibrium.h"
 #include "../include/gridRefinementFunctions.h"
 #include "../include/DIADFunctions.h"
+#include "../include/flowReportFunctions.h"
 
 void updateGrid( std::vector<DIADGridStruct>& grids, int level ) 
 {
@@ -122,115 +123,6 @@ void updateGrid( std::vector<DIADGridStruct>& grids, int level )
     }
 }
 
-/*
-void getFlowReport( const int kCell, GridStruct &Grid, const int &iStart, const int &jStart, const int &iEnd, const int &jEnd,
-						float &uzAvgPhys, float &massFlowPhys, float &pPhys )
-{
-	InfoStruct Info = Grid.Info;
-	auto fArrayView  = Grid.fArray.getView();
-	auto shifterView  = Grid.shifter.getConstView();
-	bool useBouncebackArray = false;
-	auto bouncebackMarkerArrayView = Grid.bouncebackMarkerArray.getConstView();
-	if ( Grid.bouncebackMarkerArray.getSize() > 0 )
-	{
-		useBouncebackArray = true;
-	}
-	const int iSpan = iEnd - iStart;
-	const int jSpan = jEnd - jStart;
-	
-	const int start = 0;
-	const int end = iSpan * jSpan;
-	
-	auto fetchCellCount = [ = ] __cuda_callable__( const int singleIndex )
-	{
-		const int iCell = singleIndex % iSpan + iStart;
-		const int jCell = singleIndex / iSpan + jStart;
-		
-		int cell;
-		getCellIndex( cell, iCell, jCell, kCell, Info );
-		MarkerStruct Marker;
-		if ( useBouncebackArray ) Marker.bounceback = bouncebackMarkerArrayView( cell );
-		getMarkers( iCell, jCell, kCell, Marker, Info );
-		if ( Marker.bounceback ) return 0;
-		else return 1;
-	};
-	auto reductionCellCount = [] __cuda_callable__( const int& a, const int& b )
-	{
-		return a + b;
-	};
-	
-	auto fetchUz = [ = ] __cuda_callable__( const int singleIndex )
-	{
-		const int iCell = singleIndex % iSpan + iStart;
-		const int jCell = singleIndex / iSpan + jStart;
-		
-		int cell;
-		getCellIndex( cell, iCell, jCell, kCell, Info );
-		MarkerStruct Marker;
-		if ( useBouncebackArray ) Marker.bounceback = bouncebackMarkerArrayView( cell );
-		getMarkers( iCell, jCell, kCell, Marker, Info );
-		if ( Marker.bounceback ) return 0.f;
-		
-		int shiftedIndex[27];
-		getShiftedIndex( cell, shiftedIndex, shifterView, Info );
-		float f[27];
-		for (int direction = 0; direction < 27; direction++) f[direction] = fArrayView( direction, shiftedIndex[direction] );	
-		float rho, ux, uy, uz;
-		getRhoUxUyUz(rho, ux, uy, uz, f);
-		return uz;
-	};
-	auto reductionUz = [] __cuda_callable__( const float& a, const float& b )
-	{
-		return a + b;
-	};
-	
-	auto fetchRho = [ = ] __cuda_callable__( const int singleIndex )
-	{
-		const int iCell = singleIndex % iSpan + iStart;
-		const int jCell = singleIndex / iSpan + jStart;
-		
-		int cell;
-		getCellIndex( cell, iCell, jCell, kCell, Info );
-		MarkerStruct Marker;
-		if ( useBouncebackArray ) Marker.bounceback = bouncebackMarkerArrayView( cell );
-		getMarkers( iCell, jCell, kCell, Marker, Info );
-		if ( Marker.bounceback ) return 0.f;
-		
-		int shiftedIndex[27];
-		getShiftedIndex( cell, shiftedIndex, shifterView, Info );
-		float f[27];
-		for (int direction = 0; direction < 27; direction++) f[direction] = fArrayView( direction, shiftedIndex[direction] );	
-		float rho, ux, uy, uz;
-		getRhoUxUyUz(rho, ux, uy, uz, f);
-		return rho;
-	};
-	auto reductionRho = [] __cuda_callable__( const float& a, const float& b )
-	{
-		return a + b;
-	};
-	
-	const int cellCount = TNL::Algorithms::reduce<TNL::Devices::Cuda>( start, end, fetchCellCount, reductionCellCount, 0 );
-	float uzSum = TNL::Algorithms::reduce<TNL::Devices::Cuda>( start, end, fetchUz, reductionUz, 0.f );
-	float rhoSum = TNL::Algorithms::reduce<TNL::Devices::Cuda>( start, end, fetchRho, reductionRho, 0.f );
-		
-	float uzAvg = uzSum / (float)cellCount;
-	float rhoAvg = rhoSum / (float)cellCount;
-	float ux, uy = 0;
-	convertToPhysicalVelocity( ux, uy, uzAvg, Info );
-	convertToPhysicalVelocity( ux, uy, uzSum, Info );
-	float pAvg = rhoAvg;
-	convertToPhysicalPressure( pAvg );
-	
-	float volumetricFlow = uzSum * (Info.res / 1000.f) * (Info.res / 1000.f);
-	float massFlow = volumetricFlow * rhoAvg * rhoNominalPhys;
-	
-	uzAvgPhys = uzAvg;
-	massFlowPhys = massFlow;
-	pPhys = pAvg;
-}
-*/
-
-/*
 void exportHistoryData( const std::vector<float>& historyMassFlow, const std::vector<float>& historyEta, const int &currentIteration, int fileNumber ) {
     FILE* fp = fopen("/dev/shm/historyData.bin", "wb");
     if (!fp) return;
@@ -245,7 +137,6 @@ void exportHistoryData( const std::vector<float>& historyMassFlow, const std::ve
     std::string cmd = "python3 historyPlotter.py " + std::to_string(fileNumber) + " &";
     system(cmd.c_str());
 }
-*/
 
 int main(int argc, char **argv)
 {
@@ -331,8 +222,8 @@ int main(int argc, char **argv)
 	}
 	// DEBUG END
 	
-	//std::vector<float> historyMassFlow( iterationCount, 0.f );
-	//std::vector<float> historyEta( iterationCount, 0.f );
+	std::vector<float> historyMassFlow( iterationCount, 0.f );
+	std::vector<float> historyEta( iterationCount, 0.f );
 	
 	std::cout << "Starting simulation" << std::endl;
 	
@@ -343,27 +234,57 @@ int main(int argc, char **argv)
 	{
 		updateGrid( grids, 0 );
 		
-		/*
-		float uzAvg, massFlow, pAvg;
-		int iTemp, jTemp, flowReportK;
-		const float xTemp = 0.f; 
-		const float yTemp = 0.f;
-		float flowReportZ = 30.f;
-		getIJKCellIndexFromXYZ( iTemp, jTemp, flowReportK, xTemp, yTemp, flowReportZ, grids[gridLevelCount-1].Info);
-		getFlowReport( flowReportK, grids[gridLevelCount-1], iStart, jStart, iEnd, jEnd, uzAvg, massFlow, pAvg );
-		
-		float uzAvgInlet, massFlowInlet, pAvgInlet;
-		flowReportZ = -100.f;
-		getIJKCellIndexFromXYZ( iTemp, jTemp, flowReportK, xTemp, yTemp, flowReportZ, grids[gridLevelCount-1].Info);
-		getFlowReport( flowReportK, grids[gridLevelCount-1], 0, 0, grids[gridLevelCount-1].Info.cellCountX, grids[gridLevelCount-1].Info.cellCountY, uzAvgInlet, massFlowInlet, pAvgInlet );
+		if (iteration%20 == 0 && iteration != 0)
+		{
+			int iTemp, jTemp, kCutBelow;
+			const float xTemp = 0.f; 
+			const float yTemp = 0.f;
+			const float zBelow = -100.f;
+			getIJKCellIndexFromXYZ( iTemp, jTemp, kCutBelow, xTemp, yTemp, zBelow, grids[gridLevelCount-1].Info);
+			FlowReportStruct FlowReportBelow;
+			XYZBoundsStruct BoundsBelow;
+			BoundsBelow.xmin = -30.f;
+			BoundsBelow.xmax = 30.f;
+			BoundsBelow.ymin = -60.f;
+			BoundsBelow.ymax = -25.f;
+			getFlowReportXY( grids, kCutBelow, BoundsBelow, FlowReportBelow );
+			
+			int kCutAbove;
+			const float zAbove = 30.f;
+			getIJKCellIndexFromXYZ( iTemp, jTemp, kCutAbove, xTemp, yTemp, zAbove, grids[gridLevelCount-1].Info);
+			FlowReportStruct FlowReportAbove;
+			XYZBoundsStruct BoundsAbove;
+			BoundsAbove.xmin = -20.f;
+			BoundsAbove.xmax = 20.f;
+			BoundsAbove.ymin = -20.f;
+			BoundsAbove.ymax = 20.f;
+			getFlowReportXY( grids, kCutAbove, BoundsAbove, FlowReportAbove );
+			
+			/*
+			std::cout << "Flow Report Above, areamm2: " << FlowReportAbove.areamm2 << " ux: " << FlowReportAbove.ux << " uy: " 
+				<< FlowReportAbove.uy << " uz: " << FlowReportAbove.uz << " rho: " << FlowReportAbove.rho << std::endl;
+			std::cout << "Flow Report Below, areamm2: " << FlowReportBelow.areamm2 << " ux: " << FlowReportBelow.ux << " uy: " 
+				<< FlowReportBelow.uy << " uz: " << FlowReportBelow.uz << " rho: " << FlowReportBelow.rho << std::endl;
+			*/
+			
+			convertToPhysicalVelocity( FlowReportBelow.uz, FlowReportAbove.uz, FlowReportAbove.uy, grids[gridLevelCount-1].Info );
+			float pAvg = FlowReportAbove.rho;
+			float pAvgLake = FlowReportBelow.rho;
+			convertToPhysicalPressure( pAvg );
+			convertToPhysicalPressure( pAvgLake );
+			
+			const float massFlow = (FlowReportAbove.areamm2 / 1000000.f) * FlowReportAbove.uz * rhoNominalPhys;
 
-		float lakePower = 0.5f * massFlow * uzAvgInlet * uzAvgInlet;
-		float intakePower = 0.5f * massFlow * uzAvg * uzAvg + massFlow * (pAvg - pAvgInlet) / rhoNominalPhys;
-		float eta = intakePower / lakePower;
-		
-		historyMassFlow[iteration] = massFlow;
-		historyEta[iteration] = eta;
-		*/
+			float lakePower = 0.5f * massFlow * FlowReportBelow.uz * FlowReportBelow.uz;
+			float intakePower = 0.5f * massFlow * FlowReportAbove.uz * FlowReportAbove.uz + massFlow * (pAvg - pAvgLake) / rhoNominalPhys;
+			float eta = intakePower / lakePower;
+			
+			for ( int shifter = 0; shifter < 20; shifter++ )
+			{
+				historyMassFlow[iteration-shifter] = massFlow;
+				historyEta[iteration-shifter] = eta;
+			}
+		}
 		
 		if (iteration%iterationChunk == 0 && iteration!=0)
 		{
@@ -381,6 +302,15 @@ int main(int argc, char **argv)
 			getIJKCellIndexFromXYZ( iCut, jCut, kCut, xCut, yCut, zCut, grids[gridLevelCount-1].Info);
 			exportSectionCutPlotXY( grids, kCut, iteration );
 			system("python3 ../include/plotter/plotterGridID.py");
+			
+
+			getIJKCellIndexFromXYZ( iCut, jCut, kCut, xCut, yCut, zCut, grids[2].Info);
+			exportSectionCutPlotXY( grids[2], kCut, iteration - 1 );
+			system("python3 ../include/plotter/plotter.py");
+			
+			getIJKCellIndexFromXYZ( iCut, jCut, kCut, xCut, yCut, zCut, grids[3].Info);
+			exportSectionCutPlotXY( grids[3], kCut, iteration - 2 );
+			system("python3 ../include/plotter/plotter.py");
 			
 			xCut = 0.f; 
 			getIJKCellIndexFromXYZ( iCut, jCut, kCut, xCut, yCut, zCut, grids[gridLevelCount-1].Info);
@@ -400,7 +330,7 @@ int main(int argc, char **argv)
 			exportSectionCutPlotZX( grids, jCut, iteration + 4 );
 			system("python3 ../include/plotter/plotterGridID.py");
 			
-			//exportHistoryData( historyMassFlow, historyEta, iteration, caseID );
+			exportHistoryData( historyMassFlow, historyEta, iteration, caseID );
 			
 			lapTimer.reset();
 			lapTimer.start();
