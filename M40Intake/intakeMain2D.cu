@@ -1,24 +1,23 @@
 constexpr int caseID = 1;
 
-constexpr float widthGlobal = 150.f; 													// mm
 constexpr float zMinGlobal = -150.f; 													// mm
 constexpr float zMaxGlobal = 60.f; 														// mm
 constexpr float yMinGlobal = -80.f; 													// mm
 constexpr float yMaxGlobal = 20.f; 														// mm
 
-constexpr float resGlobal = 1.6f; 														// mm
-constexpr int gridLevelCount = 5;
+constexpr float resGlobal = 0.2f; 														// mm
+constexpr int gridLevelCount = 2;
 constexpr int wallRefinementSpan = 0;
 
 constexpr int iterationCount = 1000000;
-constexpr int iterationChunk = 5000;
+constexpr int iterationChunk = 10000;
 
 constexpr float SmagorinskyConstantGlobal = 0.1f; 										// set to zero to turn off LES
 
 constexpr float uzInlet = 0.02f; 														// also works as nominal LBM Mach number
 constexpr float hullAngle = 0.f;														// degrees
 constexpr float uyInlet = (2.f * 3.14159f * hullAngle / 360.f) * uzInlet;				// this gives hull angle		
-constexpr float rhoOutlet = 1.0003f; 													// dRho 0.001 = dp approx 330 000 Pa
+constexpr float rhoOutlet = 1.000f;
 constexpr float nuPhys = 1e-6;															// m2/s water
 constexpr float rhoNominalPhys = 1000.0f;												// kg/m3 water
 constexpr float uzInletPhys = 20.f; 													// m/s
@@ -41,38 +40,19 @@ constexpr float soundspeedPhys = invSqrt3 * (resGlobal/1000) / dtPhysGlobal; 			
 #include "../include/boundaryConditions/applyMBBC.h"
 
 #include "../include/STLFunctions.h"
-std::string STLPathIntake = "IntakeSTL.STL";
+std::string STLPathIntake = "IntakeShaftlessSTL.STL";
 
 __cuda_callable__ void getMarkers( 	const int& iCell, const int& jCell, const int& kCell, 
 									MarkerStruct &Marker, const InfoStruct& Info )
 {
+	Marker.periodicX = 1;
+	
 	const float xPhys = iCell * Info.res + Info.ox;
 	const float yPhys = jCell * Info.res + Info.oy;
 	const float zPhys = kCell * Info.res + Info.oz;
 	
-	if ( Info.gridID == 0 )
-	{
-		if ( fabs(xPhys) < 25.f && yPhys > -35.f ) Marker.refinement = 1;
-	}
-	// Reduce the refinement area
-	if ( Info.gridID == 1 )
-	{
-		if ( fabs(xPhys) > 35.f ) Marker.refinement = 0;
-		if ( fabs(xPhys) < 20.f && yPhys > -30.f ) Marker.refinement = 1;
-	}
-	if ( Info.gridID == 2 )
-	{
-		if ( fabs(xPhys) > 25.f ) Marker.refinement = 0;
-		if ( fabs(xPhys) < 18.f && yPhys > -27.f ) Marker.refinement = 1;
-	}
-	if ( Info.gridID == 3 )
-	{
-		if ( fabs(xPhys) > 17.f ) Marker.refinement = 0;
-	}
-	
 	if ( Marker.bounceback ) return;
 	if ( kCell == 0 || jCell == 0 ) Marker.givenUxUyUz = 1;
-	else if ( iCell == 0 || iCell == Info.cellCountX-1 ) Marker.givenUxUyUz = 1;
 	else if ( kCell == Info.cellCountZ-1 ) Marker.givenRho = 1;
 	else Marker.fluid = 1;
 }
@@ -152,10 +132,10 @@ int main(int argc, char **argv)
 	grids[0].Info.res = resGlobal;
 	grids[0].Info.dtPhys = dtPhysGlobal;
 	grids[0].Info.nu = (grids[0].Info.dtPhys * nuPhys) / ((grids[0].Info.res/1000) * (grids[0].Info.res/1000));
-	grids[0].Info.cellCountX = (int)( widthGlobal / grids[0].Info.res );
+	grids[0].Info.cellCountX = 1;
 	grids[0].Info.cellCountY = (int)( (yMaxGlobal - yMinGlobal) / grids[0].Info.res );
 	grids[0].Info.cellCountZ = (int)( (zMaxGlobal - zMinGlobal) / grids[0].Info.res );
-	grids[0].Info.ox = 0.5f * ( - grids[0].Info.res * grids[0].Info.cellCountX ) + 0.5f * grids[0].Info.res;
+	grids[0].Info.ox = 0.f;
 	grids[0].Info.oy = yMinGlobal;
 	grids[0].Info.oz = zMinGlobal;
 	grids[0].Info.cellCount = grids[0].Info.cellCountX * grids[0].Info.cellCountY * grids[0].Info.cellCountZ;
@@ -218,6 +198,7 @@ int main(int argc, char **argv)
 			convertToPhysicalPressure( pAvg );
 			convertToPhysicalPressure( pAvgLake );
 			
+			FlowReportAbove.areamm2 = 855.f; // overwrite as for 33mm diameter
 			const float massFlow = (FlowReportAbove.areamm2 / 1000000.f) * FlowReportAbove.uz * rhoNominalPhys;
 
 			float lakePower = 0.5f * massFlow * FlowReportBelow.uz * FlowReportBelow.uz;
@@ -248,56 +229,6 @@ int main(int argc, char **argv)
 			xCut = 0.f; 
 			getIJKCellIndexFromXYZ( iCut, jCut, kCut, xCut, yCut, zCut, grids[gridLevelCount-1].Info);
 			exportSectionCutPlotZY( grids, iCut, iteration );
-			system("python3 ../include/plotter/plotterGridID.py");
-			
-			xCut = 5.f; 
-			getIJKCellIndexFromXYZ( iCut, jCut, kCut, xCut, yCut, zCut, grids[gridLevelCount-1].Info);
-			exportSectionCutPlotZY( grids, iCut, iteration + 1 );
-			system("python3 ../include/plotter/plotterGridID.py");
-			
-			xCut = 10.f; 
-			getIJKCellIndexFromXYZ( iCut, jCut, kCut, xCut, yCut, zCut, grids[gridLevelCount-1].Info);
-			exportSectionCutPlotZY( grids, iCut, iteration + 2 );
-			system("python3 ../include/plotter/plotterGridID.py");
-			
-			zCut = -30.f;
-			getIJKCellIndexFromXYZ( iCut, jCut, kCut, xCut, yCut, zCut, grids[gridLevelCount-1].Info);
-			exportSectionCutPlotXY( grids, kCut, iteration + 10 );
-			system("python3 ../include/plotter/plotterGridID.py");
-			
-			zCut = 0.f;
-			getIJKCellIndexFromXYZ( iCut, jCut, kCut, xCut, yCut, zCut, grids[gridLevelCount-1].Info);
-			exportSectionCutPlotXY( grids, kCut, iteration + 11 );
-			system("python3 ../include/plotter/plotterGridID.py");
-			
-			zCut = 30.f;
-			getIJKCellIndexFromXYZ( iCut, jCut, kCut, xCut, yCut, zCut, grids[gridLevelCount-1].Info);
-			exportSectionCutPlotXY( grids, kCut, iteration + 12 );
-			system("python3 ../include/plotter/plotterGridID.py");
-			
-			yCut = -40.f;
-			getIJKCellIndexFromXYZ( iCut, jCut, kCut, xCut, yCut, zCut, grids[gridLevelCount-1].Info);
-			exportSectionCutPlotZX( grids, jCut, iteration + 20 );
-			system("python3 ../include/plotter/plotterGridID.py");
-			
-			yCut = -30.f;
-			getIJKCellIndexFromXYZ( iCut, jCut, kCut, xCut, yCut, zCut, grids[gridLevelCount-1].Info);
-			exportSectionCutPlotZX( grids, jCut, iteration + 21 );
-			system("python3 ../include/plotter/plotterGridID.py");
-			
-			yCut = -20.f;
-			getIJKCellIndexFromXYZ( iCut, jCut, kCut, xCut, yCut, zCut, grids[gridLevelCount-1].Info);
-			exportSectionCutPlotZX( grids, jCut, iteration + 22 );
-			system("python3 ../include/plotter/plotterGridID.py");
-			
-			yCut = -10.f;
-			getIJKCellIndexFromXYZ( iCut, jCut, kCut, xCut, yCut, zCut, grids[gridLevelCount-1].Info);
-			exportSectionCutPlotZX( grids, jCut, iteration + 23 );
-			system("python3 ../include/plotter/plotterGridID.py");
-			
-			yCut = 0.f;
-			getIJKCellIndexFromXYZ( iCut, jCut, kCut, xCut, yCut, zCut, grids[gridLevelCount-1].Info);
-			exportSectionCutPlotZX( grids, jCut, iteration + 24 );
 			system("python3 ../include/plotter/plotterGridID.py");
 			
 			exportHistoryData( historyMassFlow, historyEta, iteration, caseID );
