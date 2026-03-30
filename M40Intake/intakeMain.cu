@@ -7,11 +7,11 @@ constexpr float yMinGlobal = -80.f; 													// mm
 constexpr float yMaxGlobal = 20.f; 														// mm
 
 constexpr float resGlobal = 1.6f; 														// mm
-constexpr int gridLevelCount = 4;
+constexpr int gridLevelCount = 5;
 constexpr int wallRefinementSpan = 0;
 
-constexpr int iterationCount = 100;
-constexpr int iterationChunk = 100;
+constexpr int iterationCount = 1000000;
+constexpr int iterationChunk = 1000;
 
 constexpr float SmagorinskyConstantGlobal = 0.1f; 										// set to zero to turn off LES
 
@@ -58,12 +58,12 @@ __cuda_callable__ void getMarkers( 	const int& iCell, const int& jCell, const in
 	if ( Info.gridID == 1 )
 	{
 		if ( fabs(xPhys) > 35.f ) Marker.refinement = 0;
-		//if ( fabs(xPhys) < 20.f && yPhys > -30.f ) Marker.refinement = 1;
+		if ( fabs(xPhys) < 20.f && yPhys > -30.f ) Marker.refinement = 1;
 	}
 	if ( Info.gridID == 2 )
 	{
 		if ( fabs(xPhys) > 25.f ) Marker.refinement = 0;
-		//if ( fabs(xPhys) < 18.f && yPhys > -27.f ) Marker.refinement = 1;
+		if ( fabs(xPhys) < 18.f && yPhys > -27.f ) Marker.refinement = 1;
 	}
 	if ( Info.gridID == 3 )
 	{
@@ -174,54 +174,6 @@ int main(int argc, char **argv)
 	std::cout << "Cell count total: " << cellCountTotal << std::endl;
 	std::cout << "Cell updates per iteration: " << cellUpdatesPerIteration << std::endl;
 	
-	// DEBUG START
-	for ( int level = 0; level < gridLevelCount; level++ )
-	{
-		std::cout << "checking Esotwist nbr on level " << level << std::endl;
-		DIADGridStruct &Grid = grids[level];
-		
-		IntArrayTypeCPU iNbrArrayCPU;
-		IntArrayTypeCPU jNbrArrayCPU;
-		IntArrayTypeCPU kNbrArrayCPU;
-		IntArrayTypeCPU ijNbrArrayCPU;
-		IntArrayTypeCPU ikNbrArrayCPU;
-		IntArrayTypeCPU jkNbrArrayCPU;
-		IntArrayTypeCPU ijkNbrArrayCPU;
-		
-		iNbrArrayCPU = Grid.EsotwistNbrArray.iNbrArray;
-		jNbrArrayCPU = Grid.EsotwistNbrArray.jNbrArray;
-		kNbrArrayCPU = Grid.EsotwistNbrArray.kNbrArray;
-		ijNbrArrayCPU = Grid.EsotwistNbrArray.ijNbrArray;
-		ikNbrArrayCPU = Grid.EsotwistNbrArray.ikNbrArray;
-		jkNbrArrayCPU = Grid.EsotwistNbrArray.jkNbrArray;
-		ijkNbrArrayCPU = Grid.EsotwistNbrArray.ijkNbrArray;
-		
-		for ( int cell = 0; cell < Grid.Info.cellCount; cell++ )
-		{
-			if ( iNbrArrayCPU[ cell ] < 0 || iNbrArrayCPU[ cell ] >= Grid.Info.cellCount ) 
-				std::cout << "Error found on cell " << cell << ", iNbr value " << iNbrArrayCPU[ cell ] << std::endl;
-				
-			if ( jNbrArrayCPU[ cell ] < 0 || jNbrArrayCPU[ cell ] >= Grid.Info.cellCount ) 
-				std::cout << "Error found on cell " << cell << ", jNbr value " << jNbrArrayCPU[ cell ] << std::endl;
-				
-			if ( kNbrArrayCPU[ cell ] < 0 || kNbrArrayCPU[ cell ] >= Grid.Info.cellCount ) 
-				std::cout << "Error found on cell " << cell << ", kNbr value " << kNbrArrayCPU[ cell ] << std::endl;
-				
-			if ( ijNbrArrayCPU[ cell ] < 0 || ijNbrArrayCPU[ cell ] >= Grid.Info.cellCount ) 
-				std::cout << "Error found on cell " << cell << ", ijNbr value " << ijNbrArrayCPU[ cell ] << std::endl;
-				
-			if ( ikNbrArrayCPU[ cell ] < 0 || ikNbrArrayCPU[ cell ] >= Grid.Info.cellCount ) 
-				std::cout << "Error found on cell " << cell << ", ikNbr value " << ikNbrArrayCPU[ cell ] << std::endl;
-				
-			if ( jkNbrArrayCPU[ cell ] < 0 || jkNbrArrayCPU[ cell ] >= Grid.Info.cellCount ) 
-				std::cout << "Error found on cell " << cell << ", jkNbr value " << jkNbrArrayCPU[ cell ] << std::endl;
-				
-			if ( ijkNbrArrayCPU[ cell ] < 0 || ijkNbrArrayCPU[ cell ] >= Grid.Info.cellCount ) 
-				std::cout << "Error found on cell " << cell << ", ijkNbr value " << ijkNbrArrayCPU[ cell ] << std::endl;
-		}
-	}
-	// DEBUG END
-	
 	std::vector<float> historyMassFlow( iterationCount, 0.f );
 	std::vector<float> historyEta( iterationCount, 0.f );
 	
@@ -260,13 +212,6 @@ int main(int argc, char **argv)
 			BoundsAbove.ymax = 20.f;
 			getFlowReportXY( grids, kCutAbove, BoundsAbove, FlowReportAbove );
 			
-			/*
-			std::cout << "Flow Report Above, areamm2: " << FlowReportAbove.areamm2 << " ux: " << FlowReportAbove.ux << " uy: " 
-				<< FlowReportAbove.uy << " uz: " << FlowReportAbove.uz << " rho: " << FlowReportAbove.rho << std::endl;
-			std::cout << "Flow Report Below, areamm2: " << FlowReportBelow.areamm2 << " ux: " << FlowReportBelow.ux << " uy: " 
-				<< FlowReportBelow.uy << " uz: " << FlowReportBelow.uz << " rho: " << FlowReportBelow.rho << std::endl;
-			*/
-			
 			convertToPhysicalVelocity( FlowReportBelow.uz, FlowReportAbove.uz, FlowReportAbove.uy, grids[gridLevelCount-1].Info );
 			float pAvg = FlowReportAbove.rho;
 			float pAvgLake = FlowReportBelow.rho;
@@ -297,37 +242,62 @@ int main(int argc, char **argv)
 			
 			int iCut, jCut, kCut;
 			float xCut = 0.f; 
-			const float yCut = -30.f;
-			const float zCut = 30.f;
-			getIJKCellIndexFromXYZ( iCut, jCut, kCut, xCut, yCut, zCut, grids[gridLevelCount-1].Info);
-			exportSectionCutPlotXY( grids, kCut, iteration );
-			system("python3 ../include/plotter/plotterGridID.py");
-			
-
-			getIJKCellIndexFromXYZ( iCut, jCut, kCut, xCut, yCut, zCut, grids[2].Info);
-			exportSectionCutPlotXY( grids[2], kCut, iteration - 1 );
-			system("python3 ../include/plotter/plotter.py");
-			
-			getIJKCellIndexFromXYZ( iCut, jCut, kCut, xCut, yCut, zCut, grids[3].Info);
-			exportSectionCutPlotXY( grids[3], kCut, iteration - 2 );
-			system("python3 ../include/plotter/plotter.py");
+			float yCut = 0.f;
+			float zCut = 0.f;
 			
 			xCut = 0.f; 
 			getIJKCellIndexFromXYZ( iCut, jCut, kCut, xCut, yCut, zCut, grids[gridLevelCount-1].Info);
-			exportSectionCutPlotZY( grids, iCut, iteration + 1 );
+			exportSectionCutPlotZY( grids, iCut, iteration );
 			system("python3 ../include/plotter/plotterGridID.py");
 			
 			xCut = 5.f; 
 			getIJKCellIndexFromXYZ( iCut, jCut, kCut, xCut, yCut, zCut, grids[gridLevelCount-1].Info);
-			exportSectionCutPlotZY( grids, iCut, iteration + 2 );
+			exportSectionCutPlotZY( grids, iCut, iteration + 1 );
 			system("python3 ../include/plotter/plotterGridID.py");
 			
 			xCut = 10.f; 
 			getIJKCellIndexFromXYZ( iCut, jCut, kCut, xCut, yCut, zCut, grids[gridLevelCount-1].Info);
-			exportSectionCutPlotZY( grids, iCut, iteration + 3 );
+			exportSectionCutPlotZY( grids, iCut, iteration + 2 );
 			system("python3 ../include/plotter/plotterGridID.py");
 			
-			exportSectionCutPlotZX( grids, jCut, iteration + 4 );
+			zCut = -30.f;
+			getIJKCellIndexFromXYZ( iCut, jCut, kCut, xCut, yCut, zCut, grids[gridLevelCount-1].Info);
+			exportSectionCutPlotXY( grids, kCut, iteration + 10 );
+			system("python3 ../include/plotter/plotterGridID.py");
+			
+			zCut = 0.f;
+			getIJKCellIndexFromXYZ( iCut, jCut, kCut, xCut, yCut, zCut, grids[gridLevelCount-1].Info);
+			exportSectionCutPlotXY( grids, kCut, iteration + 11 );
+			system("python3 ../include/plotter/plotterGridID.py");
+			
+			zCut = 30.f;
+			getIJKCellIndexFromXYZ( iCut, jCut, kCut, xCut, yCut, zCut, grids[gridLevelCount-1].Info);
+			exportSectionCutPlotXY( grids, kCut, iteration + 12 );
+			system("python3 ../include/plotter/plotterGridID.py");
+			
+			yCut = -40.f;
+			getIJKCellIndexFromXYZ( iCut, jCut, kCut, xCut, yCut, zCut, grids[gridLevelCount-1].Info);
+			exportSectionCutPlotZX( grids, jCut, iteration + 20 );
+			system("python3 ../include/plotter/plotterGridID.py");
+			
+			yCut = -30.f;
+			getIJKCellIndexFromXYZ( iCut, jCut, kCut, xCut, yCut, zCut, grids[gridLevelCount-1].Info);
+			exportSectionCutPlotZX( grids, jCut, iteration + 21 );
+			system("python3 ../include/plotter/plotterGridID.py");
+			
+			yCut = -20.f;
+			getIJKCellIndexFromXYZ( iCut, jCut, kCut, xCut, yCut, zCut, grids[gridLevelCount-1].Info);
+			exportSectionCutPlotZX( grids, jCut, iteration + 22 );
+			system("python3 ../include/plotter/plotterGridID.py");
+			
+			yCut = -10.f;
+			getIJKCellIndexFromXYZ( iCut, jCut, kCut, xCut, yCut, zCut, grids[gridLevelCount-1].Info);
+			exportSectionCutPlotZX( grids, jCut, iteration + 23 );
+			system("python3 ../include/plotter/plotterGridID.py");
+			
+			yCut = 0.f;
+			getIJKCellIndexFromXYZ( iCut, jCut, kCut, xCut, yCut, zCut, grids[gridLevelCount-1].Info);
+			exportSectionCutPlotZX( grids, jCut, iteration + 24 );
 			system("python3 ../include/plotter/plotterGridID.py");
 			
 			exportHistoryData( historyMassFlow, historyEta, iteration, caseID );

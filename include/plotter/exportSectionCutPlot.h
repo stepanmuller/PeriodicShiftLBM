@@ -256,7 +256,7 @@ void exportSectionCutPlotGeneral( DIADGridStruct &Grid, const int &cutIndex, con
 	SectionCut.uxArray.setValue( 0.f );
 	SectionCut.uyArray.setValue( 0.f );
 	SectionCut.uzArray.setValue( 0.f );
-	SectionCut.markerArray.setValue( 0 );
+	SectionCut.markerArray.setValue( 1 );
 		
 	auto rhoArrayView = SectionCut.rhoArray.getView();
 	auto uxArrayView = SectionCut.uxArray.getView();
