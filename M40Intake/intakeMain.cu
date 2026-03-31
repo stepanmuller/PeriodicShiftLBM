@@ -18,7 +18,6 @@ constexpr float SmagorinskyConstantGlobal = 0.1f; 										// set to zero to tu
 constexpr float uzInlet = 0.02f; 														// also works as nominal LBM Mach number
 constexpr float hullAngle = 0.f;														// degrees
 constexpr float uyInlet = (2.f * 3.14159f * hullAngle / 360.f) * uzInlet;				// this gives hull angle		
-constexpr float rhoOutlet = 1.0003f; 													// dRho 0.001 = dp approx 330 000 Pa
 constexpr float nuPhys = 1e-6;															// m2/s water
 constexpr float rhoNominalPhys = 1000.0f;												// kg/m3 water
 constexpr float uzInletPhys = 20.f; 													// m/s
@@ -26,6 +25,9 @@ constexpr float dtPhysGlobal = (uzInlet / uzInletPhys) * (resGlobal/1000); 				/
 
 constexpr float invSqrt3 = 0.577350269f; 
 constexpr float soundspeedPhys = invSqrt3 * (resGlobal/1000) / dtPhysGlobal; 			// m/s
+
+constexpr float pOutletPhys = 40000.f;													// Pa
+constexpr float rhoOutlet = pOutletPhys / ( rhoNominalPhys * soundspeedPhys * soundspeedPhys ) + 1.f;
 
 #include "../include/types.h"
 
@@ -41,7 +43,7 @@ constexpr float soundspeedPhys = invSqrt3 * (resGlobal/1000) / dtPhysGlobal; 			
 #include "../include/boundaryConditions/applyMBBC.h"
 
 #include "../include/STLFunctions.h"
-std::string STLPathIntake = "IntakeSTL.STL";
+std::string STLPathIntake = "IntakeShaftlessSTL2.STL";
 
 __cuda_callable__ void getMarkers( 	const int& iCell, const int& jCell, const int& kCell, 
 									MarkerStruct &Marker, const InfoStruct& Info )
