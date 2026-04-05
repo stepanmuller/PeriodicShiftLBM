@@ -26,7 +26,7 @@ constexpr float dtPhysGlobal = (uzInlet / uzInletPhys) * (resGlobal/1000); 				/
 constexpr float invSqrt3 = 0.577350269f; 
 constexpr float soundspeedPhys = invSqrt3 * (resGlobal/1000) / dtPhysGlobal; 			// m/s
 
-constexpr float pOutletPhys = 30000.f;													// Pa
+constexpr float pOutletPhys = 10000.f;													// Pa
 constexpr float rhoOutlet = pOutletPhys / ( rhoNominalPhys * soundspeedPhys * soundspeedPhys ) + 1.f;
 
 #include "../include/types.h"
@@ -43,7 +43,7 @@ constexpr float rhoOutlet = pOutletPhys / ( rhoNominalPhys * soundspeedPhys * so
 #include "../include/boundaryConditions/applyMBBC.h"
 
 #include "../include/STLFunctions.h"
-std::string STLPathIntake = "IntakeSTL3.STL";
+std::string STLPathIntake = "IntakeSTL4.STL";
 
 __cuda_callable__ void getMarkers( 	const int& iCell, const int& jCell, const int& kCell, 
 									MarkerStruct &Marker, const InfoStruct& Info )
@@ -70,6 +70,7 @@ __cuda_callable__ void getMarkers( 	const int& iCell, const int& jCell, const in
 	if ( Info.gridID == 3 )
 	{
 		if ( fabs(xPhys) > 17.f ) Marker.refinement = 0;
+		if ( fabs(xPhys) < 16.5f && yPhys > -27.f && zPhys < 31.f ) Marker.refinement = 1;
 	}
 	
 	if ( Marker.bounceback ) return;
