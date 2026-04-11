@@ -8,10 +8,10 @@ constexpr float yMaxGlobal = 20.f; 														// mm
 
 constexpr float resGlobal = 1.6f; 														// mm
 constexpr int gridLevelCount = 5;
-constexpr int wallRefinementSpan = 0;
+constexpr int wallRefinementSpan = 3;
 
 constexpr int iterationCount = 1000000;
-constexpr int iterationChunk = 5000;
+constexpr int iterationChunk = 2000;
 
 constexpr float SmagorinskyConstantGlobal = 0.1f; 										// set to zero to turn off LES
 
@@ -43,7 +43,7 @@ constexpr float rhoOutlet = pOutletPhys / ( rhoNominalPhys * soundspeedPhys * so
 #include "../include/boundaryConditions/applyMBBC.h"
 
 #include "../include/STLFunctions.h"
-std::string STLPathIntake = "IntakeSTL4.STL";
+std::string STLPathIntake = "IntakeSTLLarge.STL";
 
 __cuda_callable__ void getMarkers( 	const int& iCell, const int& jCell, const int& kCell, 
 									MarkerStruct &Marker, const InfoStruct& Info )
@@ -70,7 +70,6 @@ __cuda_callable__ void getMarkers( 	const int& iCell, const int& jCell, const in
 	if ( Info.gridID == 3 )
 	{
 		if ( fabs(xPhys) > 17.f ) Marker.refinement = 0;
-		if ( fabs(xPhys) < 16.5f && yPhys > -27.f && zPhys < 31.f ) Marker.refinement = 1;
 	}
 	
 	if ( Marker.bounceback ) return;
