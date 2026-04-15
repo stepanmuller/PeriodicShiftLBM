@@ -729,6 +729,47 @@ void rotateSTLAlongX( STLStruct &STL, float &radians )
 	std::cout << "	STL rotated" << std::endl;
 }
 
+void rotateSTLAlongY( STLStruct &STL, float &radians )
+{
+	std::cout << "Rotating STL along Y axis" << std::endl;
+	auto axArrayView = STL.axArray.getView();
+	auto azArrayView = STL.azArray.getView();
+	auto bxArrayView = STL.bxArray.getView();
+	auto bzArrayView = STL.bzArray.getView();
+	auto cxArrayView = STL.cxArray.getView();
+	auto czArrayView = STL.czArray.getView();
+	
+	auto rotateLambda = [ = ] __cuda_callable__( const int triangleIndex ) mutable
+	{
+		const float ax = axArrayView[ triangleIndex ];
+		const float az = azArrayView[ triangleIndex ];
+		const float bx = bxArrayView[ triangleIndex ];
+		const float bz = bzArrayView[ triangleIndex ];
+		const float cx = cxArrayView[ triangleIndex ];
+		const float cz = czArrayView[ triangleIndex ];
+		
+		const float s = sinf(radians);
+		const float c = cosf(radians);
+		
+		// Standard right-handed rotation around the Y axis
+		const float newAx = ax * c + az * s;
+		const float newAz = -ax * s + az * c;
+		const float newBx = bx * c + bz * s;
+		const float newBz = -bx * s + bz * c;
+		const float newCx = cx * c + cz * s;
+		const float newCz = -cx * s + cz * c;
+		
+		axArrayView[ triangleIndex ] = newAx;
+		azArrayView[ triangleIndex ] = newAz;
+		bxArrayView[ triangleIndex ] = newBx;
+		bzArrayView[ triangleIndex ] = newBz;
+		cxArrayView[ triangleIndex ] = newCx;
+		czArrayView[ triangleIndex ] = newCz;
+	};
+	TNL::Algorithms::parallelFor<TNL::Devices::Cuda>( 0, STL.triangleCount, rotateLambda );
+	std::cout << "	STL rotated" << std::endl;
+}
+
 void rotateSTLAlongZ( STLStruct &STL, float &radians )
 {
 	std::cout << "Rotating STL along Z axis" << std::endl;
