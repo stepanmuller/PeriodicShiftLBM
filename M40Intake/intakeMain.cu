@@ -6,7 +6,7 @@ constexpr float zMaxGlobal = 60.f; 														// mm
 constexpr float yMinGlobal = -80.f; 													// mm
 constexpr float yMaxGlobal = 20.f; 														// mm
 
-constexpr float resGlobal = 1.28f; 														// mm
+constexpr float resGlobal = 1.4f; 														// mm
 constexpr int gridLevelCount = 5;
 constexpr int wallRefinementSpan = 3;
 
@@ -60,12 +60,12 @@ __cuda_callable__ void getMarkers( 	const int& iCell, const int& jCell, const in
 	if ( Info.gridID == 1 )
 	{
 		if ( fabs(xPhys) > 35.f ) Marker.refinement = 0;
-		if ( fabs(xPhys) < 20.f && yPhys > -34.f ) Marker.refinement = 1;
+		if ( fabs(xPhys) < 20.f && yPhys > -32.f ) Marker.refinement = 1;
 	}
 	if ( Info.gridID == 2 )
 	{
 		if ( fabs(xPhys) > 25.f ) Marker.refinement = 0;
-		//if ( fabs(xPhys) < 18.f && yPhys > -30.f ) Marker.refinement = 1;
+		if ( fabs(xPhys) < 18.f && yPhys > -30.f ) Marker.refinement = 1;
 	}
 	if ( Info.gridID == 3 )
 	{

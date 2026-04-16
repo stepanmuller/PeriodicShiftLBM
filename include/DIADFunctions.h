@@ -321,6 +321,78 @@ void findMatchingIJKIndex( IJKArrayStruct &Wanted, IJKArrayStruct &Source, IntAr
 	TNL::Algorithms::parallelFor<TNL::Devices::Cuda>( 0, wantedCellCount, cellLambda );
 }
 
+// shift by cx, cy, cz from the starter cell until another cell is found
+void findPeriodicNeighbourIJKIndex( IJKArrayStruct &IJK, IntArrayType &resultArray, const int cx, const int cy, const int cz, InfoStruct &Info )
+{
+	const int cellCount = IJK.iArray.getSize();
+	
+	auto iView = IJK.iArray.getConstView();
+	auto jView = IJK.jArray.getConstView();
+	auto kView = IJK.kArray.getConstView();
+	auto resultView = resultArray.getView();
+	
+	auto cellLambda = [=] __cuda_callable__ ( const int cell ) mutable
+	{
+		// Starting coordinates for this specific thread
+		int targetI = iView[ cell ];
+		int targetJ = jView[ cell ];
+		int targetK = kView[ cell ];
+		
+		int finalResultIndex = -1;
+		
+		// Keep shifting and searching until we find a match
+		while ( finalResultIndex == -1 )
+		{
+			// Shift periodically
+			targetI = (targetI + cx) % Info.cellCountX;
+			targetJ = (targetJ + cy) % Info.cellCountY;
+			targetK = (targetK + cz) % Info.cellCountZ;
+			
+			// Reset binary search bounds for the new target
+			int start = 0;
+			int end = cellCount;
+			
+			// Standard binary search
+			while ( end > start )
+			{
+				int half = start + ( end - start ) / 2;
+				int kHalf = kView[ half ];
+				int jHalf = jView[ half ];
+				int iHalf = iView[ half ];
+				
+				if ( kHalf == targetK && jHalf == targetJ && iHalf == targetI )
+				{
+					finalResultIndex = half;
+					break;
+				}
+				
+				if ( kHalf > targetK || 
+				   ( kHalf == targetK && jHalf > targetJ ) || 
+				   ( kHalf == targetK && jHalf == targetJ && iHalf > targetI ) ) 
+				{
+					end = half;
+				}
+				else 
+				{
+					start = half + 1;
+				}
+			}
+			
+			// Check the final boundary condition of the binary search
+			if ( finalResultIndex == -1 && start < cellCount )
+			{
+				if ( kView[ start ] == targetK && jView[ start ] == targetJ && iView[ start ] == targetI )
+				{
+					finalResultIndex = start;
+				}
+			}
+		}
+		resultView[ cell ] = finalResultIndex;
+	};
+	
+	TNL::Algorithms::parallelFor<TNL::Devices::Cuda>( 0, cellCount, cellLambda );
+}
+
 // Applies the bounceback marker onto an array using the getMarkers function
 void applyBouncebackMarkerFromFunction( BoolArrayType &markerArray, IJKArrayStruct &IJK, InfoStruct &Info )
 {
@@ -447,24 +519,13 @@ void getDIADEsotwistNbrArray( DIADGridStruct &Grid )
 	Grid.EsotwistNbrArray.jkNbrArray.setValue( -1 );
 	Grid.EsotwistNbrArray.ijkNbrArray.setValue( -1 );
 	
-	auto directionLambda = [&](int cx, int cy, int cz, IntArrayType& targetNbrArray) 
-	{
-		IJKArrayStruct IJKShifted = IJK;
-		int invalidNeighbourCount = 1;
-		while ( invalidNeighbourCount > 0 ) {
-			shiftIJKPeriodic( IJKShifted, cx, cy, cz, Info );
-			findMatchingIJKIndex( IJKShifted, IJK, targetNbrArray );
-			invalidNeighbourCount = countInvalidIndexes( targetNbrArray );
-		}
-	};
-
-	directionLambda(1, 0, 0, Grid.EsotwistNbrArray.iNbrArray );
-	directionLambda(0, 1, 0, Grid.EsotwistNbrArray.jNbrArray );
-	directionLambda(0, 0, 1, Grid.EsotwistNbrArray.kNbrArray );
-	directionLambda(1, 1, 0, Grid.EsotwistNbrArray.ijNbrArray );
-	directionLambda(1, 0, 1, Grid.EsotwistNbrArray.ikNbrArray );
-	directionLambda(0, 1, 1, Grid.EsotwistNbrArray.jkNbrArray );
-	directionLambda(1, 1, 1, Grid.EsotwistNbrArray.ijkNbrArray );
+	findPeriodicNeighbourIJKIndex( IJK, Grid.EsotwistNbrArray.iNbrArray,   1, 0, 0, Info );
+	findPeriodicNeighbourIJKIndex( IJK, Grid.EsotwistNbrArray.jNbrArray,   0, 1, 0, Info );
+	findPeriodicNeighbourIJKIndex( IJK, Grid.EsotwistNbrArray.kNbrArray,   0, 0, 1, Info );
+	findPeriodicNeighbourIJKIndex( IJK, Grid.EsotwistNbrArray.ijNbrArray,  1, 1, 0, Info );
+	findPeriodicNeighbourIJKIndex( IJK, Grid.EsotwistNbrArray.ikNbrArray,  1, 0, 1, Info );
+	findPeriodicNeighbourIJKIndex( IJK, Grid.EsotwistNbrArray.jkNbrArray,  0, 1, 1, Info );
+	findPeriodicNeighbourIJKIndex( IJK, Grid.EsotwistNbrArray.ijkNbrArray, 1, 1, 1, Info );
 }
 
 // Mark target cell as 1 if at least one of its neighbours in source is 1
@@ -827,6 +888,36 @@ void buildDIADGrids( std::vector<DIADGridStruct> &grids, std::vector<STLStruct> 
 		findMatchingIJKIndex( fineIJK, grids[level+1].IJK, fineArray );
 		const int invalidConnections = countInvalidIndexes( fineArray );
 		if ( invalidConnections > 0 ) {
+			
+			// Copy necessary arrays to the CPU
+			IntArrayTypeCPU fineArrayCPU;
+			fineArrayCPU = fineArray;
+			IntArrayTypeCPU coarseArrayCPU;
+			coarseArrayCPU = coarseArray;
+			IJKArrayStructCPU coarseIJKCPU = IJKArrayStructCPU( Grid.IJK );
+			
+			// Find and print the faulty coordinates
+			for ( int c = 0; c < count; c++ )
+			{
+				if ( fineArrayCPU[ c ] < 0 )
+				{
+					const int cellCoarse = coarseArrayCPU[ c ];
+					const int iCoarse = coarseIJKCPU.iArray[ cellCoarse ];
+					const int jCoarse = coarseIJKCPU.jArray[ cellCoarse ];
+					const int kCoarse = coarseIJKCPU.kArray[ cellCoarse ];
+					
+					// Calculate physical coordinates based on index, origin, and resolution
+					
+					const float xPhys = iCoarse * Info.res + Info.ox;
+					const float yPhys = jCoarse * Info.res + Info.oy;
+					const float zPhys = kCoarse * Info.res + Info.oz;
+					
+					std::cerr << "Invalid interface connection for coarse cell " << cellCoarse 
+					          << " | IJK: (" << iCoarse << ", " << jCoarse << ", " << kCoarse << ")"
+					          << " | XYZ: (" << xPhys << ", " << yPhys << ", " << zPhys << ")\n";
+				}
+			}
+			
 			throw std::runtime_error( 
 				"DIAD Grid Generation Error: " + std::to_string(invalidConnections) + 
 				" invalid interface connections found on level " + std::to_string(level) 
