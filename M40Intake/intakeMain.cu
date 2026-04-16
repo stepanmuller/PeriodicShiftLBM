@@ -43,7 +43,7 @@ constexpr float rhoOutlet = pOutletPhys / ( rhoNominalPhys * soundspeedPhys * so
 #include "../include/boundaryConditions/applyMBBC.h"
 
 #include "../include/STLFunctions.h"
-std::string STLPathIntake = "IntakeSTLAngled.STL";
+std::string STLPathIntake = "IntakeSTL.STL";
 
 __cuda_callable__ void getMarkers( 	const int& iCell, const int& jCell, const int& kCell, 
 									MarkerStruct &Marker, const InfoStruct& Info )
