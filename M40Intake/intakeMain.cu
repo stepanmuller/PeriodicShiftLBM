@@ -6,7 +6,7 @@ constexpr float zMaxGlobal = 60.f; 														// mm
 constexpr float yMinGlobal = -80.f; 													// mm
 constexpr float yMaxGlobal = 20.f; 														// mm
 
-constexpr float resGlobal = 1.6f; 														// mm
+constexpr float resGlobal = 1.28f; 														// mm
 constexpr int gridLevelCount = 5;
 constexpr int wallRefinementSpan = 3;
 
@@ -26,7 +26,7 @@ constexpr float dtPhysGlobal = (uzInlet / uzInletPhys) * (resGlobal/1000); 				/
 constexpr float invSqrt3 = 0.577350269f; 
 constexpr float soundspeedPhys = invSqrt3 * (resGlobal/1000) / dtPhysGlobal; 			// m/s
 
-constexpr float pOutletPhys = 10000.f;													// Pa
+constexpr float pOutletPhys = 0.f;													// Pa
 constexpr float rhoOutlet = pOutletPhys / ( rhoNominalPhys * soundspeedPhys * soundspeedPhys ) + 1.f;
 
 #include "../include/types.h"
@@ -43,7 +43,7 @@ constexpr float rhoOutlet = pOutletPhys / ( rhoNominalPhys * soundspeedPhys * so
 #include "../include/boundaryConditions/applyMBBC.h"
 
 #include "../include/STLFunctions.h"
-std::string STLPathIntake = "IntakeSTLLarge.STL";
+std::string STLPathIntake = "IntakeSTLAngled.STL";
 
 __cuda_callable__ void getMarkers( 	const int& iCell, const int& jCell, const int& kCell, 
 									MarkerStruct &Marker, const InfoStruct& Info )
@@ -65,7 +65,7 @@ __cuda_callable__ void getMarkers( 	const int& iCell, const int& jCell, const in
 	if ( Info.gridID == 2 )
 	{
 		if ( fabs(xPhys) > 25.f ) Marker.refinement = 0;
-		if ( fabs(xPhys) < 18.f && yPhys > -30.f ) Marker.refinement = 1;
+		//if ( fabs(xPhys) < 18.f && yPhys > -30.f ) Marker.refinement = 1;
 	}
 	if ( Info.gridID == 3 )
 	{
@@ -210,7 +210,7 @@ int main(int argc, char **argv)
 			XYZBoundsStruct BoundsAbove;
 			BoundsAbove.xmin = -20.f;
 			BoundsAbove.xmax = 20.f;
-			BoundsAbove.ymin = -20.f;
+			BoundsAbove.ymin = -26.f;
 			BoundsAbove.ymax = 20.f;
 			getFlowReportXY( grids, kCutAbove, BoundsAbove, FlowReportAbove );
 			
@@ -233,7 +233,7 @@ int main(int argc, char **argv)
 			}
 		}
 		
-		if (iteration%iterationChunk == 0 && iteration!=0)
+		if (iteration%iterationChunk == 0)
 		{
 			lapTimer.stop();
 			auto lapTime = lapTimer.getRealTime();
