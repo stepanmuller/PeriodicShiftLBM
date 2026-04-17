@@ -1,0 +1,17 @@
+#!/bin/bash
+#PBS -N Re800000
+#PBS -l select=1:ncpus=1:ngpus=1:mem=6gb:cluster=fobos
+#PBS -l walltime=48:00:00
+
+module load python36-modules/gcc
+
+module load cuda/12.6.1-gcc-10.2.1-hplxoqp
+export PATH="/storage/praha1/home/haladto1/resources/cmake-3.31.9/build/bin:$PATH"
+export PATH="/storage/praha1/home/mullest2/tnlcxx:$PATH"
+
+export CMAKE_PREFIX_PATH=/storage/praha1/home/mullest2/tnl_installation/lib/cmake/TNL:$CMAKE_PREFIX_PATH
+export CMAKE_PREFIX_PATH=/cvmfs/software.metacentrum.cz/spack18/software/linux-debian11-x86_64_v2/gcc-10.2.1/cuda-12.6.1-hplxoqpnmn7k5zolkvqlaxndmpd5s3ft/targets/x86_64-linux/lib/cmake:$CMAKE_PREFIX_PATH
+
+cd /storage/praha1/home/mullest2/PeriodicShiftLBM/sphereMetacentrum/re800000
+tnlcxx main.cu
+./main
