@@ -3,8 +3,6 @@
 #PBS -l select=1:ncpus=1:ngpus=1:mem=30gb:cluster=galdor
 #PBS -l walltime=24:00:00
 
-module load python36-modules/gcc
-
 module load cuda/12.6.1-gcc-10.2.1-hplxoqp
 export PATH="/storage/praha1/home/haladto1/resources/cmake-3.31.9/build/bin:$PATH"
 export PATH="/storage/praha1/home/mullest2/tnlcxx:$PATH"
