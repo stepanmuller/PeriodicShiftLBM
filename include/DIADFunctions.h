@@ -720,6 +720,11 @@ void buildDIADGrids( std::vector<DIADGridStruct> &grids, std::vector<STLStruct> 
 		multiplyBoolArrays( keepCellMarkerArray, refinementInverseMarkerArray, keepCellMarkerArray );
 		sumBoolArrays( keepCellMarkerArray, coarseToFineMarkerArray, keepCellMarkerArray );
 		sumBoolArrays( keepCellMarkerArray, fineToCoarseMarkerArray, keepCellMarkerArray );
+		// ADD ENFORCED FLUID
+		if ( level != 0 )
+		{
+			sumBoolArrays( keepCellMarkerArray, Grid.enforceInterfaceFluid, keepCellMarkerArray ); 
+		}
 	
 	} // CLOSING THE SCOPE DEALOCATES LARGE nbrArrays and most marker arrays
 	
