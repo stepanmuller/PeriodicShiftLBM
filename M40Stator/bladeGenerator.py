@@ -102,9 +102,9 @@ def generateBlade(parameterMatrix):
 	RHub = 6
 	RMid = 9
 	RTip = 12
-	thicknessHub = 1.2
-	thicknessMid = 1.4
-	thicknessTip = 1.5
+	thicknessHub = 1.6
+	thicknessMid = 1.8
+	thicknessTip = 2
 	
 	profile0 = getProfile(parameterMatrix[0], thicknessHub)
 	profile1 = getProfile(parameterMatrix[1], thicknessMid)
@@ -181,7 +181,7 @@ if __name__ == "__main__":
 	
 	# stator
 	gamma = [-16.2, -10.7, -7.3]
-	c = [7.5, 8.35, 8.2]
+	c = [20, 20, 20]
 	beta = [-26.2, -20.7, -17.3]
 	b = [c[0]/2, c[1]/2, c[2]/2]
 	w = [1, 1, 1]

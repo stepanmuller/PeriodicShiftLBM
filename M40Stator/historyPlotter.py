@@ -55,16 +55,16 @@ def plot_history(file_number):
 
     # --- Drag Coefficient Plot ---
     ax.plot(iterations, drag_coeff, color='black', linewidth=1.2, alpha=0.7)
-    ax.set_ylabel(r"$F$ [1]")
+    ax.set_ylabel(r"$p$ [Pa]")
     ax.set_xlabel(r"Iteration")
-    ax.set_title(r"\textbf{Feedback Function $F$ History}")
+    ax.set_title(r"\textbf{Pressure loss History}")
     ax.grid(True, linestyle='--', alpha=0.4)
     ax.yaxis.set_major_locator(MaxNLocator(nbins=8))
     
     set_smart_ylim(ax, drag_coeff)
     
     label_cd = add_average_diagnostics(ax, iterations, drag_coeff)
-    ax.text(0.98, 0.95, f'\\textbf{{Avg $F$ [1]: {label_cd}}}', 
+    ax.text(0.98, 0.95, f'\\textbf{{$p$ [Pa]: {label_cd}}}', 
             transform=ax.transAxes, ha='right', va='top', bbox=bbox_props)
 
     plt.tight_layout()

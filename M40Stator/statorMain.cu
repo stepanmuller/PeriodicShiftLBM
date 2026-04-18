@@ -1,4 +1,4 @@
-constexpr float resGlobal = 0.4f; 														// mm
+constexpr float resGlobal = 0.16f; 														// mm
 constexpr int gridLevelCount = 3;
 constexpr int wallRefinementSpan = 1;
 
@@ -11,14 +11,14 @@ constexpr float uzInlet = 0.05f; 														// also works as nominal LBM Mach
 constexpr float rhoOutlet = 1.f;
 constexpr float nuPhys = 1e-6;															// m2/s water
 constexpr float rhoNominalPhys = 1000.0f;												// kg/m3 water
-constexpr float uzInletPhys = 10.4f; 													// m/s
+constexpr float uzInletPhys = 16.94f; 													// m/s
 constexpr float dtPhysGlobal = (uzInlet / uzInletPhys) * (resGlobal/1000); 				// s
 
 constexpr float invSqrt3 = 0.577350269f; 
 constexpr float soundspeedPhys = invSqrt3 * (resGlobal/1000) / dtPhysGlobal; 			// m/s
 
-constexpr float RIn = 7.f;																// mm
-constexpr float ROut = 15.f;															// mm
+constexpr float RIn = 6.f;																// mm
+constexpr float ROut = 12.f;															// mm
 constexpr float C = 0.092784f;															// m2/s
 constexpr int bladeCount = 5;
 
@@ -76,7 +76,7 @@ __cuda_callable__ void getGivenRhoUxUyUz( 	const int& iCell, const int& jCell, c
 	ux = - vt * (y / r);
 	uy = vt * (x / r);
 	uz = uzInlet;
-	rho = 1.f;
+	rho = rhoOutlet + Info.regulator;
 }
 
 __cuda_callable__ float getSmagorinskyConstant( const int  &iCell, const int &jCell, const int &kCell, const InfoStruct &Info  )
@@ -238,7 +238,6 @@ float getPLoss( GridStruct &Grid )
 }
 */
 
-/*
 void exportHistoryData( const std::vector<float>& historyVector, const int &currentIteration, int fileNumber ) {
     FILE* fp = fopen("/dev/shm/historyData.bin", "wb");
     if (!fp) return;
@@ -250,6 +249,8 @@ void exportHistoryData( const std::vector<float>& historyVector, const int &curr
     std::string cmd = "python3 historyPlotter.py " + std::to_string(fileNumber) + " &";
     system(cmd.c_str());
 }
+
+/*
 
 void writeCaseResult( const std::vector<float>& historyVector, const int caseID ) {
 	const int averagingIntervalStart = (iterationCount / 10 * 7);
@@ -316,6 +317,10 @@ int main(int argc, char **argv)
 	}
 	std::cout << "Cell count total: " << cellCountTotal << std::endl;
 	std::cout << "Cell updates per iteration: " << cellUpdatesPerIteration << std::endl;	
+	
+	std::vector<float> historyVector( iterationCount, 0.f );
+	float uOutletMovingAvg = uzInlet;
+	
 	std::cout << "Starting simulation" << std::endl;
 	
 	TNL::Timer lapTimer;
@@ -325,21 +330,32 @@ int main(int argc, char **argv)
 	{
 		updateGrid( grids, 0 );
 		
-		/*
-		int counter = 0;
-		float vtDeviation = 0.f;
-		for (float r = RIn + 0.5f; r < ROut; r = r + 0.5f) 
+		if (iteration%20 == 0 && iteration != 0)
 		{
-			vtDeviation += getVtDeviation( Grid, r );
-			counter++;
+			FlowReportStruct FlowReport;
+			XYZBoundsStruct Bounds;
+			Bounds.xmin = -15.f;
+			Bounds.xmax = 15.f;
+			Bounds.ymin = -15.f;
+			Bounds.ymax = 15.f;
+			int kCut = 0;
+			getFlowReportXY( grids, kCut, Bounds, FlowReport );
+			float pAvg = FlowReport.rho;
+			convertToPhysicalPressure( pAvg );	
+			for ( int shifter = 0; shifter < 20; shifter++ )
+			{
+				historyVector[iteration-shifter] = pAvg;
+			}
+			
+			// REGULATING OUTLET RHO TO STRONGLY DAMPEN ACUSTIC WAVES
+			kCut = grids[gridLevelCount-1].Info.cellCountZ-1;
+			getFlowReportXY( grids, kCut, Bounds, FlowReport );
+			for ( int level = 0; level < gridLevelCount; level++ )
+			{
+				grids[level].Info.regulator = ( FlowReport.uz - uOutletMovingAvg ) / invSqrt3;
+			}
+			uOutletMovingAvg = 0.999 * uOutletMovingAvg + 0.001 * FlowReport.uz;
 		}
-		vtDeviation = vtDeviation / counter;
-		float pLoss = getPLoss( Grid );
-		
-		//float F = log(1 + vtDeviation) + log(1 + std::max({0.f, pLoss}));
-		float F = pLoss;
-		historyVector[iteration] = F;
-		*/
 		
 		if ( iteration % iterationChunk == 0) 
 		{
@@ -350,59 +366,7 @@ int main(int argc, char **argv)
 			const float glups = updateCount / lapTime / 1000000000.f;
 			std::cout << "GLUPS: " << glups << std::endl;
 			
-			//exportHistoryData( historyVector, iteration, 0 );
-			
-			/*
-			int iCut, jCut, kCut;
-			float xCut = 0.f; 
-			float yCut = 0.f;
-			float zCut = 0.f;
-			
-			xCut = 0.f; 
-			getIJKCellIndexFromXYZ( iCut, jCut, kCut, xCut, yCut, zCut, grids[gridLevelCount-1].Info);
-			exportSectionCutPlotZY( grids, iCut, iteration );
-			system("python3 ../include/plotter/plotterGridID.py");
-			
-			xCut = 5.f; 
-			getIJKCellIndexFromXYZ( iCut, jCut, kCut, xCut, yCut, zCut, grids[gridLevelCount-1].Info);
-			exportSectionCutPlotZY( grids, iCut, iteration + 1 );
-			system("python3 ../include/plotter/plotterGridID.py");
-			
-			xCut = 10.f; 
-			getIJKCellIndexFromXYZ( iCut, jCut, kCut, xCut, yCut, zCut, grids[gridLevelCount-1].Info);
-			exportSectionCutPlotZY( grids, iCut, iteration + 2 );
-			system("python3 ../include/plotter/plotterGridID.py");
-			
-			zCut = -10.f;
-			getIJKCellIndexFromXYZ( iCut, jCut, kCut, xCut, yCut, zCut, grids[gridLevelCount-1].Info);
-			exportSectionCutPlotXY( grids, kCut, iteration + 10 );
-			system("python3 ../include/plotter/plotterGridID.py");
-			
-			zCut = 0.f;
-			getIJKCellIndexFromXYZ( iCut, jCut, kCut, xCut, yCut, zCut, grids[gridLevelCount-1].Info);
-			exportSectionCutPlotXY( grids, kCut, iteration + 11 );
-			system("python3 ../include/plotter/plotterGridID.py");
-			
-			zCut = 10.f;
-			getIJKCellIndexFromXYZ( iCut, jCut, kCut, xCut, yCut, zCut, grids[gridLevelCount-1].Info);
-			exportSectionCutPlotXY( grids, kCut, iteration + 12 );
-			system("python3 ../include/plotter/plotterGridID.py");
-			
-			yCut = 0.f;
-			getIJKCellIndexFromXYZ( iCut, jCut, kCut, xCut, yCut, zCut, grids[gridLevelCount-1].Info);
-			exportSectionCutPlotZX( grids, jCut, iteration + 21 );
-			system("python3 ../include/plotter/plotterGridID.py");
-			
-			yCut = 5.f;
-			getIJKCellIndexFromXYZ( iCut, jCut, kCut, xCut, yCut, zCut, grids[gridLevelCount-1].Info);
-			exportSectionCutPlotZX( grids, jCut, iteration + 22 );
-			system("python3 ../include/plotter/plotterGridID.py");
-			
-			yCut = 10.f;
-			getIJKCellIndexFromXYZ( iCut, jCut, kCut, xCut, yCut, zCut, grids[gridLevelCount-1].Info);
-			exportSectionCutPlotZX( grids, jCut, iteration + 23 );
-			system("python3 ../include/plotter/plotterGridID.py");	
-			*/
+			exportHistoryData( historyVector, iteration, 0 );
 			
 			int counter = 1;
 			for (float r = RIn + 1.f; r < ROut; r = r + 1.f) 
