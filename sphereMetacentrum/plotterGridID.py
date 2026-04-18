@@ -42,8 +42,8 @@ def setup_plot(ax, data_array, label):
     fluid_data = data_array[mask <= 0.5]
     
     # Calculate 1st and 99th percentiles (removes 1% smallest and 1% largest)
-    vmin = np.nanpercentile(fluid_data, 1)
-    vmax = np.nanpercentile(fluid_data, 99)
+    vmin = np.nanpercentile(fluid_data, 0.1)
+    vmax = np.nanpercentile(fluid_data, 99.9)
     
     # If the range is zero (constant field), default to data min/max
     if (vmin == vmax) or label == "Grid ID [1]":
