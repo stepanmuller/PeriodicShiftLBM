@@ -179,9 +179,9 @@ def generateBlade(parameterMatrix):
 
 if __name__ == "__main__":
 	
-	gamma = [45, 67, 74]
+	gamma = [-30, -20, -10]
 	c = [20, 20, 20]
-	beta = [16, 3, 1]
+	beta = [-30, -20, -10]
 	b = [10, 10, 10]
 	w = [1, 1, 1]
 	parameterMatrixList = [gamma, c, beta, b, w]

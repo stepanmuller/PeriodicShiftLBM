@@ -783,6 +783,212 @@ void exportSectionCutPlotToiletPaperZ( GridStruct &Grid, const float &r, const i
 	fclose(fp);
 }
 
+// DIAD Version of Toilet Paper Plot that dynamically downsamples finest grids to fit VRAM
+void exportSectionCutPlotToiletPaperZ( std::vector<DIADGridStruct> &grids, const float &r, const int &plotNumber )
+{
+	std::cout << "Exporting DIAD Toilet Paper Z section cut plot " << plotNumber << " at radius " << r << " mm" << std::endl;
+
+	const int levelCount = grids.size();
+	InfoStruct FinestInfo = grids[levelCount - 1].Info;
+	const float PI = 3.14159265359f;
+	
+	// 1. Find the finest level that fits within the memory limit
+	int targetLevelCount = levelCount;
+	int targetCellCountHorizontal = 0, targetCellCountVertical = 0;
+	
+	while ( targetLevelCount > 1 )
+	{
+		InfoStruct Info = grids[targetLevelCount - 1].Info;
+		targetCellCountHorizontal = Info.cellCountZ;
+		targetCellCountVertical = (int)( (2.0f * PI * r) / Info.res );
+		
+		// Use long long to prevent integer overflow on massive grids
+		long long dataSize = (long long)targetCellCountHorizontal * targetCellCountVertical;
+		if ( dataSize < 20000000 ) break;
+		
+		targetLevelCount--;
+	}
+	
+	// Update target dimensions based on the found level
+	InfoStruct TargetInfo = grids[targetLevelCount - 1].Info;
+	targetCellCountHorizontal = TargetInfo.cellCountZ;
+	targetCellCountVertical = (int)( (2.0f * PI * r) / TargetInfo.res );
+	
+	// How much smaller the output array is compared to the absolute finest grid
+	const int targetScale = 1 << (levelCount - targetLevelCount); 
+
+	SectionCutStruct SectionCut;
+	SectionCut.rhoArray.setSizes( targetCellCountVertical, targetCellCountHorizontal );
+	SectionCut.uxArray.setSizes( targetCellCountVertical, targetCellCountHorizontal );
+	SectionCut.uyArray.setSizes( targetCellCountVertical, targetCellCountHorizontal );
+	SectionCut.uzArray.setSizes( targetCellCountVertical, targetCellCountHorizontal );
+	SectionCut.markerArray.setSizes( targetCellCountVertical, targetCellCountHorizontal );
+	SectionCut.gridIDArray.setSizes( targetCellCountVertical, targetCellCountHorizontal );
+	
+	SectionCut.rhoArray.setValue( 1.f );
+	SectionCut.uxArray.setValue( 0.f );
+	SectionCut.uyArray.setValue( 0.f );
+	SectionCut.uzArray.setValue( 0.f );
+	SectionCut.markerArray.setValue( 1 );
+	SectionCut.gridIDArray.setValue( 0 );
+		
+	auto rhoArrayView = SectionCut.rhoArray.getView();
+	auto uxArrayView = SectionCut.uxArray.getView();
+	auto uyArrayView = SectionCut.uyArray.getView();
+	auto uzArrayView = SectionCut.uzArray.getView();
+	auto markerArrayView = SectionCut.markerArray.getView();
+	auto gridIDArrayView = SectionCut.gridIDArray.getView();
+	
+	// Find origin indices to compute physical x,y coordinates relative to (0,0) without needing explicit bounds
+	int iOriginFinest, jOriginFinest, kOriginFinest;
+	getIJKCellIndexFromXYZ( iOriginFinest, jOriginFinest, kOriginFinest, 0.f, 0.f, 0.f, FinestInfo );
+
+	// 2. Loop through ALL grids (coarse to fine, allowing fine to overwrite coarse)
+	for ( int level = 0; level < levelCount; level++ )
+	{
+		DIADGridStruct &Grid = grids[level];
+		InfoStruct Info = Grid.Info;
+		
+		// cellScale is relative to the absolute finest grid
+		const int cellScale = std::pow(2, (levelCount - Info.gridID - 1) );
+		
+		auto fArrayView  = Grid.fArray.getConstView();
+		bool useBouncebackArray = ( Grid.bouncebackMarkerArray.getSize() > 0 );
+		auto bouncebackMarkerArrayView = Grid.bouncebackMarkerArray.getConstView();
+		
+		auto iView = Grid.IJK.iArray.getConstView();
+		auto jView = Grid.IJK.jArray.getConstView();
+		auto kView = Grid.IJK.kArray.getConstView();
+		
+		bool esotwistFlipper = Grid.esotwistFlipper;
+		auto iNbrView = Grid.EsotwistNbrArray.iNbrArray.getConstView();
+		auto jNbrView = Grid.EsotwistNbrArray.jNbrArray.getConstView();
+		auto kNbrView = Grid.EsotwistNbrArray.kNbrArray.getConstView();
+		auto ijNbrView = Grid.EsotwistNbrArray.ijNbrArray.getConstView();
+		auto ikNbrView = Grid.EsotwistNbrArray.ikNbrArray.getConstView();
+		auto jkNbrView = Grid.EsotwistNbrArray.jkNbrArray.getConstView();
+		auto ijkNbrView = Grid.EsotwistNbrArray.ijkNbrArray.getConstView();
+
+		auto cellLambda = [=] __cuda_callable__ ( const int cell ) mutable
+		{
+			// Coordinates on the absolute finest grid
+			int iCell = iView[ cell ] * cellScale; 
+			int jCell = jView[ cell ] * cellScale;
+			int kCell = kView[ cell ] * cellScale;
+			
+			// Compute physical center of this cell (x, y) relative to the origin
+			float xc = ((float)iCell + 0.5f * cellScale - (float)iOriginFinest) * FinestInfo.res;
+			float yc = ((float)jCell + 0.5f * cellScale - (float)jOriginFinest) * FinestInfo.res;
+			
+			// Distance from origin (cylinder axis)
+			float dist = sqrtf(xc*xc + yc*yc);
+			float halfWidth = cellScale * FinestInfo.res * 0.5f;
+
+			// Quick Culling: If cell doesn't touch the cylindrical shell, skip it.
+			if ( dist < r - halfWidth * 1.5f || dist > r + halfWidth * 1.5f ) return;
+
+			// Calculate polar angle and map to Circumference (S)
+			float theta = atan2f(yc, xc);
+			if (theta < 0.f) theta += 2.0f * PI;
+			
+			float s = theta * r;
+			int finestVerticalIndex = (int)(s / FinestInfo.res);
+
+			// Extract f populations and compute macroscopic fields
+			DIADEsotwistNbrStruct Nbr;
+			Nbr.i = iNbrView( cell ); Nbr.j = jNbrView( cell ); Nbr.k = kNbrView( cell );
+			Nbr.ij = ijNbrView( cell ); Nbr.ik = ikNbrView( cell ); Nbr.jk = jkNbrView( cell ); Nbr.ijk = ijkNbrView( cell );
+			
+			float f[27];
+			int cellReadIndex[27], fReadIndex[27];
+			getEsotwistWriteIndex( cell, cellReadIndex, fReadIndex, Nbr, esotwistFlipper, Info ); 
+			for ( int direction = 0; direction < 27; direction++ )	f[direction] = fArrayView(fReadIndex[direction], cellReadIndex[direction]);
+			
+			float rho, ux, uy, uz;
+			getRhoUxUyUz(rho, ux, uy, uz, f);
+
+			MarkerStruct Marker;
+			if ( useBouncebackArray ) Marker.bounceback = bouncebackMarkerArrayView( cell );
+			const float marker = Marker.bounceback;
+			
+			// 3. Mapping coordinates to the scaled-down 2D unrolled array
+			int spanY = max(1, cellScale / targetScale);
+			int spanX = max(1, cellScale / targetScale);
+			
+			// Centering the brush stroke for the cell's unrolled footprint
+			int outYStart = (finestVerticalIndex - (spanY * targetScale) / 2) / targetScale;
+			int outXStart = kCell / targetScale;
+			
+			for ( int shiftY = 0; shiftY < spanY; shiftY++ )
+			{
+				int y = outYStart + shiftY;
+				
+				// Handle wrap-around on the cylinder circumference to hide the seam
+				while (y < 0) y += targetCellCountVertical;
+				while (y >= targetCellCountVertical) y -= targetCellCountVertical;
+				
+				for ( int shiftX = 0; shiftX < spanX; shiftX++ )
+				{
+					int x = outXStart + shiftX;
+					if (x >= targetCellCountHorizontal) continue; // Memory safety bound on Z-axis
+					
+					rhoArrayView( y, x ) = rho;
+					uxArrayView( y, x ) = ux;
+					uyArrayView( y, x ) = uy;
+					uzArrayView( y, x ) = uz;
+					markerArrayView( y, x ) = marker;
+					gridIDArrayView( y, x ) = Info.gridID;
+				}
+			}
+		};
+		TNL::Algorithms::parallelFor<TNL::Devices::Cuda>(0, Info.cellCount, cellLambda );
+	}
+	
+	SectionCutStructCPU SectionCutCPU;
+	SectionCutCPU.rhoArray = SectionCut.rhoArray;
+	SectionCutCPU.uxArray = SectionCut.uxArray;
+	SectionCutCPU.uyArray = SectionCut.uyArray;
+	SectionCutCPU.uzArray = SectionCut.uzArray;
+	SectionCutCPU.markerArray = SectionCut.markerArray;
+	SectionCutCPU.gridIDArray = SectionCut.gridIDArray;
+	
+	FILE* fp = fopen("/dev/shm/sim_data.bin", "wb");
+	
+	// We export 6 fields: PlotNum, cellCountY, cellCountX, NumFields (6)
+	int header[4] = {plotNumber, targetCellCountVertical, targetCellCountHorizontal, 6};
+	fwrite(header, sizeof(int), 4, fp);
+	
+	for (int indexVertical = 0; indexVertical < targetCellCountVertical; indexVertical++)
+	{
+		for (int indexHorizontal = 0; indexHorizontal < targetCellCountHorizontal; indexHorizontal++)
+		{
+			float rho = SectionCutCPU.rhoArray.getElement(indexVertical, indexHorizontal);
+			float ux = SectionCutCPU.uxArray.getElement(indexVertical, indexHorizontal);
+			float uy = SectionCutCPU.uyArray.getElement(indexVertical, indexHorizontal);
+			float uz = SectionCutCPU.uzArray.getElement(indexVertical, indexHorizontal);
+			float marker = SectionCutCPU.markerArray.getElement(indexVertical, indexHorizontal);
+			int gridID = SectionCutCPU.gridIDArray.getElement(indexVertical, indexHorizontal);
+			
+			float p = rho;
+			
+			// Use the actual gridID to scale physical parameters properly
+			convertToPhysicalVelocity( ux, uy, uz, grids[gridID].Info );
+			convertToPhysicalPressure( p, grids[gridID].Info );
+			
+			// Velocity Mapping
+			// Recover theta to transform Cartesian ux/uy into uTangential/uRadial
+			float theta = ((float)indexVertical * targetScale * FinestInfo.res) / r;
+			float uTangential = -ux * sinf(theta) + uy * cosf(theta);
+			float uRadial = ux * cosf(theta) + uy * sinf(theta);
+			
+			// Outputs 6 components matching the typical DIAD generic plot shape
+			float data[6] = {p, uz, uTangential, uRadial, marker, (float)gridID};
+			fwrite(data, sizeof(float), 6, fp);
+		}
+	}
+	fclose(fp);
+}
+
 void exportHistoryData( const std::vector<float>& historyVector, const int &currentIteration ) {
     FILE* fp = fopen("/dev/shm/historyData.bin", "wb");
     if (!fp) return;
