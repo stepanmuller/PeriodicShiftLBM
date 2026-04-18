@@ -2,7 +2,7 @@ constexpr int caseID = 3;
 constexpr float angleOfAttack = 90.f;													// deg
 
 constexpr float chordLengthPhys = 10.f;													// mm
-constexpr float resGlobal = 1.f; 														// mm
+constexpr float resGlobal = 2.0f; 														// mm
 constexpr int gridLevelCount = 5;
 constexpr int wallRefinementSpan = 1;
 constexpr float uxInlet = 0.05f; 														// also works as nominal LBM Mach number

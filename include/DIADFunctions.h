@@ -436,45 +436,61 @@ void applyRefinementMarkerFromFunction( BoolArrayType &markerArray, IJKArrayStru
 	TNL::Algorithms::parallelFor<TNL::Devices::Cuda>(0, Info.cellCount, cellLambda );	
 }
 
-// Do a repetetive fluid marking in order to find which of our coarse cells could possibly contain at least one finest (maximum refinement level) fluid cell. 
-// Similarly, find which of our coarse cells could possibly contain at least one finest (maximum refinement level) bounceback cell. 
-// To do this we will be repeatedly temporarily shifting the origin of our grid, to simulate being on a finer grid.
+// Do a repetitive fluid marking in order to find which of our coarse cells could possibly contain 
+// at least one fluid cell at ANY finer resolution. 
+// Similarly, find which of our coarse cells could possibly contain at least one bounceback cell at ANY finer resolution.
+// To do this we will be repeatedly temporarily shifting the origin of our grid, to simulate being on all finer grids.
 void markFinestFluidBounceback( BoolArrayType &fluidMarkerArray, BoolArrayType &finestBouncebackMarkerArray, IJKArrayStruct &IJK, std::vector<STLStruct> STLs, InfoStruct &Info )
 {
-	const int shiftCount = std::pow(2, (gridLevelCount - Info.gridID - 1));
-	const float finestRes = Info.res / ( std::pow(2, (gridLevelCount - Info.gridID - 1)) );
-	const float shiftStart = - 0.5f * Info.res + 0.5f * finestRes;
 	const float oxOriginal = Info.ox;
 	const float oyOriginal = Info.oy;
 	const float ozOriginal = Info.oz;
+	
 	fluidMarkerArray.setValue( 0 );
 	finestBouncebackMarkerArray.setValue( 0 );
+	
 	BoolArrayType markerArray = BoolArrayType( Info.cellCount );
 	markerArray.setValue( 0 );
 	BoolArrayType markerArraySTL = BoolArrayType( Info.cellCount );
 	markerArraySTL.setValue( 0 );
-	for ( int shiftCountX = 0; shiftCountX < shiftCount; shiftCountX++ )
+
+	// Loop through all finer levels
+	for ( int targetLevel = Info.gridID; targetLevel < gridLevelCount; targetLevel++ )
 	{
-		for ( int shiftCountY = 0; shiftCountY < shiftCount; shiftCountY++ )
+		// Calculate shift parameters dynamically for the current target level
+		const int shiftCount = std::pow(2, (targetLevel - Info.gridID));
+		const float targetRes = Info.res / shiftCount;
+		const float shiftStart = - 0.5f * Info.res + 0.5f * targetRes;
+
+		for ( int shiftCountX = 0; shiftCountX < shiftCount; shiftCountX++ )
 		{
-			for ( int shiftCountZ = 0; shiftCountZ < shiftCount; shiftCountZ++ )
+			for ( int shiftCountY = 0; shiftCountY < shiftCount; shiftCountY++ )
 			{
-				Info.ox = oxOriginal + shiftStart + shiftCountX * finestRes;
-				Info.oy = oyOriginal + shiftStart + shiftCountY * finestRes;
-				Info.oz = ozOriginal + shiftStart + shiftCountZ * finestRes;				
-				applyBouncebackMarkerFromFunction( markerArray, IJK, Info );
-				for ( int STLIndex = 0; STLIndex < (int)STLs.size(); STLIndex++ )
+				for ( int shiftCountZ = 0; shiftCountZ < shiftCount; shiftCountZ++ )
 				{
-					const bool insideMarkerValue = 1;
-					ApplyMarkersInsideSTL( markerArraySTL, IJK, STLs[STLIndex], insideMarkerValue, Info );
-					sumBoolArrays( markerArray, markerArraySTL, markerArray );
+					Info.ox = oxOriginal + shiftStart + shiftCountX * targetRes;
+					Info.oy = oyOriginal + shiftStart + shiftCountY * targetRes;
+					Info.oz = ozOriginal + shiftStart + shiftCountZ * targetRes;				
+					
+					applyBouncebackMarkerFromFunction( markerArray, IJK, Info );
+					
+					for ( int STLIndex = 0; STLIndex < (int)STLs.size(); STLIndex++ )
+					{
+						const bool insideMarkerValue = 1;
+						ApplyMarkersInsideSTL( markerArraySTL, IJK, STLs[STLIndex], insideMarkerValue, Info );
+						sumBoolArrays( markerArray, markerArraySTL, markerArray );
+					}
+					
+					// Accumulate the findings into the main arrays
+					sumBoolArrays( finestBouncebackMarkerArray, markerArray, finestBouncebackMarkerArray );
+					invertBoolArray( markerArray );
+					sumBoolArrays( fluidMarkerArray, markerArray, fluidMarkerArray );
 				}
-				sumBoolArrays( finestBouncebackMarkerArray, markerArray, finestBouncebackMarkerArray );
-				invertBoolArray( markerArray );
-				sumBoolArrays( fluidMarkerArray, markerArray, fluidMarkerArray );
 			}
 		}
 	}
+	
+	// Restore original origin
 	Info.ox = oxOriginal;
 	Info.oy = oyOriginal;
 	Info.oz = ozOriginal;
