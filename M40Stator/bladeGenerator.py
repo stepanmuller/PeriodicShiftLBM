@@ -99,20 +99,20 @@ def visualizeSTL( filename ):
 	mesh.plot(color="white", show_edges=True)
 
 def generateBlade(parameterMatrix):
-	RIn = 7
-	RMid = 11
-	ROut = 15
-	thicknessIn = 2
-	thicknessMid = 2
-	thicknessOut = 2
+	RHub = 6
+	RMid = 9
+	RTip = 12
+	thicknessHub = 1.2
+	thicknessMid = 1.4
+	thicknessTip = 1.5
 	
-	profile0 = getProfile(parameterMatrix[0], thicknessIn)
+	profile0 = getProfile(parameterMatrix[0], thicknessHub)
 	profile1 = getProfile(parameterMatrix[1], thicknessMid)
-	profile2 = getProfile(parameterMatrix[2], thicknessOut)
+	profile2 = getProfile(parameterMatrix[2], thicknessTip)
 	
-	profile0 = transformProfileTo3D(profile0, RIn)
+	profile0 = transformProfileTo3D(profile0, RHub)
 	profile1 = transformProfileTo3D(profile1, RMid)
-	profile2 = transformProfileTo3D(profile2, ROut)
+	profile2 = transformProfileTo3D(profile2, RTip)
 	
 	resolution = 100
 	qArray = np.linspace(-0.05, 1.05, resolution)
@@ -179,11 +179,22 @@ def generateBlade(parameterMatrix):
 
 if __name__ == "__main__":
 	
-	gamma = [-30, -20, -10]
-	c = [20, 20, 20]
-	beta = [-30, -20, -10]
-	b = [10, 10, 10]
+	# stator
+	gamma = [-16.2, -10.7, -7.3]
+	c = [7.5, 8.35, 8.2]
+	beta = [-26.2, -20.7, -17.3]
+	b = [c[0]/2, c[1]/2, c[2]/2]
 	w = [1, 1, 1]
+	
+	"""
+	# rotor
+	gamma = [18.1, 42.3, 54]
+	c = [20, 20, 20]
+	beta = [25.6, 12.8, 8.4]
+	b = [c[0]/2, c[1]/2, c[2]/2]
+	w = [1, 1, 1]
+	"""
+	
 	parameterMatrixList = [gamma, c, beta, b, w]
 	parameterMatrix = np.array(parameterMatrixList).T
 	generateBlade(parameterMatrix)
