@@ -3,28 +3,7 @@ void getFlowReportGeneral( std::vector<DIADGridStruct> &grids, const int &cutInd
 {
 	const int levelCount = grids.size();
 	
-	// 1. Find the finest level that fits within the memory limit
-	int targetLevelCount = levelCount;
-	int targetCellCountHorizontal = 0, targetCellCountVertical = 0;
-	
-	while ( targetLevelCount > 1 )
-	{
-		InfoStruct Info = grids[targetLevelCount - 1].Info;
-		if ( plane == XY ) 		{ targetCellCountHorizontal = Info.cellCountX; targetCellCountVertical = Info.cellCountY; }
-		else if ( plane == ZY ) { targetCellCountHorizontal = Info.cellCountZ; targetCellCountVertical = Info.cellCountY; }
-		else 					{ targetCellCountHorizontal = Info.cellCountZ; targetCellCountVertical = Info.cellCountX; }
-		
-		// Use long long to prevent integer overflow on massive grids
-		long long dataSize = (long long)targetCellCountHorizontal * targetCellCountVertical;
-		if ( dataSize < 20000000 ) break;
-		
-		targetLevelCount--;
-	}
-	
-	// How much smaller the output array is compared to the absolute finest grid
-	const int targetScale = 1 << (levelCount - targetLevelCount); 
-
-	// 2. Map the physical Bounds to index bounds on the absolute finest grid
+	// 1. Map the physical Bounds to index bounds on the absolute finest grid FIRST
 	InfoStruct finestInfo = grids[levelCount - 1].Info;
 	
 	int iMin = std::max(0, static_cast<int>(std::floor((Bounds.xmin - finestInfo.ox) / finestInfo.res)));
@@ -34,9 +13,7 @@ void getFlowReportGeneral( std::vector<DIADGridStruct> &grids, const int &cutInd
 	int kMin = std::max(0, static_cast<int>(std::floor((Bounds.zmin - finestInfo.oz) / finestInfo.res)));
 	int kMax = std::min(finestInfo.cellCountZ, static_cast<int>(std::ceil((Bounds.zmax - finestInfo.oz) / finestInfo.res)));
 
-	// Assign horizontal and vertical bounds based on the chosen plane
-	int hMinFinest = 0, hMaxFinest = 0;
-	int vMinFinest = 0, vMaxFinest = 0;
+	int hMinFinest = 0, hMaxFinest = 0, vMinFinest = 0, vMaxFinest = 0;
 
 	if ( plane == XY ) 
 	{
@@ -54,14 +31,30 @@ void getFlowReportGeneral( std::vector<DIADGridStruct> &grids, const int &cutInd
 		vMinFinest = iMin; vMaxFinest = iMax;
 	}
 
-	// Scale the finest index bounds down to the target output resolution
-	int hMinTarget = hMinFinest / targetScale;
-	int hMaxTarget = (hMaxFinest + targetScale - 1) / targetScale; // Ceil division
-	int vMinTarget = vMinFinest / targetScale;
-	int vMaxTarget = (vMaxFinest + targetScale - 1) / targetScale; // Ceil division
+	// 2. Find the finest level that fits the CROPPED bounds within the memory limit
+	int targetLevelCount = levelCount;
+	int targetScale = 1;
+	int targetWidth = 0, targetHeight = 0;
+	int hMinTarget = 0, hMaxTarget = 0, vMinTarget = 0, vMaxTarget = 0;
+	
+	while ( targetLevelCount > 1 )
+	{
+		targetScale = 1 << (levelCount - targetLevelCount);
+		
+		hMinTarget = hMinFinest / targetScale;
+		hMaxTarget = (hMaxFinest + targetScale - 1) / targetScale; // Ceil division
+		vMinTarget = vMinFinest / targetScale;
+		vMaxTarget = (vMaxFinest + targetScale - 1) / targetScale; // Ceil division
 
-	int targetWidth = std::max(0, hMaxTarget - hMinTarget);
-	int targetHeight = std::max(0, vMaxTarget - vMinTarget);
+		targetWidth = std::max(0, hMaxTarget - hMinTarget);
+		targetHeight = std::max(0, vMaxTarget - vMinTarget);
+		
+		// Use the cropped array size, not the global grid size
+		long long dataSize = (long long)targetWidth * targetHeight;
+		if ( dataSize < 20000000 ) break;
+		
+		targetLevelCount--;
+	}
 
 	SectionCutStruct SectionCut;
 	SectionCut.rhoArray.setSizes( targetHeight, targetWidth );
@@ -85,14 +78,13 @@ void getFlowReportGeneral( std::vector<DIADGridStruct> &grids, const int &cutInd
 	auto markerArrayView = SectionCut.markerArray.getView();
 	auto gridIDArrayView = SectionCut.gridIDArray.getView();
 	
-	// 3. Loop through ALL grids (none are dropped)
+	// 3. Loop through ALL grids
 	for ( int level = 0; level < levelCount; level++ )
 	{
 		DIADGridStruct &Grid = grids[level];
 		InfoStruct Info = Grid.Info;
 		
-		// cellScale is relative to the absolute finest grid (levelCount)
-		const int cellScale = std::pow(2, (levelCount - Info.gridID - 1) );
+		const int cellScale = static_cast<int>(pow(2, levelCount - Info.gridID - 1));
 		
 		auto fArrayView  = Grid.fArray.getConstView();
 		bool useBouncebackArray = ( Grid.bouncebackMarkerArray.getSize() > 0 );
@@ -113,32 +105,33 @@ void getFlowReportGeneral( std::vector<DIADGridStruct> &grids, const int &cutInd
 
 		auto cellLambda = [=] __cuda_callable__ ( const int cell ) mutable
 		{
-			// Coordinates on the absolute finest grid
-			int iCell = iView[ cell ] * cellScale; 
-			int jCell = jView[ cell ] * cellScale;
-			int kCell = kView[ cell ] * cellScale;
+			int iCell = iView[ cell ]; 
+			int jCell = jView[ cell ];
+			int kCell = kView[ cell ];
+			int iCellScaled = iCell * cellScale; 
+			int jCellScaled = jCell * cellScale;
+			int kCellScaled = kCell * cellScale;
 			
 			int indexHorizontal = 0;
 			int indexVertical = 0;
 			
-			// cutIndex remains fully accurate because it checks against the absolute finest coordinates
 			if ( plane == XY ) 
 			{
-				if ( cutIndex < kCell || cutIndex >= kCell + cellScale ) return;
-				indexHorizontal = iCell; 
-				indexVertical = jCell; 
+				if ( cutIndex < kCellScaled || cutIndex >= kCellScaled + cellScale ) return;
+				indexHorizontal = iCellScaled; 
+				indexVertical = jCellScaled; 
 			}
 			else if ( plane == ZY ) 
 			{ 
-				if ( cutIndex < iCell || cutIndex >= iCell + cellScale ) return; 
-				indexVertical = jCell; 
-				indexHorizontal = kCell; 
+				if ( cutIndex < iCellScaled || cutIndex >= iCellScaled + cellScale ) return; 
+				indexVertical = jCellScaled; 
+				indexHorizontal = kCellScaled; 
 			}
 			else // ZX plane
 			{ 
-				if ( cutIndex < jCell || cutIndex >= jCell + cellScale ) return; 
-				indexVertical = iCell; 
-				indexHorizontal = kCell; 
+				if ( cutIndex < jCellScaled || cutIndex >= jCellScaled + cellScale ) return; 
+				indexVertical = iCellScaled; 
+				indexHorizontal = kCellScaled; 
 			}
 			
 			DIADEsotwistNbrStruct Nbr;
@@ -161,25 +154,24 @@ void getFlowReportGeneral( std::vector<DIADGridStruct> &grids, const int &cutInd
 
 			MarkerStruct Marker;
 			if ( useBouncebackArray ) Marker.bounceback = bouncebackMarkerArrayView( cell );
+			getMarkers( iCell, jCell, kCell, Marker, Info );
 			const float marker = Marker.bounceback;
 			
-			// 4. Mapping coordinates to the scaled-down and specifically cropped output array
 			int outYStart = (indexVertical / targetScale) - vMinTarget;
 			int outXStart = (indexHorizontal / targetScale) - hMinTarget;
 			
-			// How many pixels this cell spans on the output array (minimum 1 for downsampled fine grids)
 			int spanY = max(1, cellScale / targetScale);
 			int spanX = max(1, cellScale / targetScale);
 			
 			for ( int shiftY = 0; shiftY < spanY; shiftY++ )
 			{
 				int y = outYStart + shiftY;
-				if ( y < 0 || y >= targetHeight ) continue; // Crop
+				if ( y < 0 || y >= targetHeight ) continue;
 				
 				for ( int shiftX = 0; shiftX < spanX; shiftX++ )
 				{
 					int x = outXStart + shiftX;
-					if ( x < 0 || x >= targetWidth ) continue; // Crop
+					if ( x < 0 || x >= targetWidth ) continue;
 					
 					rhoArrayView( y, x ) = rho;
 					uxArrayView( y, x ) = ux;
@@ -193,52 +185,46 @@ void getFlowReportGeneral( std::vector<DIADGridStruct> &grids, const int &cutInd
 		TNL::Algorithms::parallelFor<TNL::Devices::Cuda>(0, Info.cellCount, cellLambda );
 	}
 	
-	// AT THIS POINT THE SECTION CUT IS FILLED, DO REDUCTION ON ITS ARRAYS AND FILL FLOW REPORT
 	const int totalCutCells = targetWidth * targetHeight;
 
 	auto fetchCellCount = [=] __cuda_callable__( const int singleIndex )
 	{
 		const int y = singleIndex / targetWidth;
 		const int x = singleIndex % targetWidth;
-		if ( markerArrayView( y, x ) ) return 0;
+		if ( markerArrayView( y, x ) != 0.0f ) return 0; // Explicit check
 		else return 1;
 	};
-	auto reductionCellCount = [] __cuda_callable__( const int& a, const int& b )
-	{
-		return a + b;
-	};
+	auto reductionCellCount = [] __cuda_callable__( const int& a, const int& b ) { return a + b; };
+	
 	auto fetchUx = [=] __cuda_callable__( const int singleIndex )
 	{
 		const int y = singleIndex / targetWidth;
 		const int x = singleIndex % targetWidth;
-		if ( markerArrayView( y, x ) ) return 0.f;
+		if ( markerArrayView( y, x ) != 0.0f ) return 0.f;
 		else return uxArrayView( y, x );
 	};
 	auto fetchUy = [=] __cuda_callable__( const int singleIndex )
 	{
 		const int y = singleIndex / targetWidth;
 		const int x = singleIndex % targetWidth;
-		if ( markerArrayView( y, x ) ) return 0.f;
+		if ( markerArrayView( y, x ) != 0.0f ) return 0.f;
 		else return uyArrayView( y, x );
 	};
 	auto fetchUz = [=] __cuda_callable__( const int singleIndex )
 	{
 		const int y = singleIndex / targetWidth;
 		const int x = singleIndex % targetWidth;
-		if ( markerArrayView( y, x ) ) return 0.f;
+		if ( markerArrayView( y, x ) != 0.0f ) return 0.f;
 		else return uzArrayView( y, x );
 	};
 	auto fetchRho = [=] __cuda_callable__( const int singleIndex )
 	{
 		const int y = singleIndex / targetWidth;
 		const int x = singleIndex % targetWidth;
-		if ( markerArrayView( y, x ) ) return 0.f;
-		else return rhoArrayView( y, x );
+		if ( markerArrayView( y, x ) != 0.0f ) return 0.f;
+		else return (rhoArrayView( y, x ) - 1.f); // well conditioned
 	};
-	auto reductionFloat = [] __cuda_callable__( const float& a, const float& b )
-	{
-		return a + b;
-	};
+	auto reductionFloat = [] __cuda_callable__( const float& a, const float& b ) { return a + b; };
 
 	const int cellSum = TNL::Algorithms::reduce<TNL::Devices::Cuda>( 0, totalCutCells, fetchCellCount, reductionCellCount, 0 );
 	float uxSum = TNL::Algorithms::reduce<TNL::Devices::Cuda>( 0, totalCutCells, fetchUx, reductionFloat, 0.f );
@@ -246,11 +232,17 @@ void getFlowReportGeneral( std::vector<DIADGridStruct> &grids, const int &cutInd
 	float uzSum = TNL::Algorithms::reduce<TNL::Devices::Cuda>( 0, totalCutCells, fetchUz, reductionFloat, 0.f );
 	float rhoSum = TNL::Algorithms::reduce<TNL::Devices::Cuda>( 0, totalCutCells, fetchRho, reductionFloat, 0.f );
 	
-	FlowReport.areamm2 = cellSum * ( grids[targetLevelCount-1].Info.res * grids[targetLevelCount-1].Info.res );
-	FlowReport.ux = uxSum / (float)cellSum;
-	FlowReport.uy = uySum / (float)cellSum;
-	FlowReport.uz = uzSum / (float)cellSum;
-	FlowReport.rho = rhoSum / (float)cellSum;
+	// Ensure no division by zero if the cut plane is entirely inside a solid
+	if (cellSum > 0) {
+		FlowReport.areamm2 = cellSum * ( grids[targetLevelCount-1].Info.res * grids[targetLevelCount-1].Info.res );
+		FlowReport.ux = uxSum / (float)cellSum;
+		FlowReport.uy = uySum / (float)cellSum;
+		FlowReport.uz = uzSum / (float)cellSum;
+		FlowReport.rho = (rhoSum / (float)cellSum) + 1.f;
+	} else {
+		FlowReport.areamm2 = 0.f;
+		FlowReport.ux = 0.f; FlowReport.uy = 0.f; FlowReport.uz = 0.f; FlowReport.rho = 1.f;
+	}
 }
 
 void getFlowReportXY( std::vector<DIADGridStruct> &grids, const int &kCell, XYZBoundsStruct &Bounds, FlowReportStruct &FlowReport )

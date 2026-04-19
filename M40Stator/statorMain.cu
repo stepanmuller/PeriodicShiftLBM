@@ -20,6 +20,7 @@ constexpr float soundspeedPhys = invSqrt3 * (resGlobal/1000) / dtPhysGlobal; 			
 constexpr float RIn = 6.f;																// mm
 constexpr float ROut = 12.f;															// mm
 constexpr float C = 0.092784f;															// m2/s
+const float boundaryLayerThickness = 0.2f;												// mm
 constexpr int bladeCount = 5;
 
 constexpr int iterationChunk = 2000;
@@ -73,9 +74,14 @@ __cuda_callable__ void getGivenRhoUxUyUz( 	const int& iCell, const int& jCell, c
 	const float r = std::sqrt( x * x + y * y );
 	const float vtPhys = (1.f / (r / 1000.f)) * C;
 	const float vt = vtPhys * ( uzInlet / uzInletPhys );
-	ux = - vt * (y / r);
-	uy = vt * (x / r);
-	uz = uzInlet;
+	
+	const float wallDistancePhys = std::max(0.f, std::min(r - RIn, ROut - r));
+	const float delta = std::max( 0.f, std::min( 1.f, wallDistancePhys / boundaryLayerThickness ));
+	const float velocityMultiplier = delta * delta * (3.0f - 2.0f * delta);
+	
+	ux = - vt * (y / r) * velocityMultiplier;
+	uy = vt * (x / r) * velocityMultiplier;
+	uz = uzInlet * velocityMultiplier;
 	rho = rhoOutlet + Info.regulator;
 }
 
@@ -334,10 +340,10 @@ int main(int argc, char **argv)
 		{
 			FlowReportStruct FlowReport;
 			XYZBoundsStruct Bounds;
-			Bounds.xmin = -15.f;
-			Bounds.xmax = 15.f;
-			Bounds.ymin = -15.f;
-			Bounds.ymax = 15.f;
+			Bounds.xmin = -12.5f;
+			Bounds.xmax = 12.5f;
+			Bounds.ymin = -12.5f;
+			Bounds.ymax = 12.5f;
 			int kCut = 0;
 			getFlowReportXY( grids, kCut, Bounds, FlowReport );
 			float pAvg = FlowReport.rho;
@@ -375,6 +381,12 @@ int main(int argc, char **argv)
 				system("python3 ../include/plotter/plotterGridID.py");
 				counter++;
 			}	
+			int kCut = 0;
+			exportSectionCutPlotXY( grids, kCut, iteration + 10);
+			system("python3 ../include/plotter/plotterGridID.py");
+			kCut = grids[gridLevelCount-1].Info.cellCountZ-1;
+			exportSectionCutPlotXY( grids, kCut, iteration + 11);
+			system("python3 ../include/plotter/plotterGridID.py");
 			lapTimer.reset();
 			lapTimer.start();	
 		}
