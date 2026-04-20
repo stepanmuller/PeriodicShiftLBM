@@ -170,6 +170,7 @@ yLegendList.append("Morrison")
 yColorList.append("gray")
 yStyleList.append(".-")
 
+"""
 # Cumulant AllOne, D/res = 160
 xList.append(np.array([100, 200, 500, 1000, 2000, 5000, 10000, 20000, 50000, 100000, 200000, 500000, 1000000, 2000000, 5000000, 10000000]))
 yList.append(np.array([1.149, 0.829, 0.612, 0.508, 0.455, 0.451, 0.487, 0.540, 0.565, 0.579, 0.587, 0.571, 0.584, 0.581, 0.591, 0.583]))
@@ -183,20 +184,27 @@ yList.append(np.array([0.575]))
 yLegendList.append("Cumulant AllOne, D/res = 320")
 yColorList.append("purple")
 yStyleList.append("X") 
-
+"""
 # Cumulant AllOne, D/res = 160, LES Sm 0.1
 xList.append(np.array([100, 200, 500, 1000, 2000, 5000, 10000, 20000, 50000, 100000, 200000, 500000, 1000000, 2000000, 5000000, 10000000]))
 yList.append(np.array([1.150, 0.832, 0.624, 0.514, 0.467, 0.468, 0.481, 0.5, 0.501, 0.507, 0.504, 0.503, 0.505, 0.519, 0.523, 0.519]))
 yLegendList.append("Cumulant AllOne, D/res = 160, LES 0.1")
-yColorList.append("teal")
-yStyleList.append("+") 
+yColorList.append("black")
+yStyleList.append("X") 
 
 # DIAD Cumulant AllOne, D/res = 640, LES Sm 0.1
 xList.append(np.array([1000000]))
 yList.append(np.array([0.210]))
 yLegendList.append("DIAD Cumulant AllOne, D/res = 640, LES 0.1")
 yColorList.append("red")
-yStyleList.append("*") 
+yStyleList.append("X") 
+
+# Metacentrum, DIAD Cumulant AllOne, D/res = 800, LES Sm 0.1
+xList.append(np.array([50000, 100000, 200000, 300000, 400000, 500000, 600000, 800000, 1000000]))
+yList.append(np.array([0.442, 0.363, 0.3, 0.293, 0.320, 0.295, 0.278, 0.312, 0.316]))
+yLegendList.append("Metacentrum, DIAD Cumulant AllOne, D/res = 800, LES 0.1")
+yColorList.append("purple")
+yStyleList.append("X") 
 
 # ==========================================
 # 2. PLOT STYLING (LaTeX Enabled)
@@ -205,12 +213,12 @@ plt.rcParams.update({
     "text.usetex": True,
     "font.family": "serif",
     "font.serif": ["Computer Modern Roman"],
-    "font.size": 16,
-    "axes.titlesize": 16,
-    "axes.labelsize": 16,
-    "xtick.labelsize": 16,
-    "ytick.labelsize": 16,
-    "legend.fontsize": 16,
+    "font.size": 20,
+    "axes.titlesize": 20,
+    "axes.labelsize": 20,
+    "xtick.labelsize": 20,
+    "ytick.labelsize": 20,
+    "legend.fontsize": 20,
 })
 
 
@@ -218,7 +226,7 @@ plt.rcParams.update({
 # 3. PLOT GENERATION
 # ==========================================
 # Single subplot, maintaining the 16:9 aspect ratio
-fig, ax = plt.subplots(1, 1, figsize=(16, 9))
+fig, ax = plt.subplots(1, 1, figsize=(12, 9))
 
 # Loop through all datasets and plot them
 for i in range(len(yList)):
