@@ -1,4 +1,4 @@
-constexpr float resGlobal = 0.16f; 														// mm
+constexpr float resGlobal = 0.4f; 														// mm
 constexpr int gridLevelCount = 3;
 constexpr int wallRefinementSpan = 1;
 
@@ -120,130 +120,6 @@ void updateGrid( std::vector<DIADGridStruct>& grids, int level )
     }
 }
 
-/*
-float getVtDeviation( GridStruct &Grid, const float &r )
-{
-	InfoStruct Info = Grid.Info;
-	auto fArrayView  = Grid.fArray.getView();
-	auto shifterView  = Grid.shifter.getConstView();
-	auto bouncebackMarkerArrayView = Grid.bouncebackMarkerArray.getConstView();
-	
-	const int start = 0;
-	const int end = (int)(3.14159f * 2.f * r / Info.res);
-	const float evaluationZ = Info.oz + Info.cellCountZ * Info.res - SmagorinskyZoneLength;
-		
-	auto fetchVt = [ = ] __cuda_callable__( const int sinfgleIndex )
-	{
-		const float fi = ((float)sinfgleIndex / (float)end) * 2.f * 3.14159f;
-		const float x = r * cosf(fi);
-		const float y = r * sinf(fi);
-		int iCell, jCell, kCell;
-		getIJKCellIndexFromXYZ( iCell, jCell, kCell, x, y, evaluationZ, Info);
-		
-		int cell;
-		getCellIndex( cell, iCell, jCell, kCell, Info );
-		
-		int shiftedIndex[27];
-		getShiftedIndex( cell, shiftedIndex, shifterView, Info );
-		float f[27];
-		for (int direction = 0; direction < 27; direction++) f[direction] = fArrayView( direction, shiftedIndex[direction] );	
-		float rho, ux, uy, uz;
-		getRhoUxUyUz(rho, ux, uy, uz, f);
-		
-		convertToPhysicalVelocity( ux, uy, uz, Info );
-		
-		const float vt = uy * cosf(fi) - ux * sinf(fi);
-		
-		return vt;
-	};
-	auto reductionVt = [] __cuda_callable__( const float& a, const float& b )
-	{
-		return a + b;
-	};
-	
-	float vtSum = TNL::Algorithms::reduce<TNL::Devices::Cuda>( start, end, fetchVt, reductionVt, 0.f );
-	float vtAvg = vtSum / (float)end;
-	const float vtTarget = 0.f; //(1.f / (r / 1000.f)) * C;
-	const float vtDeviation = abs( vtTarget - vtAvg );
-	return vtDeviation;
-}
-*/
-
-/*
-float getPLoss( GridStruct &Grid )
-{
-	InfoStruct Info = Grid.Info;
-	auto fArrayView  = Grid.fArray.getView();
-	auto shifterView  = Grid.shifter.getConstView();
-	auto bouncebackMarkerArrayView = Grid.bouncebackMarkerArray.getConstView();
-	
-	const int start = 0;
-	const int end = Info.cellCountX * Info.cellCountY;
-	
-	auto fetchCount = [ = ] __cuda_callable__( const int sinfgleIndex )
-	{
-		const int iCell = sinfgleIndex % Info.cellCountX;
-		const int jCell = sinfgleIndex / Info.cellCountX;
-		const int kCell = 0;
-		
-		int cell;
-		getCellIndex( cell, iCell, jCell, kCell, Info );
-		
-		MarkerStruct Marker;
-		Marker.bounceback = bouncebackMarkerArrayView( cell );
-		getMarkers( iCell, jCell, kCell, Marker, Info );
-		if ( Marker.bounceback ) return 0;
-		else return 1;
-	};
-	auto reductionCount = [] __cuda_callable__( const int& a, const int& b )
-	{
-		return a + b;
-	};
-		
-	auto fetchPLoss = [ = ] __cuda_callable__( const int sinfgleIndex )
-	{
-		const int iCell = sinfgleIndex % Info.cellCountX;
-		const int jCell = sinfgleIndex / Info.cellCountX;
-		const int kCell = 0;
-		
-		int cell;
-		getCellIndex( cell, iCell, jCell, kCell, Info );
-		
-		MarkerStruct Marker;
-		Marker.bounceback = bouncebackMarkerArrayView( cell );
-		getMarkers( iCell, jCell, kCell, Marker, Info );
-		if ( Marker.bounceback ) return 0.f;
-		
-		int shiftedIndex[27];
-		getShiftedIndex( cell, shiftedIndex, shifterView, Info );
-		float f[27];
-		for (int direction = 0; direction < 27; direction++) f[direction] = fArrayView( direction, shiftedIndex[direction] );	
-		float rho, ux, uy, uz;
-		getRhoUxUyUz(rho, ux, uy, uz, f);
-		float pInlet = rho;
-		convertToPhysicalPressure( pInlet, Info );
-		
-		float x, y, z;
-		getXYZFromIJKCellIndex( iCell, jCell, kCell, x, y, z, Info );
-		const float r = std::sqrt( x * x + y * y );
-		const float vtPhys = (1.f / (r / 1000.f)) * C;
-		
-		const float pLoss = pInlet + 0.5f * rhoNominalPhys * vtPhys * vtPhys;
-		
-		return pLoss;
-	};
-	auto reductionPLoss = [] __cuda_callable__( const float& a, const float& b )
-	{
-		return a + b;
-	};
-	
-	int count = TNL::Algorithms::reduce<TNL::Devices::Cuda>( start, end, fetchCount, reductionCount, 0 );
-	float pLossSum = TNL::Algorithms::reduce<TNL::Devices::Cuda>( start, end, fetchPLoss, reductionPLoss, 0.f );
-	float pLossAvg = pLossSum / (float)count;
-	return pLossAvg;
-}
-*/
-
 void exportHistoryData( const std::vector<float>& historyVector, const int &currentIteration, int fileNumber ) {
     FILE* fp = fopen("/dev/shm/historyData.bin", "wb");
     if (!fp) return;
@@ -256,23 +132,136 @@ void exportHistoryData( const std::vector<float>& historyVector, const int &curr
     system(cmd.c_str());
 }
 
-/*
-
-void writeCaseResult( const std::vector<float>& historyVector, const int caseID ) {
-	const int averagingIntervalStart = (iterationCount / 10 * 7);
-	float sum = 0.f;
+void fillOutletCellList( DIADGridStruct &Grid )
+{
+	auto kView = Grid.IJK.kArray.getView();
+	auto fetch = [ = ] __cuda_callable__( const int cell )
+		{
+			if ( kView[ cell ] == Grid.Info.cellCountZ-2 ) return 1;
+			else return 0;
+		};
+		auto reduction = [] __cuda_callable__( const int& a, const int& b )
+		{
+			return a + b;
+		};	
+	int outletCellCount = TNL::Algorithms::reduce<TNL::Devices::Cuda>( 0, Grid.Info.cellCount, fetch, reduction, 0 );
+	
+	IntArrayTypeCPU kArrayCPU;
+	kArrayCPU = Grid.IJK.kArray;
+	IntArrayTypeCPU outletCellArrayCPU;
+	outletCellArrayCPU.setSize( outletCellCount );
 	int counter = 0;
-	for ( int i = averagingIntervalStart; i < iterationCount; i++ )
+	for ( int cell = 0; cell < Grid.Info.cellCount; cell++ ) 
 	{
-		sum += historyVector[i];
-		counter++;
+		if ( kArrayCPU[ cell ] == Grid.Info.cellCountZ-2 ) outletCellArrayCPU[ counter++ ] = cell;
 	}
-	const float result = sum / (float)counter;
-    std::ofstream outFile("optimizerResults.txt", std::ios::app);
-    outFile << caseID << "; " << result << "\n";
-    outFile.close();
+	Grid.outletCellArray = outletCellArrayCPU;
 }
-*/
+
+void applyNonReflectiveOutletBC( DIADGridStruct &Grid )
+{
+	const int outletCellCount = Grid.outletCellArray.getSize();
+	
+	auto outletCellView = outletCellArray.getView();
+	
+	auto fArrayView  = Grid.fArray.getView();
+	
+	auto iView = Grid.IJK.iArray.getConstView();
+	auto jView = Grid.IJK.jArray.getConstView();
+	auto kView = Grid.IJK.kArray.getConstView();
+	
+	bool esotwistFlipper = Grid.esotwistFlipper;
+	auto iNbrView = Grid.EsotwistNbrArray.iNbrArray.getConstView();
+	auto jNbrView = Grid.EsotwistNbrArray.jNbrArray.getConstView();
+	auto kNbrView = Grid.EsotwistNbrArray.kNbrArray.getConstView();
+	auto ijNbrView = Grid.EsotwistNbrArray.ijNbrArray.getConstView();
+	auto ikNbrView = Grid.EsotwistNbrArray.ikNbrArray.getConstView();
+	auto jkNbrView = Grid.EsotwistNbrArray.jkNbrArray.getConstView();
+	auto ijkNbrView = Grid.EsotwistNbrArray.ijkNbrArray.getConstView();
+	
+	bool useBouncebackArray = false;
+	auto bouncebackMarkerArrayView = Grid.bouncebackMarkerArray.getConstView();
+	if ( Grid.bouncebackMarkerArray.getSize() > 0 )
+	{
+		useBouncebackArray = true;
+	}
+	InfoStruct Info = Grid.Info;
+	
+	auto cellLambda = [=] __cuda_callable__ ( const int index ) mutable
+	{
+		const int cell = 
+		const int iCell = iView( cell );
+		const int jCell = jView( cell );
+		const int kCell = kView( cell );
+		
+		DIADEsotwistNbrStruct Nbr;
+		Nbr.i = iNbrView( cell );
+		Nbr.j = jNbrView( cell );
+		Nbr.k = kNbrView( cell );
+		Nbr.ij = ijNbrView( cell );
+		Nbr.ik = ikNbrView( cell );
+		Nbr.jk = jkNbrView( cell );
+		Nbr.ijk = ijkNbrView( cell ); 
+		
+		MarkerStruct Marker;
+		if ( useBouncebackArray ) Marker.bounceback = bouncebackMarkerArrayView( cell );
+		getMarkers( iCell, jCell, kCell, Marker, Info );
+		
+		if ( Marker.bounceback )
+		{
+			return; // bounceback gets implicitly applied by Esotwist
+		}
+		
+		float f[27];
+		int cellReadIndex[27];
+		int fReadIndex[27];
+		getEsotwistReadIndex( cell, cellReadIndex, fReadIndex, Nbr, esotwistFlipper, Info );
+		for ( int direction = 0; direction < 27; direction++ )	f[direction] = fArrayView(fReadIndex[direction], cellReadIndex[direction]);
+		
+		float rho, ux, uy, uz;
+		
+		if ( Marker.fluid )
+		{
+			// do nothing, just skip the else block below
+		}
+		else
+		{
+			int outerNormalX, outerNormalY, outerNormalZ;
+			getOuterNormal( iCell, jCell, kCell, outerNormalX, outerNormalY, outerNormalZ, Info ); 
+			if ( Marker.periodicX ) outerNormalX = 0;
+			if ( Marker.periodicY ) outerNormalY = 0;
+			if ( Marker.periodicZ ) outerNormalZ = 0;
+			getGivenRhoUxUyUz( iCell, jCell, kCell, rho, ux, uy, uz, Info );
+			if ( Marker.mirror )
+			{
+				applyMirror( outerNormalX, outerNormalY, outerNormalZ, f );
+			}
+			else if ( Marker.givenRho && !Marker.givenUxUyUz )
+			{
+				restoreUxUyUz( outerNormalX, outerNormalY, outerNormalZ, rho, ux, uy, uz, f );
+			}
+			else if ( !Marker.givenRho && Marker.givenUxUyUz )
+			{
+				restoreRho( outerNormalX, outerNormalY, outerNormalZ, rho, ux, uy, uz, f );
+			}
+			else if ( !Marker.givenRho && !Marker.givenUxUyUz )
+			{
+				restoreRhoUxUyUz( outerNormalX, outerNormalY, outerNormalZ, rho, ux, uy, uz, f );
+			}
+			applyMBBC( outerNormalX, outerNormalY, outerNormalZ, rho, ux, uy, uz, f );
+		}
+		const float SmagorinskyConstant = getSmagorinskyConstant( iCell, jCell, kCell, Info );
+		applyCollision( f, Info.nu, SmagorinskyConstant );
+		
+		int cellWriteIndex[27];
+		int fWriteIndex[27];
+		getEsotwistWriteIndex( cell, cellWriteIndex, fWriteIndex, Nbr, esotwistFlipper, Info );
+		
+		for ( int direction = 0; direction < 27; direction++ ) fArrayView( fWriteIndex[direction], cellWriteIndex[direction] ) = f[direction];
+		
+	};
+	TNL::Algorithms::parallelFor<TNL::Devices::Cuda>(0, outletCellCount, cellLambda );
+}
 
 int main(int argc, char **argv)
 {
@@ -312,6 +301,11 @@ int main(int argc, char **argv)
 	buildIJKFromInfo( grids[0].IJK, grids[0].Info );
 	
 	buildDIADGrids( grids, STLs, 0 );
+	
+	for ( int level = 0; level < gridLevelCount; level++ )
+	{
+		fillOutletCellList( grids[level] );
+	}
 	
 	int cellCountTotal = 0;
 	long int cellUpdatesPerIteration = 0;
@@ -391,30 +385,25 @@ int main(int argc, char **argv)
 			lapTimer.start();	
 		}
 	}
-	/*
-	lapTimer.stop();
-	auto lapTime = lapTimer.getRealTime();
-	std::cout << "Finished iteration " << iterationCount << std::endl;
-	const float updateCount = (float)Grid.Info.cellCount * (float)iterationCount;
-	const float glups = updateCount / lapTime / 1000000000.f;
-	std::cout << "GLUPS: " << glups << std::endl;
-	
-	int counter = 1;
-	for (float r = RIn + 1.f; r < ROut; r = r + 1.f) 
-	{
-		exportSectionCutPlotToiletPaperZ( Grid, r, 10*0 + counter );
-		system("python3 ../include/plotter/plotter.py");
-		counter++;
-	}
-	
-	exportHistoryData( historyVector, iterationCount, 0 );
-	
-	if (argc > 1) 
-    {
-		writeCaseResult( historyVector, caseID );
-	}
-	
-	std::cout << "Finshed case " << caseID << std::endl;	
-	*/
 	return EXIT_SUCCESS;
 }
+
+
+
+/*
+
+void writeCaseResult( const std::vector<float>& historyVector, const int caseID ) {
+	const int averagingIntervalStart = (iterationCount / 10 * 7);
+	float sum = 0.f;
+	int counter = 0;
+	for ( int i = averagingIntervalStart; i < iterationCount; i++ )
+	{
+		sum += historyVector[i];
+		counter++;
+	}
+	const float result = sum / (float)counter;
+    std::ofstream outFile("optimizerResults.txt", std::ios::app);
+    outFile << caseID << "; " << result << "\n";
+    outFile.close();
+}
+*/

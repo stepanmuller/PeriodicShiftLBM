@@ -165,5 +165,5 @@ struct DIADGridStruct { InfoStruct Info; FloatArray2DType fArray; BoolArrayType 
 						IntArrayType fineToCoarseWriteArray; IntArrayType fineToCoarseReadArray; 
 						IntArrayType coarseToFineWriteArray; IntArrayType coarseToFineReadArray; 
 						BoolArrayType enforceInterfaceFluid; BoolArrayType enforceInterfaceBounceback;
-						bool esotwistFlipper = 0; }; 	
+						bool esotwistFlipper = 0; IntArrayType outletCellArray; }; 	
 						
