@@ -195,11 +195,11 @@ if __name__ == "__main__":
 	w = [1, 1, 1]
 	"""
 	# rotor
-	gamma = [20.6, 44.8, 56.5]
-	c = [25, 25, 25]
-	beta = [23.1, 10.2, 5.9]
-	b = [c[0]/2, c[1]/2, c[2]/2]
-	w = [1, 1, 1]
+	gamma = [20.6, 35, 57]
+	c = [15, 18, 18]
+	beta = [30, 12, 5]
+	b = [c[0]/4, c[1]/2, c[2]/2]
+	w = [2, 1, 1]
 	
 	parameterMatrixList = [gamma, c, beta, b, w]
 	parameterMatrix = np.array(parameterMatrixList).T

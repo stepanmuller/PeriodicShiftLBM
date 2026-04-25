@@ -1,9 +1,9 @@
-constexpr float resGlobal = 0.2f; 														// mm
+constexpr float resGlobal = 0.3f; 														// mm
 constexpr int gridLevelCount = 3;
 constexpr int wallRefinementSpan = 1;
 
 constexpr int iterationCount = 50000;
-constexpr int iterationChunk = 2000;
+constexpr int iterationChunk = 1000;
 
 constexpr float SmagorinskyConstantGlobal = 0.1f; 										// set to zero to turn off LES
 constexpr float SmagorinskyZoneLength = 5.f;
@@ -22,7 +22,7 @@ constexpr float RIn = 6.f;																// mm
 constexpr float ROut = 12.f;															// mm
 constexpr float C = 0.092784f;															// m2/s
 const float boundaryLayerThickness = 0.2f;												// mm
-constexpr int bladeCount = 3;
+constexpr int bladeCount = 5;
 
 
 #include "../include/types.h"
@@ -105,7 +105,7 @@ __cuda_callable__ void getInitialRhoUxUyUz( const int &iCell, const int &jCell, 
 }
 
 #include "../include/applyLocalCellUpdate.h"
-#include "../include/plotter/exportSectionCutPlot.h"
+#include "./exportSectionCutPlotCustomized.h"
 #include "../include/fillEquilibrium.h"
 #include "../include/gridRefinementFunctions.h"
 #include "../include/DIADFunctions.h"
