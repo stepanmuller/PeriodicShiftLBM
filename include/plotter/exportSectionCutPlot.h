@@ -382,7 +382,7 @@ void exportSectionCutPlotGeneral( std::vector<DIADGridStruct> &grids, const int 
 	int targetLevelCount = levelCount;
 	int targetCellCountHorizontal = 0, targetCellCountVertical = 0;
 	
-	while ( targetLevelCount > 1 )
+	while ( targetLevelCount > 0 ) // Evaluate down to index 0
 	{
 		InfoStruct Info = grids[targetLevelCount - 1].Info;
 		if ( plane == XY ) 		{ targetCellCountHorizontal = Info.cellCountX; targetCellCountVertical = Info.cellCountY; }
@@ -391,7 +391,9 @@ void exportSectionCutPlotGeneral( std::vector<DIADGridStruct> &grids, const int 
 		
 		// Use long long to prevent integer overflow on massive grids
 		long long dataSize = (long long)targetCellCountHorizontal * targetCellCountVertical;
-		if ( dataSize < 20000000 ) break;
+		
+		// Break if it fits in memory OR if we are forced to use the absolute coarsest grid
+		if ( dataSize < 20000000 || targetLevelCount == 1 ) break; 
 		
 		targetLevelCount--;
 	}

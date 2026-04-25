@@ -72,7 +72,7 @@ struct Section3DStructCPU { FloatArray3DTypeCPU rhoArray; FloatArray3DTypeCPU ux
 
 struct InfoStruct { float gridID = 0; float res = 1.f; int cellCountX; int cellCountY; int cellCountZ; int cellCount; float ox = 0.f; float oy = 0.f; float oz = 0.f; float nu = 1.f; float dtPhys = 1.f; 
 					int iSubgridStart = 0; int jSubgridStart = 0; int kSubgridStart = 0; int iSubgridEnd = 0; int jSubgridEnd = 0; int kSubgridEnd = 0; int cellCountFineToCoarse = 0; int cellCountCoarseToFine = 0; 
-					float regulator = 0.f; }; 
+					float pRegulator = 0.f; float iRegulator = 0.f; }; 
 								
 struct GridStruct { InfoStruct Info; FloatArray2DType fArray; IntArrayType shifter; BoolArrayType bouncebackMarkerArray; }; 
 
@@ -120,7 +120,8 @@ struct STLStruct { 	FloatArrayType axArray; FloatArrayType ayArray; FloatArrayTy
 struct ScalarTransportStruct { FloatArray2DType TArray; float tauT = 1.f; }; 
 
 struct FlowReportStruct { float ux = 0.f; float uy = 0.f; float uz = 0.f; float rho = 1.f; float areamm2 = 0.f; }; 	
-struct XYZBoundsStruct { float xmin; float ymin; float zmin; float xmax; float ymax; float zmax; }; 	
+struct XYZBoundsStruct { float xmin; float ymin; float zmin; float xmax; float ymax; float zmax; }; 
+struct LocalDuStruct { float duxdx = 0.f; float duydy = 0.f; float duzdz = 0.f; float duXY = 0.f; float duYZ = 0.f; float duXZ = 0.f; };
 
 //------------------------------------------------------------------------------------
 //--------------------------------- DIAD SECTION -------------------------------------
@@ -165,5 +166,5 @@ struct DIADGridStruct { InfoStruct Info; FloatArray2DType fArray; BoolArrayType 
 						IntArrayType fineToCoarseWriteArray; IntArrayType fineToCoarseReadArray; 
 						IntArrayType coarseToFineWriteArray; IntArrayType coarseToFineReadArray; 
 						BoolArrayType enforceInterfaceFluid; BoolArrayType enforceInterfaceBounceback;
-						bool esotwistFlipper = 0; IntArrayType outletCellArray; }; 	
+						bool esotwistFlipper = 0; IntArrayType outletCellArray; }; 
 						

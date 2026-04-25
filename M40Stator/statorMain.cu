@@ -1,11 +1,12 @@
-constexpr float resGlobal = 0.4f; 														// mm
+constexpr float resGlobal = 0.2f; 														// mm
 constexpr int gridLevelCount = 3;
 constexpr int wallRefinementSpan = 1;
 
-constexpr int iterationCount = 150000;
+constexpr int iterationCount = 50000;
+constexpr int iterationChunk = 2000;
 
 constexpr float SmagorinskyConstantGlobal = 0.1f; 										// set to zero to turn off LES
-constexpr float SmagorinskyZoneLength = 10.f;
+constexpr float SmagorinskyZoneLength = 5.f;
 
 constexpr float uzInlet = 0.05f; 														// also works as nominal LBM Mach number	
 constexpr float rhoOutlet = 1.f;
@@ -23,7 +24,6 @@ constexpr float C = 0.092784f;															// m2/s
 const float boundaryLayerThickness = 0.2f;												// mm
 constexpr int bladeCount = 5;
 
-constexpr int iterationChunk = 2000;
 
 #include "../include/types.h"
 
@@ -82,7 +82,7 @@ __cuda_callable__ void getGivenRhoUxUyUz( 	const int& iCell, const int& jCell, c
 	ux = - vt * (y / r) * velocityMultiplier;
 	uy = vt * (x / r) * velocityMultiplier;
 	uz = uzInlet * velocityMultiplier;
-	rho = rhoOutlet + Info.regulator;
+	rho = rhoOutlet + Info.pRegulator + Info.iRegulator;
 }
 
 __cuda_callable__ float getSmagorinskyConstant( const int  &iCell, const int &jCell, const int &kCell, const InfoStruct &Info  )
@@ -91,6 +91,7 @@ __cuda_callable__ float getSmagorinskyConstant( const int  &iCell, const int &jC
 	const float z = Info.oz + kCell * Info.res;
 	if ( zMax - z < SmagorinskyZoneLength ) return 1.f; // 10mm from the end
 	else return SmagorinskyConstantGlobal;
+	return SmagorinskyConstantGlobal;
 }
 
 __cuda_callable__ void getInitialRhoUxUyUz( const int &iCell, const int &jCell, const int &kCell, float &rho, float &ux, float &uy, float &uz, const MarkerStruct &Marker, const InfoStruct &Info )
@@ -108,6 +109,8 @@ __cuda_callable__ void getInitialRhoUxUyUz( const int &iCell, const int &jCell, 
 #include "../include/gridRefinementFunctions.h"
 #include "../include/DIADFunctions.h"
 #include "../include/flowReportFunctions.h"
+
+#include "../include/boundaryConditions/outletSoundwaveAbsorber.h"
 
 void updateGrid( std::vector<DIADGridStruct>& grids, int level ) 
 {
@@ -130,137 +133,6 @@ void exportHistoryData( const std::vector<float>& historyVector, const int &curr
     // Construct the command string to pass the number as an argument
     std::string cmd = "python3 historyPlotter.py " + std::to_string(fileNumber) + " &";
     system(cmd.c_str());
-}
-
-void fillOutletCellList( DIADGridStruct &Grid )
-{
-	auto kView = Grid.IJK.kArray.getView();
-	auto fetch = [ = ] __cuda_callable__( const int cell )
-		{
-			if ( kView[ cell ] == Grid.Info.cellCountZ-2 ) return 1;
-			else return 0;
-		};
-		auto reduction = [] __cuda_callable__( const int& a, const int& b )
-		{
-			return a + b;
-		};	
-	int outletCellCount = TNL::Algorithms::reduce<TNL::Devices::Cuda>( 0, Grid.Info.cellCount, fetch, reduction, 0 );
-	
-	IntArrayTypeCPU kArrayCPU;
-	kArrayCPU = Grid.IJK.kArray;
-	IntArrayTypeCPU outletCellArrayCPU;
-	outletCellArrayCPU.setSize( outletCellCount );
-	int counter = 0;
-	for ( int cell = 0; cell < Grid.Info.cellCount; cell++ ) 
-	{
-		if ( kArrayCPU[ cell ] == Grid.Info.cellCountZ-2 ) outletCellArrayCPU[ counter++ ] = cell;
-	}
-	Grid.outletCellArray = outletCellArrayCPU;
-}
-
-void applyNonReflectiveOutletBC( DIADGridStruct &Grid )
-{
-	const int outletCellCount = Grid.outletCellArray.getSize();
-	
-	auto outletCellView = outletCellArray.getView();
-	
-	auto fArrayView  = Grid.fArray.getView();
-	
-	auto iView = Grid.IJK.iArray.getConstView();
-	auto jView = Grid.IJK.jArray.getConstView();
-	auto kView = Grid.IJK.kArray.getConstView();
-	
-	bool esotwistFlipper = Grid.esotwistFlipper;
-	auto iNbrView = Grid.EsotwistNbrArray.iNbrArray.getConstView();
-	auto jNbrView = Grid.EsotwistNbrArray.jNbrArray.getConstView();
-	auto kNbrView = Grid.EsotwistNbrArray.kNbrArray.getConstView();
-	auto ijNbrView = Grid.EsotwistNbrArray.ijNbrArray.getConstView();
-	auto ikNbrView = Grid.EsotwistNbrArray.ikNbrArray.getConstView();
-	auto jkNbrView = Grid.EsotwistNbrArray.jkNbrArray.getConstView();
-	auto ijkNbrView = Grid.EsotwistNbrArray.ijkNbrArray.getConstView();
-	
-	bool useBouncebackArray = false;
-	auto bouncebackMarkerArrayView = Grid.bouncebackMarkerArray.getConstView();
-	if ( Grid.bouncebackMarkerArray.getSize() > 0 )
-	{
-		useBouncebackArray = true;
-	}
-	InfoStruct Info = Grid.Info;
-	
-	auto cellLambda = [=] __cuda_callable__ ( const int index ) mutable
-	{
-		const int cell = 
-		const int iCell = iView( cell );
-		const int jCell = jView( cell );
-		const int kCell = kView( cell );
-		
-		DIADEsotwistNbrStruct Nbr;
-		Nbr.i = iNbrView( cell );
-		Nbr.j = jNbrView( cell );
-		Nbr.k = kNbrView( cell );
-		Nbr.ij = ijNbrView( cell );
-		Nbr.ik = ikNbrView( cell );
-		Nbr.jk = jkNbrView( cell );
-		Nbr.ijk = ijkNbrView( cell ); 
-		
-		MarkerStruct Marker;
-		if ( useBouncebackArray ) Marker.bounceback = bouncebackMarkerArrayView( cell );
-		getMarkers( iCell, jCell, kCell, Marker, Info );
-		
-		if ( Marker.bounceback )
-		{
-			return; // bounceback gets implicitly applied by Esotwist
-		}
-		
-		float f[27];
-		int cellReadIndex[27];
-		int fReadIndex[27];
-		getEsotwistReadIndex( cell, cellReadIndex, fReadIndex, Nbr, esotwistFlipper, Info );
-		for ( int direction = 0; direction < 27; direction++ )	f[direction] = fArrayView(fReadIndex[direction], cellReadIndex[direction]);
-		
-		float rho, ux, uy, uz;
-		
-		if ( Marker.fluid )
-		{
-			// do nothing, just skip the else block below
-		}
-		else
-		{
-			int outerNormalX, outerNormalY, outerNormalZ;
-			getOuterNormal( iCell, jCell, kCell, outerNormalX, outerNormalY, outerNormalZ, Info ); 
-			if ( Marker.periodicX ) outerNormalX = 0;
-			if ( Marker.periodicY ) outerNormalY = 0;
-			if ( Marker.periodicZ ) outerNormalZ = 0;
-			getGivenRhoUxUyUz( iCell, jCell, kCell, rho, ux, uy, uz, Info );
-			if ( Marker.mirror )
-			{
-				applyMirror( outerNormalX, outerNormalY, outerNormalZ, f );
-			}
-			else if ( Marker.givenRho && !Marker.givenUxUyUz )
-			{
-				restoreUxUyUz( outerNormalX, outerNormalY, outerNormalZ, rho, ux, uy, uz, f );
-			}
-			else if ( !Marker.givenRho && Marker.givenUxUyUz )
-			{
-				restoreRho( outerNormalX, outerNormalY, outerNormalZ, rho, ux, uy, uz, f );
-			}
-			else if ( !Marker.givenRho && !Marker.givenUxUyUz )
-			{
-				restoreRhoUxUyUz( outerNormalX, outerNormalY, outerNormalZ, rho, ux, uy, uz, f );
-			}
-			applyMBBC( outerNormalX, outerNormalY, outerNormalZ, rho, ux, uy, uz, f );
-		}
-		const float SmagorinskyConstant = getSmagorinskyConstant( iCell, jCell, kCell, Info );
-		applyCollision( f, Info.nu, SmagorinskyConstant );
-		
-		int cellWriteIndex[27];
-		int fWriteIndex[27];
-		getEsotwistWriteIndex( cell, cellWriteIndex, fWriteIndex, Nbr, esotwistFlipper, Info );
-		
-		for ( int direction = 0; direction < 27; direction++ ) fArrayView( fWriteIndex[direction], cellWriteIndex[direction] ) = f[direction];
-		
-	};
-	TNL::Algorithms::parallelFor<TNL::Devices::Cuda>(0, outletCellCount, cellLambda );
 }
 
 int main(int argc, char **argv)
@@ -304,7 +176,7 @@ int main(int argc, char **argv)
 	
 	for ( int level = 0; level < gridLevelCount; level++ )
 	{
-		fillOutletCellList( grids[level] );
+		fillOutletCellArray( grids[level] );
 	}
 	
 	int cellCountTotal = 0;
@@ -329,32 +201,36 @@ int main(int argc, char **argv)
 	for (int iteration=0; iteration<=iterationCount; iteration++)
 	{
 		updateGrid( grids, 0 );
-		
 		if (iteration%20 == 0 && iteration != 0)
 		{
-			FlowReportStruct FlowReport;
 			XYZBoundsStruct Bounds;
 			Bounds.xmin = -12.5f;
 			Bounds.xmax = 12.5f;
 			Bounds.ymin = -12.5f;
 			Bounds.ymax = 12.5f;
+			
+			FlowReportStruct FlowReportIn;
 			int kCut = 0;
-			getFlowReportXY( grids, kCut, Bounds, FlowReport );
-			float pAvg = FlowReport.rho;
-			convertToPhysicalPressure( pAvg );	
+			getFlowReportXY( grids, kCut, Bounds, FlowReportIn );
+			float pIn = FlowReportIn.rho;
+			convertToPhysicalPressure( pIn );
+			
+			FlowReportStruct FlowReportOut;
+			kCut = grids[gridLevelCount-1].Info.cellCountZ-1;
+			getFlowReportXY( grids, kCut, Bounds, FlowReportOut );
+			float pOut = FlowReportOut.rho;
+			convertToPhysicalPressure( pOut );
+			std::cout << "pOut " << pOut << std::endl;
+			
+			float pLoss = pIn - pOut;
+			
 			for ( int shifter = 0; shifter < 20; shifter++ )
 			{
-				historyVector[iteration-shifter] = pAvg;
+				historyVector[iteration-shifter] = pLoss;
 			}
 			
-			// REGULATING OUTLET RHO TO STRONGLY DAMPEN ACUSTIC WAVES
-			kCut = grids[gridLevelCount-1].Info.cellCountZ-1;
-			getFlowReportXY( grids, kCut, Bounds, FlowReport );
-			for ( int level = 0; level < gridLevelCount; level++ )
-			{
-				grids[level].Info.regulator = ( FlowReport.uz - uOutletMovingAvg ) / invSqrt3;
-			}
-			uOutletMovingAvg = 0.999 * uOutletMovingAvg + 0.001 * FlowReport.uz;
+			regulateOutletPressure( grids, uOutletMovingAvg );
+			
 		}
 		
 		if ( iteration % iterationChunk == 0) 
@@ -378,11 +254,14 @@ int main(int argc, char **argv)
 			int kCut = 0;
 			exportSectionCutPlotXY( grids, kCut, iteration + 10);
 			system("python3 ../include/plotter/plotterGridID.py");
+			
 			kCut = grids[gridLevelCount-1].Info.cellCountZ-1;
 			exportSectionCutPlotXY( grids, kCut, iteration + 11);
 			system("python3 ../include/plotter/plotterGridID.py");
+			
 			lapTimer.reset();
 			lapTimer.start();	
+			
 		}
 	}
 	return EXIT_SUCCESS;

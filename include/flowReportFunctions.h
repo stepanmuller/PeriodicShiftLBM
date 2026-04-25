@@ -37,7 +37,7 @@ void getFlowReportGeneral( std::vector<DIADGridStruct> &grids, const int &cutInd
 	int targetWidth = 0, targetHeight = 0;
 	int hMinTarget = 0, hMaxTarget = 0, vMinTarget = 0, vMaxTarget = 0;
 	
-	while ( targetLevelCount > 1 )
+	while ( targetLevelCount > 0 ) // Evaluate down to 0 to catch the levelCount == 1 case
 	{
 		targetScale = 1 << (levelCount - targetLevelCount);
 		
@@ -51,7 +51,9 @@ void getFlowReportGeneral( std::vector<DIADGridStruct> &grids, const int &cutInd
 		
 		// Use the cropped array size, not the global grid size
 		long long dataSize = (long long)targetWidth * targetHeight;
-		if ( dataSize < 20000000 ) break;
+		
+		// Break if it fits in memory OR if we are forced to use the absolute coarsest grid
+		if ( dataSize < 20000000 || targetLevelCount == 1 ) break;
 		
 		targetLevelCount--;
 	}
