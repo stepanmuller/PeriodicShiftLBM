@@ -234,7 +234,7 @@ __cuda_callable__ void getScalarTransport( float &scalarTransport, const float (
 	scalarTransport = scalarTransport / fSum;
 }
 
-__host__ __device__ void getLocalDu( float (&f)[27], const float &nu, const float &SmagorinskyConstant, localDuStruct &localDu )
+__host__ __device__ void getLocalDu( float (&f)[27], const float &nu, const float &SmagorinskyConstant, LocalDuStruct &localDu )
 {
 	float rho, ux, uy, uz;
 	getRhoUxUyUz( rho, ux, uy, uz, f );
