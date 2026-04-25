@@ -598,10 +598,11 @@ void buildDIADGrids( std::vector<DIADGridStruct> &grids, std::vector<STLStruct> 
 				ApplyMarkersInsideSTL( markerArraySTL, Grid.IJK, STLs[STLIndex], insideMarkerValue, Info );
 				sumBoolArrays( bouncebackMarkerArray, markerArraySTL, bouncebackMarkerArray );
 			}
-			sumBoolArrays( bouncebackMarkerArray, Grid.enforceInterfaceBounceback, bouncebackMarkerArray );
+			
+			if ( gridLevelCount > 1 ) sumBoolArrays( bouncebackMarkerArray, Grid.enforceInterfaceBounceback, bouncebackMarkerArray );
 			fluidMarkerArray = bouncebackMarkerArray;
 			invertBoolArray( fluidMarkerArray );
-			sumBoolArrays( fluidMarkerArray, Grid.enforceInterfaceFluid, fluidMarkerArray );
+			if ( gridLevelCount > 1 ) sumBoolArrays( fluidMarkerArray, Grid.enforceInterfaceFluid, fluidMarkerArray );
 			
 			keepCellMarkerArray = fluidMarkerArray;
 			markDIADNeighbours( nbrArrays, fluidMarkerArray, keepCellMarkerArray );
