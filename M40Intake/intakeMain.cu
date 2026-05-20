@@ -6,7 +6,7 @@ constexpr float zMaxGlobal = 60.f; 														// mm
 constexpr float yMinGlobal = -80.f; 													// mm
 constexpr float yMaxGlobal = 20.f; 														// mm
 
-constexpr float resGlobal = 1.4f; 														// mm
+constexpr float resGlobal = 1.6f; 														// mm
 constexpr int gridLevelCount = 5;
 constexpr int wallRefinementSpan = 3;
 
@@ -26,7 +26,7 @@ constexpr float dtPhysGlobal = (uzInlet / uzInletPhys) * (resGlobal/1000); 				/
 constexpr float invSqrt3 = 0.577350269f; 
 constexpr float soundspeedPhys = invSqrt3 * (resGlobal/1000) / dtPhysGlobal; 			// m/s
 
-constexpr float pOutletPhys = 50000.f;													// Pa
+constexpr float pOutletPhys = 100000.f;													// Pa
 constexpr float rhoOutlet = pOutletPhys / ( rhoNominalPhys * soundspeedPhys * soundspeedPhys ) + 1.f;
 
 #include "../include/types.h"
