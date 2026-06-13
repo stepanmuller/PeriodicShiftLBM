@@ -1,4 +1,4 @@
-constexpr float resGlobal = 0.3f; 														// mm
+constexpr float resGlobal = 0.5f; 														// mm
 constexpr int gridLevelCount = 3;
 constexpr int wallRefinementSpan = 1;
 
@@ -12,17 +12,17 @@ constexpr float uzInlet = 0.05f; 														// also works as nominal LBM Mach
 constexpr float rhoOutlet = 1.f;
 constexpr float nuPhys = 1e-6;															// m2/s water
 constexpr float rhoNominalPhys = 1000.0f;												// kg/m3 water
-constexpr float uzInletPhys = 16.94f; 													// m/s
+constexpr float uzInletPhys = 7.745f; 													// m/s
 constexpr float dtPhysGlobal = (uzInlet / uzInletPhys) * (resGlobal/1000); 				// s
 
 constexpr float invSqrt3 = 0.577350269f; 
 constexpr float soundspeedPhys = invSqrt3 * (resGlobal/1000) / dtPhysGlobal; 			// m/s
 
 constexpr float RIn = 6.f;																// mm
-constexpr float ROut = 12.f;															// mm
-constexpr float C = 0.092784f;															// m2/s
+constexpr float ROut = 16.5f;															// mm
+constexpr float C = 0.05567f;															// m2/s
 const float boundaryLayerThickness = 0.2f;												// mm
-constexpr int bladeCount = 5;
+constexpr int bladeCount = 3;
 
 
 #include "../include/types.h"
@@ -247,10 +247,22 @@ int main(int argc, char **argv)
 			int counter = 1;
 			for (float r = RIn + 1.f; r < ROut; r = r + 1.f) 
 			{
-				exportSectionCutPlotToiletPaperZ( grids, r, iteration + 10*0 + counter );
+				exportSectionCutPlotToiletPaperZ( grids, r, iteration + counter );
 				system("python3 ../include/plotter/plotterGridID.py");
 				counter++;
 			}	
+			counter = 1;
+			for (float z = grids[gridLevelCount-1].Info.oz; z < ((grids[gridLevelCount-1].Info.cellCountZ-1) * grids[gridLevelCount-1].Info.res + grids[gridLevelCount-1].Info.oz); z = z + 5.f) 
+			{
+				int iTemp, jTemp, kCut;
+				const float xTemp = 0;
+				const float yTemp = 0;
+				getIJKCellIndexFromXYZ( iTemp, jTemp, kCut, xTemp, yTemp, z, grids[gridLevelCount-1].Info);
+				exportSectionCutPlotXY( grids, kCut, iteration + 20 + counter );
+				system("python3 ../include/plotter/plotterGridID.py");
+				counter++;
+			}	
+			/*
 			int kCut = 0;
 			exportSectionCutPlotXY( grids, kCut, iteration + 10);
 			system("python3 ../include/plotter/plotterGridID.py");
@@ -258,6 +270,7 @@ int main(int argc, char **argv)
 			kCut = grids[gridLevelCount-1].Info.cellCountZ-1;
 			exportSectionCutPlotXY( grids, kCut, iteration + 11);
 			system("python3 ../include/plotter/plotterGridID.py");
+			*/
 			
 			lapTimer.reset();
 			lapTimer.start();	

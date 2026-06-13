@@ -417,7 +417,7 @@ void exportSectionCutPlotToiletPaperZ( std::vector<DIADGridStruct> &grids, const
 			if ( (targetCellCountHorizontal - indexHorizontal) * TargetInfo.res < 10 )
 			{
 				uTangential += 2700.f * (r / 1000.f);
-				const float C = 0.092784f;	
+				const float C = 0.05567f;	
 				uTangential -= (1.f / (r / 1000.f)) * C;
 			}
 			

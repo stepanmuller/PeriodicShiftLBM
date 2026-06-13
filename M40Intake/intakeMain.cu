@@ -20,13 +20,13 @@ constexpr float hullAngle = 0.f;														// degrees
 constexpr float uyInlet = (2.f * 3.14159f * hullAngle / 360.f) * uzInlet;				// this gives hull angle		
 constexpr float nuPhys = 1e-6;															// m2/s water
 constexpr float rhoNominalPhys = 1000.0f;												// kg/m3 water
-constexpr float uzInletPhys = 20.f; 													// m/s
+constexpr float uzInletPhys = 15.f; 													// m/s
 constexpr float dtPhysGlobal = (uzInlet / uzInletPhys) * (resGlobal/1000); 				// s
 
 constexpr float invSqrt3 = 0.577350269f; 
 constexpr float soundspeedPhys = invSqrt3 * (resGlobal/1000) / dtPhysGlobal; 			// m/s
 
-constexpr float pOutletPhys = 120000.f;													// Pa
+constexpr float pOutletPhys = 80000.f;													// Pa
 constexpr float rhoOutlet = pOutletPhys / ( rhoNominalPhys * soundspeedPhys * soundspeedPhys ) + 1.f;
 
 #include "../include/types.h"
@@ -43,7 +43,7 @@ constexpr float rhoOutlet = pOutletPhys / ( rhoNominalPhys * soundspeedPhys * so
 #include "../include/boundaryConditions/applyMBBC.h"
 
 #include "../include/STLFunctions.h"
-std::string STLPathIntake = "IntakeSTL4.STL";
+std::string STLPathIntake = "IntakeSTL5.STL";
 
 __cuda_callable__ void getMarkers( 	const int& iCell, const int& jCell, const int& kCell, 
 									MarkerStruct &Marker, const InfoStruct& Info )
@@ -54,18 +54,18 @@ __cuda_callable__ void getMarkers( 	const int& iCell, const int& jCell, const in
 	
 	if ( Info.gridID == 0 )
 	{
-		if ( fabs(xPhys) < 25.f && yPhys > -35.f ) Marker.refinement = 1;
+		if ( fabs(xPhys) < 25.f && yPhys > -42.f ) Marker.refinement = 1;
 	}
 	// Reduce the refinement area
 	if ( Info.gridID == 1 )
 	{
 		if ( fabs(xPhys) > 35.f ) Marker.refinement = 0;
-		if ( fabs(xPhys) < 20.f && yPhys > -32.f ) Marker.refinement = 1;
+		if ( fabs(xPhys) < 20.f && yPhys > -38.f ) Marker.refinement = 1;
 	}
 	if ( Info.gridID == 2 )
 	{
 		if ( fabs(xPhys) > 25.f ) Marker.refinement = 0;
-		if ( fabs(xPhys) < 18.f && yPhys > -30.f ) Marker.refinement = 1;
+		if ( fabs(xPhys) < 18.f && yPhys > -35.f ) Marker.refinement = 1;
 	}
 	if ( Info.gridID == 3 )
 	{

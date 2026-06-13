@@ -100,8 +100,8 @@ def visualizeSTL( filename ):
 
 def generateBlade(parameterMatrix):
 	RHub = 6
-	RMid = 9
-	RTip = 12
+	RMid = 11.25
+	RTip = 16.5
 	thicknessHub = 1.8
 	thicknessMid = 1.6
 	thicknessTip = 1.5
@@ -195,11 +195,11 @@ if __name__ == "__main__":
 	w = [1, 1, 1]
 	"""
 	# rotor
-	gamma = [20.6, 35, 57]
-	c = [15, 18, 18]
-	beta = [30, 12, 5]
-	b = [c[0]/4, c[1]/2, c[2]/2]
-	w = [2, 1, 1]
+	gamma = [48.1, 69.4, 74.7]
+	c = [18, 11, 10]
+	beta = [16.3, 6.3, 5.4]
+	b = [c[0]/2, c[1]/2, c[2]/2]
+	w = [1, 1, 1]
 	
 	parameterMatrixList = [gamma, c, beta, b, w]
 	parameterMatrix = np.array(parameterMatrixList).T
