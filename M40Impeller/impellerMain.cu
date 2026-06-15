@@ -12,18 +12,18 @@ constexpr float uzInlet = 0.05f; 														// also works as nominal LBM Mach
 constexpr float rhoOutlet = 1.f;
 constexpr float nuPhys = 1e-6;															// m2/s water
 constexpr float rhoNominalPhys = 1000.0f;												// kg/m3 water
-constexpr float uzInletPhys = 7.745f; 													// m/s
+constexpr float uzInletPhys = 9.5f; 													// m/s
 constexpr float dtPhysGlobal = (uzInlet / uzInletPhys) * (resGlobal/1000); 				// s
 
 constexpr float invSqrt3 = 0.577350269f; 
 constexpr float soundspeedPhys = invSqrt3 * (resGlobal/1000) / dtPhysGlobal; 			// m/s
 
-constexpr float RIn = 6.f;																// mm
+constexpr float RIn = 10.f;																// mm
 constexpr float ROut = 16.5f;															// mm
-constexpr float C = 0.05567f;															// m2/s
+constexpr float C = 0.14523f;															// m2/s
+constexpr float angularVelocity = 2700.f;												// rad/s
 const float boundaryLayerThickness = 0.2f;												// mm
-constexpr int bladeCount = 3;
-
+constexpr int bladeCount = 2;
 
 #include "../include/types.h"
 
@@ -31,7 +31,8 @@ constexpr int bladeCount = 3;
 
 #include "../include/cellFunctions.h"
 #include "../include/applyStreaming.h"
-#include "../include/applyCollision.h"
+//#include "../include/applyCollision.h"
+#include "./applyCollisionCustomized.h"
 
 #include "../include/boundaryConditions/applyBounceback.h"
 #include "../include/boundaryConditions/applyMirror.h"
@@ -73,7 +74,7 @@ __cuda_callable__ void getGivenRhoUxUyUz( 	const int& iCell, const int& jCell, c
 	getXYZFromIJKCellIndex( iCell, jCell, kCell, x, y, z, Info );
 	const float r = std::sqrt( x * x + y * y );
 	//const float vtPhys = (1.f / (r / 1000.f)) * C;
-	const float vtPhys = - 2700.f * (r / 1000.f);
+	const float vtPhys = - angularVelocity * (r / 1000.f);
 	const float vt = vtPhys * ( uzInlet / uzInletPhys );
 	
 	const float wallDistancePhys = std::max(0.f, std::min(r - RIn, ROut - r));
@@ -84,6 +85,21 @@ __cuda_callable__ void getGivenRhoUxUyUz( 	const int& iCell, const int& jCell, c
 	uy = vt * (x / r) * velocityMultiplier;
 	uz = uzInlet * velocityMultiplier;
 	rho = rhoOutlet + Info.pRegulator + Info.iRegulator;
+}
+
+__cuda_callable__ void getForcing( 	const int& iCell, const int& jCell, const int& kCell, 
+									const float (&f)[27], 
+									float& gx, float& gy, float& gz,
+									InfoStruct& Info )
+{
+	float rho, ux, uy, uz;
+	getRhoUxUyUz( rho, ux, uy, uz, f );
+	float x, y, z;
+	getXYZFromIJKCellIndex( iCell, jCell, kCell, x, y, z, Info );
+	const float omega = angularVelocity * Info.dtPhys;
+	gx = rho * (  2.0f * omega * uy + omega * omega * x );
+	gy = rho * ( -2.0f * omega * ux + omega * omega * y );
+	gz = 0.0f;
 }
 
 __cuda_callable__ float getSmagorinskyConstant( const int  &iCell, const int &jCell, const int &kCell, const InfoStruct &Info  )
@@ -104,7 +120,8 @@ __cuda_callable__ void getInitialRhoUxUyUz( const int &iCell, const int &jCell, 
 	if (Marker.bounceback) uz = 0.f;
 }
 
-#include "../include/applyLocalCellUpdate.h"
+//#include "../include/applyLocalCellUpdate.h"
+#include "./applyLocalCellUpdateCustomized.h"
 #include "./exportSectionCutPlotCustomized.h"
 #include "../include/fillEquilibrium.h"
 #include "../include/gridRefinementFunctions.h"
