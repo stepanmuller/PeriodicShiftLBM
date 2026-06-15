@@ -99,8 +99,8 @@ def visualizeSTL( filename ):
 	mesh.plot(color="white", show_edges=True)
 
 def generateBlade(parameterMatrix):
-	RHub = 6
-	RMid = 11.25
+	RHub = 10
+	RMid = 13.25
 	RTip = 16.5
 	thicknessHub = 1.8
 	thicknessMid = 1.6
@@ -195,9 +195,9 @@ if __name__ == "__main__":
 	w = [1, 1, 1]
 	"""
 	# rotor
-	gamma = [48.1, 69.4, 74.7]
-	c = [18, 11, 10]
-	beta = [16.3, 6.3, 5.4]
+	gamma = [57, 67, 72]
+	c = [36, 32, 25]
+	beta = [14, 8, 6.5]
 	b = [c[0]/2, c[1]/2, c[2]/2]
 	w = [1, 1, 1]
 	
