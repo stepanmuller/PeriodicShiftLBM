@@ -256,6 +256,41 @@ int countInvalidIndexes( IntArrayType &intArray )
 	return result;
 }
 
+void buildOutletCellArray( DIADGridStruct &Grid, BoolArrayType &markerArray )
+{
+	const int cellCount = Grid.Info.cellCount;
+	const int outletCellCount = countMarkerCells( markerArray );
+	
+	Grid.outletCellArray.setSize( Grid.Info.cellCount );
+	
+	auto markerView = markerArray.getView();
+	auto outletCellView = Grid.outletCellArray.getView();
+
+	auto cellLambda = [=] __cuda_callable__ ( const int cell ) mutable
+	{
+		outletCellView[ cell ] = cell;
+	};
+	TNL::Algorithms::parallelFor<TNL::Devices::Cuda>( 0, Grid.Info.cellCount, cellLambda );
+
+    auto comparisonLambda = [=] __cuda_callable__ ( const size_t a, const size_t b )
+	{
+		if ( markerView[ a ] > markerView[ b ] ) return true;
+		else if ( markerView[ a ] < markerView[ b ] ) return false;
+		else
+		{
+			if ( outletCellView[ a ] < outletCellView[ b ] ) return true;
+			else return false;
+		}
+	};
+	auto swapLambda = [=] __cuda_callable__ ( const size_t a, const size_t b ) mutable
+	{
+		TNL::swap( markerView[ a ], markerView[ b ] );
+		TNL::swap( outletCellView[ a ], outletCellView[ b ] );
+	};
+	TNL::Algorithms::sort<TNL::Devices::Cuda, size_t>( 0, Grid.Info.cellCount, comparisonLambda, swapLambda );
+	Grid.outletCellArray.resize( outletCellCount );
+}
+
 // Receives sorted IJKSource that !must! be already sorted with key k, j, i so that k index changes the slowest
 // For each Wanted, find a matching cell in Source. If its found, write its index to resultArray. If there is no such cell, write -1.		
 void findMatchingIJKIndex( IJKArrayStruct &Wanted, IJKArrayStruct &Source, IntArrayType &resultArray )
@@ -432,6 +467,27 @@ void applyRefinementMarkerFromFunction( BoolArrayType &markerArray, IJKArrayStru
 		Marker.refinement = markerArrayView( cell );
 		getMarkers( iCell, jCell, kCell, Marker, Info );
 		markerArrayView( cell ) = Marker.refinement;
+	};
+	TNL::Algorithms::parallelFor<TNL::Devices::Cuda>(0, Info.cellCount, cellLambda );	
+}
+
+// Applies the outlet marker onto an array using the getMarkers function
+void applyOutletMarkerFromFunction( BoolArrayType &markerArray, IJKArrayStruct &IJK, InfoStruct &Info )
+{
+	auto markerArrayView = markerArray.getView();
+	
+	auto iArrayView = IJK.iArray.getView();
+	auto jArrayView = IJK.jArray.getView();
+	auto kArrayView = IJK.kArray.getView();
+	
+	auto cellLambda = [=] __cuda_callable__ ( const int cell ) mutable
+	{
+		const int iCell = iArrayView[ cell ];
+		const int jCell = jArrayView[ cell ];
+		const int kCell = kArrayView[ cell ];
+		MarkerStruct Marker;
+		getMarkers( iCell, jCell, kCell, Marker, Info );
+		markerArrayView( cell ) = Marker.nonReflectiveOutlet;
 	};
 	TNL::Algorithms::parallelFor<TNL::Devices::Cuda>(0, Info.cellCount, cellLambda );	
 }
@@ -855,6 +911,16 @@ void buildDIADGrids( std::vector<DIADGridStruct> &grids, std::vector<STLStruct> 
 	
 	// BUILD ESOTWIST CONNECTIONS
 	getDIADEsotwistNbrArray( Grid );
+	
+	// BUILD OUTLET CELL ARRAY TO STORE INDEXES OF NON REFLECTIVE OUTLET BC CELLS
+	{
+		int outletCellCount = 0;
+		BoolArrayType outletCellMarkerArray;
+		outletCellMarkerArray.setSize( Info.cellCount );
+		outletCellMarkerArray.setValue( 0 );
+		applyOutletMarkerFromFunction( outletCellMarkerArray, Grid.IJK, Info );
+		buildOutletCellArray( Grid, outletCellMarkerArray );
+	}
 	
 	// ALLOCATE fArray and initialize
 	Grid.fArray.setSizes( 27, Info.cellCount );

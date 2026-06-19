@@ -60,6 +60,10 @@ void applyLocalCellUpdate( DIADGridStruct &Grid )
 		{
 			// do nothing, just skip the else block below
 		}
+		else if ( Marker.nonReflectiveOutlet )
+		{
+			// also do nothing, just skip the else block below
+		}
 		else
 		{
 			int outerNormalX, outerNormalY, outerNormalZ;
@@ -68,11 +72,7 @@ void applyLocalCellUpdate( DIADGridStruct &Grid )
 			if ( Marker.periodicY ) outerNormalY = 0;
 			if ( Marker.periodicZ ) outerNormalZ = 0;
 			getGivenRhoUxUyUz( iCell, jCell, kCell, rho, ux, uy, uz, Info );
-			if ( Marker.mirror )
-			{
-				applyMirror( outerNormalX, outerNormalY, outerNormalZ, f );
-			}
-			else if ( Marker.givenRho && !Marker.givenUxUyUz )
+			if ( Marker.givenRho && !Marker.givenUxUyUz )
 			{
 				restoreUxUyUz( outerNormalX, outerNormalY, outerNormalZ, rho, ux, uy, uz, f );
 			}

@@ -1,4 +1,4 @@
-constexpr float resGlobal = 0.5f; 														// mm
+constexpr float resGlobal = 0.2f; 														// mm
 constexpr int gridLevelCount = 3;
 constexpr int wallRefinementSpan = 1;
 
@@ -35,11 +35,11 @@ constexpr int bladeCount = 2;
 #include "./applyCollisionCustomized.h"
 
 #include "../include/boundaryConditions/applyBounceback.h"
-#include "../include/boundaryConditions/applyMirror.h"
 #include "../include/boundaryConditions/restoreRho.h"
 #include "../include/boundaryConditions/restoreUxUyUz.h"
 #include "../include/boundaryConditions/restoreRhoUxUyUz.h"
 #include "../include/boundaryConditions/applyMBBC.h"
+#include "../include/boundaryConditions/applyNonReflectiveOutlet.h"
 
 #include "../include/STLFunctions.h"
 std::string STLPathBlade = "blade.STL";
@@ -62,7 +62,7 @@ __cuda_callable__ void getMarkers( 	const int& iCell, const int& jCell, const in
 		return;
 	}
 	if ( kCell == 0 ) Marker.givenUxUyUz = 1;
-	else if ( kCell == Info.cellCountZ-1 ) Marker.givenRho = 1;
+	else if ( kCell == Info.cellCountZ-1 ) Marker.nonReflectiveOutlet = 1;
 	else Marker.fluid = 1;
 }
 
@@ -128,6 +128,7 @@ __cuda_callable__ void getInitialRhoUxUyUz( const int &iCell, const int &jCell, 
 
 void updateGrid( std::vector<DIADGridStruct>& grids, int level ) 
 {
+	applyNonReflectiveOutletZ(grids[level]);
     applyStreaming(grids[level]);
     applyLocalCellUpdate(grids[level]);
     if (level < gridLevelCount - 1) 
