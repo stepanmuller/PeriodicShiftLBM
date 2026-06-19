@@ -76,7 +76,7 @@ struct InfoStruct { float gridID = 0; float res = 1.f; int cellCountX; int cellC
 								
 struct GridStruct { InfoStruct Info; FloatArray2DType fArray; IntArrayType shifter; BoolArrayType bouncebackMarkerArray; }; 
 
-struct MarkerStruct { bool fluid = 0; bool bounceback = 0; bool ghost = 0; bool mirror = 0; bool periodicX = 0; bool periodicY = 0; bool periodicZ = 0; bool givenRho = 0; bool givenUxUyUz = 0; bool refinement = 0; };
+struct MarkerStruct { bool fluid = 0; bool bounceback = 0; bool periodicX = 0; bool periodicY = 0; bool periodicZ = 0; bool givenRho = 0; bool givenUxUyUz = 0; bool nonReflectiveOutlet = 0; bool refinement = 0; };
 
 struct ScalarTransportMarkerStruct { bool givenT = 0; };
 					
@@ -153,10 +153,11 @@ inline IJKArrayStruct::IJKArrayStruct(const IJKArrayStructCPU& IJKCPU) {
     kArray = IJKCPU.kArray;
 }
 
-// This holds cell indexes of the neighbour cells in only positive i,j,k directions for Esotwist streaming for all cells
+// This holds cell indexes of the neighbour cells in positive i,j,k directions for Esotwist streaming and negative directions for the main axes only
 struct DIADEsotwistNbrArrayStruct { 	IntArrayType iNbrArray; IntArrayType jNbrArray; IntArrayType kNbrArray; 
 										IntArrayType ijNbrArray; IntArrayType ikNbrArray; IntArrayType jkNbrArray; 
-										IntArrayType ijkNbrArray; }; 
+										IntArrayType ijkNbrArray; 
+										IntArrayType iMinNbrArray; IntArrayType jMinNbrArray; IntArrayType kMinNbrArray; }; 
 										
 // This holds cell indexes of the neighbour cells in only positive i,j,k directions for Esotwist streaming for a single cell
 struct DIADEsotwistNbrStruct { int i; int j; int k; int ij; int ik; int jk; int ijk; }; 

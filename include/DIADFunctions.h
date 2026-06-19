@@ -344,9 +344,9 @@ void findPeriodicNeighbourIJKIndex( IJKArrayStruct &IJK, IntArrayType &resultArr
 		while ( finalResultIndex == -1 )
 		{
 			// Shift periodically
-			targetI = (targetI + cx) % Info.cellCountX;
-			targetJ = (targetJ + cy) % Info.cellCountY;
-			targetK = (targetK + cz) % Info.cellCountZ;
+			targetI = ((targetI + cx) % Info.cellCountX + Info.cellCountX) % Info.cellCountX;
+			targetJ = ((targetJ + cy) % Info.cellCountY + Info.cellCountY) % Info.cellCountY;
+			targetK = ((targetK + cz) % Info.cellCountZ + Info.cellCountZ) % Info.cellCountZ;
 			
 			// Reset binary search bounds for the new target
 			int start = 0;
@@ -527,6 +527,9 @@ void getDIADEsotwistNbrArray( DIADGridStruct &Grid )
 	Grid.EsotwistNbrArray.ikNbrArray.setSize( cellCount );
 	Grid.EsotwistNbrArray.jkNbrArray.setSize( cellCount );
 	Grid.EsotwistNbrArray.ijkNbrArray.setSize( cellCount );
+	Grid.EsotwistNbrArray.iMinNbrArray.setSize( cellCount );
+	Grid.EsotwistNbrArray.jMinNbrArray.setSize( cellCount );
+	Grid.EsotwistNbrArray.kMinNbrArray.setSize( cellCount );
 	Grid.EsotwistNbrArray.iNbrArray.setValue( -1 );
 	Grid.EsotwistNbrArray.jNbrArray.setValue( -1 );
 	Grid.EsotwistNbrArray.kNbrArray.setValue( -1 );
@@ -534,14 +537,20 @@ void getDIADEsotwistNbrArray( DIADGridStruct &Grid )
 	Grid.EsotwistNbrArray.ikNbrArray.setValue( -1 );
 	Grid.EsotwistNbrArray.jkNbrArray.setValue( -1 );
 	Grid.EsotwistNbrArray.ijkNbrArray.setValue( -1 );
+	Grid.EsotwistNbrArray.iMinNbrArray.setValue( -1 );
+	Grid.EsotwistNbrArray.jMinNbrArray.setValue( -1 );
+	Grid.EsotwistNbrArray.kMinNbrArray.setValue( -1 );
 	
-	findPeriodicNeighbourIJKIndex( IJK, Grid.EsotwistNbrArray.iNbrArray,   1, 0, 0, Info );
-	findPeriodicNeighbourIJKIndex( IJK, Grid.EsotwistNbrArray.jNbrArray,   0, 1, 0, Info );
-	findPeriodicNeighbourIJKIndex( IJK, Grid.EsotwistNbrArray.kNbrArray,   0, 0, 1, Info );
-	findPeriodicNeighbourIJKIndex( IJK, Grid.EsotwistNbrArray.ijNbrArray,  1, 1, 0, Info );
-	findPeriodicNeighbourIJKIndex( IJK, Grid.EsotwistNbrArray.ikNbrArray,  1, 0, 1, Info );
-	findPeriodicNeighbourIJKIndex( IJK, Grid.EsotwistNbrArray.jkNbrArray,  0, 1, 1, Info );
-	findPeriodicNeighbourIJKIndex( IJK, Grid.EsotwistNbrArray.ijkNbrArray, 1, 1, 1, Info );
+	findPeriodicNeighbourIJKIndex( IJK, Grid.EsotwistNbrArray.iNbrArray,    1, 0, 0, Info );
+	findPeriodicNeighbourIJKIndex( IJK, Grid.EsotwistNbrArray.jNbrArray,    0, 1, 0, Info );
+	findPeriodicNeighbourIJKIndex( IJK, Grid.EsotwistNbrArray.kNbrArray,    0, 0, 1, Info );
+	findPeriodicNeighbourIJKIndex( IJK, Grid.EsotwistNbrArray.ijNbrArray,   1, 1, 0, Info );
+	findPeriodicNeighbourIJKIndex( IJK, Grid.EsotwistNbrArray.ikNbrArray,   1, 0, 1, Info );
+	findPeriodicNeighbourIJKIndex( IJK, Grid.EsotwistNbrArray.jkNbrArray,   0, 1, 1, Info );
+	findPeriodicNeighbourIJKIndex( IJK, Grid.EsotwistNbrArray.ijkNbrArray,  1, 1, 1, Info );
+	findPeriodicNeighbourIJKIndex( IJK, Grid.EsotwistNbrArray.iMinNbrArray,-1, 0, 0, Info );
+	findPeriodicNeighbourIJKIndex( IJK, Grid.EsotwistNbrArray.jMinNbrArray, 0,-1, 0, Info );
+	findPeriodicNeighbourIJKIndex( IJK, Grid.EsotwistNbrArray.kMinNbrArray, 0, 0,-1, Info );
 }
 
 // Mark target cell as 1 if at least one of its neighbours in source is 1

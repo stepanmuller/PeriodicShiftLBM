@@ -73,7 +73,6 @@ __cuda_callable__ void getGivenRhoUxUyUz( 	const int& iCell, const int& jCell, c
 	float x, y, z;
 	getXYZFromIJKCellIndex( iCell, jCell, kCell, x, y, z, Info );
 	const float r = std::sqrt( x * x + y * y );
-	//const float vtPhys = (1.f / (r / 1000.f)) * C;
 	const float vtPhys = - angularVelocity * (r / 1000.f);
 	const float vt = vtPhys * ( uzInlet / uzInletPhys );
 	
@@ -84,7 +83,7 @@ __cuda_callable__ void getGivenRhoUxUyUz( 	const int& iCell, const int& jCell, c
 	ux = - vt * (y / r) * velocityMultiplier;
 	uy = vt * (x / r) * velocityMultiplier;
 	uz = uzInlet * velocityMultiplier;
-	rho = rhoOutlet + Info.pRegulator + Info.iRegulator;
+	rho = rhoOutlet;
 }
 
 __cuda_callable__ void getForcing( 	const int& iCell, const int& jCell, const int& kCell, 
@@ -96,9 +95,9 @@ __cuda_callable__ void getForcing( 	const int& iCell, const int& jCell, const in
 	getRhoUxUyUz( rho, ux, uy, uz, f );
 	float x, y, z;
 	getXYZFromIJKCellIndex( iCell, jCell, kCell, x, y, z, Info );
-	const float omega = angularVelocity * Info.dtPhys;
-	gx = rho * (  2.0f * omega * uy + omega * omega * x );
-	gy = rho * ( -2.0f * omega * ux + omega * omega * y );
+	const float angularVelocityDimless = angularVelocity * Info.dtPhys;
+	gx = rho * (  2.0f * angularVelocityDimless * uy + angularVelocityDimless * angularVelocityDimless * x );
+	gy = rho * ( -2.0f * angularVelocityDimless * ux + angularVelocityDimless * angularVelocityDimless * y );
 	gz = 0.0f;
 }
 
@@ -108,7 +107,6 @@ __cuda_callable__ float getSmagorinskyConstant( const int  &iCell, const int &jC
 	const float z = Info.oz + kCell * Info.res;
 	if ( zMax - z < SmagorinskyZoneLength ) return 1.f; // 10mm from the end
 	else return SmagorinskyConstantGlobal;
-	return SmagorinskyConstantGlobal;
 }
 
 __cuda_callable__ void getInitialRhoUxUyUz( const int &iCell, const int &jCell, const int &kCell, float &rho, float &ux, float &uy, float &uz, const MarkerStruct &Marker, const InfoStruct &Info )
@@ -127,8 +125,6 @@ __cuda_callable__ void getInitialRhoUxUyUz( const int &iCell, const int &jCell, 
 #include "../include/gridRefinementFunctions.h"
 #include "../include/DIADFunctions.h"
 #include "../include/flowReportFunctions.h"
-
-#include "../include/boundaryConditions/outletSoundwaveAbsorber.h"
 
 void updateGrid( std::vector<DIADGridStruct>& grids, int level ) 
 {
@@ -192,11 +188,6 @@ int main(int argc, char **argv)
 	
 	buildDIADGrids( grids, STLs, 0 );
 	
-	for ( int level = 0; level < gridLevelCount; level++ )
-	{
-		fillOutletCellArray( grids[level] );
-	}
-	
 	int cellCountTotal = 0;
 	long int cellUpdatesPerIteration = 0;
 	for ( int level = 0; level < gridLevelCount; level++ )
@@ -209,7 +200,6 @@ int main(int argc, char **argv)
 	std::cout << "Cell updates per iteration: " << cellUpdatesPerIteration << std::endl;	
 	
 	std::vector<float> historyVector( iterationCount, 0.f );
-	float uOutletMovingAvg = uzInlet;
 	
 	std::cout << "Starting simulation" << std::endl;
 	
@@ -222,10 +212,10 @@ int main(int argc, char **argv)
 		if (iteration%20 == 0 && iteration != 0)
 		{
 			XYZBoundsStruct Bounds;
-			Bounds.xmin = -12.5f;
-			Bounds.xmax = 12.5f;
-			Bounds.ymin = -12.5f;
-			Bounds.ymax = 12.5f;
+			Bounds.xmin = -ROut;
+			Bounds.xmax = ROut;
+			Bounds.ymin = -ROut;
+			Bounds.ymax = ROut;
 			
 			FlowReportStruct FlowReportIn;
 			int kCut = 0;
@@ -245,8 +235,6 @@ int main(int argc, char **argv)
 			{
 				historyVector[iteration-shifter] = pLoss;
 			}
-			
-			regulateOutletPressure( grids, uOutletMovingAvg );
 			
 		}
 		
@@ -279,16 +267,7 @@ int main(int argc, char **argv)
 				system("python3 ../include/plotter/plotterGridID.py");
 				counter++;
 			}	
-			/*
-			int kCut = 0;
-			exportSectionCutPlotXY( grids, kCut, iteration + 10);
-			system("python3 ../include/plotter/plotterGridID.py");
-			
-			kCut = grids[gridLevelCount-1].Info.cellCountZ-1;
-			exportSectionCutPlotXY( grids, kCut, iteration + 11);
-			system("python3 ../include/plotter/plotterGridID.py");
-			*/
-			
+
 			lapTimer.reset();
 			lapTimer.start();	
 			
@@ -296,23 +275,3 @@ int main(int argc, char **argv)
 	}
 	return EXIT_SUCCESS;
 }
-
-
-
-/*
-
-void writeCaseResult( const std::vector<float>& historyVector, const int caseID ) {
-	const int averagingIntervalStart = (iterationCount / 10 * 7);
-	float sum = 0.f;
-	int counter = 0;
-	for ( int i = averagingIntervalStart; i < iterationCount; i++ )
-	{
-		sum += historyVector[i];
-		counter++;
-	}
-	const float result = sum / (float)counter;
-    std::ofstream outFile("optimizerResults.txt", std::ios::app);
-    outFile << caseID << "; " << result << "\n";
-    outFile.close();
-}
-*/
