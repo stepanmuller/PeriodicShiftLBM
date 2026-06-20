@@ -8,7 +8,7 @@ constexpr int iterationChunk = 1000;
 constexpr float SmagorinskyConstantGlobal = 0.1f; 										// set to zero to turn off LES
 constexpr float SmagorinskyZoneLength = 5.f;
 
-constexpr float uzInlet = 0.05f; 														// also works as nominal LBM Mach number	
+constexpr float uzInlet = 0.01f; 														// also works as nominal LBM Mach number	
 constexpr float rhoOutlet = 1.f;
 constexpr float nuPhys = 1e-6;															// m2/s water
 constexpr float rhoNominalPhys = 1000.0f;												// kg/m3 water
@@ -20,6 +20,7 @@ constexpr float soundspeedPhys = invSqrt3 * (resGlobal/1000) / dtPhysGlobal; 			
 
 constexpr float RIn = 10.f;																// mm
 constexpr float ROut = 16.5f;															// mm
+constexpr float tipGap = 0.2f;															// mm
 constexpr float C = 0.14523f;															// m2/s
 constexpr float angularVelocity = 2700.f;												// rad/s
 const float boundaryLayerThickness = 0.2f;												// mm
@@ -35,6 +36,7 @@ constexpr int bladeCount = 2;
 #include "./applyCollisionCustomized.h"
 
 #include "../include/boundaryConditions/applyBounceback.h"
+#include "../include/boundaryConditions/applyMovingBounceback.h"
 #include "../include/boundaryConditions/restoreRho.h"
 #include "../include/boundaryConditions/restoreUxUyUz.h"
 #include "../include/boundaryConditions/restoreRhoUxUyUz.h"
@@ -47,13 +49,13 @@ std::string STLPathBlade = "blade.STL";
 __cuda_callable__ void getMarkers( 	const int& iCell, const int& jCell, const int& kCell, 
 									MarkerStruct &Marker, const InfoStruct& Info )
 {
-	if ( Marker.bounceback ) return;
 	float x, y, z;
 	getXYZFromIJKCellIndex( iCell, jCell, kCell, x, y, z, Info );
 	const float r2 = x * x + y * y;
 	if ( r2 >= ROut * ROut )
 	{
-		Marker.bounceback = 1;
+		Marker.bounceback = 0;
+		Marker.movingBounceback = 1;
 		return;
 	}
 	if ( r2 <= RIn * RIn )
@@ -61,8 +63,15 @@ __cuda_callable__ void getMarkers( 	const int& iCell, const int& jCell, const in
 		Marker.bounceback = 1;
 		return;
 	}
+	if ( Marker.bounceback ) 
+	{
+		if ( r2 >= (ROut - tipGap) * (ROut - tipGap) )
+		{
+			Marker.bounceback = 0;
+		}
+	}	
 	if ( kCell == 0 ) Marker.givenUxUyUz = 1;
-	else if ( kCell == Info.cellCountZ-1 ) Marker.nonReflectiveOutlet = 1;
+	else if ( kCell == Info.cellCountZ-1 ) Marker.givenRho = 1;
 	else Marker.fluid = 1;
 }
 
@@ -76,14 +85,17 @@ __cuda_callable__ void getGivenRhoUxUyUz( 	const int& iCell, const int& jCell, c
 	const float vtPhys = - angularVelocity * (r / 1000.f);
 	const float vt = vtPhys * ( uzInlet / uzInletPhys );
 	
-	const float wallDistancePhys = std::max(0.f, std::min(r - RIn, ROut - r));
+	const float wallDistancePhys = std::max(0.f, r - RIn);
 	const float delta = std::max( 0.f, std::min( 1.f, wallDistancePhys / boundaryLayerThickness ));
 	const float velocityMultiplier = delta * delta * (3.0f - 2.0f * delta);
 	
 	ux = - vt * (y / r) * velocityMultiplier;
 	uy = vt * (x / r) * velocityMultiplier;
 	uz = uzInlet * velocityMultiplier;
-	rho = rhoOutlet;
+	
+	const float K = rhoNominalPhys * C * angularVelocity;
+	const float p = K - (rhoNominalPhys * C * C) / (2 * (r/1000.f) * (r/1000.f));
+	rho = p / ( rhoNominalPhys * soundspeedPhys * soundspeedPhys ) + rhoOutlet;
 }
 
 __cuda_callable__ void getForcing( 	const int& iCell, const int& jCell, const int& kCell, 
@@ -96,8 +108,8 @@ __cuda_callable__ void getForcing( 	const int& iCell, const int& jCell, const in
 	float x, y, z;
 	getXYZFromIJKCellIndex( iCell, jCell, kCell, x, y, z, Info );
 	const float angularVelocityDimless = angularVelocity * Info.dtPhys;
-	gx = rho * (  2.0f * angularVelocityDimless * uy + angularVelocityDimless * angularVelocityDimless * x );
-	gy = rho * ( -2.0f * angularVelocityDimless * ux + angularVelocityDimless * angularVelocityDimless * y );
+	gx = rho * (  2.0f * angularVelocityDimless * uy + angularVelocityDimless * angularVelocityDimless * (x / Info.res) );
+	gy = rho * ( -2.0f * angularVelocityDimless * ux + angularVelocityDimless * angularVelocityDimless * (y / Info.res) );
 	gz = 0.0f;
 }
 
@@ -111,11 +123,30 @@ __cuda_callable__ float getSmagorinskyConstant( const int  &iCell, const int &jC
 
 __cuda_callable__ void getInitialRhoUxUyUz( const int &iCell, const int &jCell, const int &kCell, float &rho, float &ux, float &uy, float &uz, const MarkerStruct &Marker, const InfoStruct &Info )
 {
-	rho = 1.f;
-	ux = 0.f;
-	uy = 0.f;
-	uz = uzInlet;
-	if (Marker.bounceback) uz = 0.f;
+	float x, y, z;
+	getXYZFromIJKCellIndex( iCell, jCell, kCell, x, y, z, Info );
+	const float r = std::sqrt( x * x + y * y );
+	const float vtPhys = - angularVelocity * (r / 1000.f);
+	const float vt = vtPhys * ( uzInlet / uzInletPhys );
+	
+	const float wallDistancePhys = std::max(0.f, r - RIn);
+	const float delta = std::max( 0.f, std::min( 1.f, wallDistancePhys / boundaryLayerThickness ));
+	const float velocityMultiplier = delta * delta * (3.0f - 2.0f * delta);
+	
+	ux = - vt * (y / r) * velocityMultiplier;
+	uy = vt * (x / r) * velocityMultiplier;
+	uz = uzInlet * velocityMultiplier;
+	
+	const float K = rhoNominalPhys * C * angularVelocity;
+	const float p = K - (rhoNominalPhys * C * C) / (2 * (r/1000.f) * (r/1000.f));
+	rho = p / ( rhoNominalPhys * soundspeedPhys * soundspeedPhys ) + rhoOutlet;
+	
+	if (Marker.bounceback) 
+	{
+		ux = 0.f;
+		uy = 0.f;
+		uz = 0.f;
+	}
 }
 
 //#include "../include/applyLocalCellUpdate.h"
@@ -128,7 +159,7 @@ __cuda_callable__ void getInitialRhoUxUyUz( const int &iCell, const int &jCell, 
 
 void updateGrid( std::vector<DIADGridStruct>& grids, int level ) 
 {
-	applyNonReflectiveOutletZ(grids[level]);
+	//applyNonReflectiveOutletZ(grids[level]);
     applyStreaming(grids[level]);
     applyLocalCellUpdate(grids[level]);
     if (level < gridLevelCount - 1) 
@@ -180,7 +211,7 @@ int main(int argc, char **argv)
 	grids[0].Info.nu = (grids[0].Info.dtPhys * nuPhys) / ((grids[0].Info.res/1000) * (grids[0].Info.res/1000));
 	grids[0].Info.cellCountX = (int)( (2.f*ROut) / grids[0].Info.res ) + 2;
 	grids[0].Info.cellCountY = grids[0].Info.cellCountX;
-	grids[0].Info.cellCountZ = (STLBlade.zmax - STLBlade.zmin + SmagorinskyZoneLength + 20.f) / grids[0].Info.res;
+	grids[0].Info.cellCountZ = (STLBlade.zmax - STLBlade.zmin + SmagorinskyZoneLength + 30.f) / grids[0].Info.res;
 	grids[0].Info.ox = - (grids[0].Info.cellCountX / 2) * grids[0].Info.res;
 	grids[0].Info.oy = grids[0].Info.ox;
 	grids[0].Info.oz = STLBlade.zmin - 10.f;
@@ -268,6 +299,9 @@ int main(int argc, char **argv)
 				system("python3 ../include/plotter/plotterGridID.py");
 				counter++;
 			}	
+			const int kCut = grids[gridLevelCount-1].Info.cellCountZ-1;
+			exportSectionCutPlotXY( grids, kCut, iteration + 20 + counter );
+			system("python3 ../include/plotter/plotterGridID.py");
 
 			lapTimer.reset();
 			lapTimer.start();	

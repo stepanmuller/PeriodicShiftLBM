@@ -56,6 +56,17 @@ void applyLocalCellUpdate( DIADGridStruct &Grid )
 		
 		float rho, ux, uy, uz;
 		
+		if ( Marker.movingBounceback )
+		{
+			getGivenRhoUxUyUz( iCell, jCell, kCell, rho, ux, uy, uz, Info );
+			applyMovingBounceback( f, ux, uy, uz );
+			int cellWriteIndex[27];
+			int fWriteIndex[27];
+			getEsotwistWriteIndex( cell, cellWriteIndex, fWriteIndex, Nbr, esotwistFlipper, Info );
+			for ( int direction = 0; direction < 27; direction++ ) fArrayView( fWriteIndex[direction], cellWriteIndex[direction] ) = f[direction];
+			return;
+		}
+		
 		if ( Marker.fluid )
 		{
 			// do nothing, just skip the else block below

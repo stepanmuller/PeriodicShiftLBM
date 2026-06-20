@@ -414,7 +414,7 @@ void exportSectionCutPlotToiletPaperZ( std::vector<DIADGridStruct> &grids, const
 			float uRadial = ux * cosf(theta) + uy * sinf(theta);
 			
 			// MODIFICATION FOR IMPELLER FLOW VISUALIZATION			
-			if ( (targetCellCountHorizontal - indexHorizontal) * TargetInfo.res < 10 )
+			if ( (targetCellCountHorizontal - indexHorizontal) * TargetInfo.res < 20 )
 			{
 				uTangential += angularVelocity * (r / 1000.f);
 				uTangential -= (1.f / (r / 1000.f)) * C;

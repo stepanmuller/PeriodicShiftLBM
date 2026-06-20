@@ -443,8 +443,9 @@ void applyBouncebackMarkerFromFunction( BoolArrayType &markerArray, IJKArrayStru
 		const int jCell = jArrayView[ cell ];
 		const int kCell = kArrayView[ cell ];
 		MarkerStruct Marker;
+		Marker.bounceback = markerArrayView[ cell ];
 		getMarkers( iCell, jCell, kCell, Marker, Info );
-		markerArrayView( cell ) = Marker.bounceback;
+		markerArrayView( cell ) = Marker.bounceback || Marker.movingBounceback;
 	};
 	TNL::Algorithms::parallelFor<TNL::Devices::Cuda>(0, Info.cellCount, cellLambda );	
 }
@@ -526,16 +527,17 @@ void markFinestFluidBounceback( BoolArrayType &fluidMarkerArray, BoolArrayType &
 				{
 					Info.ox = oxOriginal + shiftStart + shiftCountX * targetRes;
 					Info.oy = oyOriginal + shiftStart + shiftCountY * targetRes;
-					Info.oz = ozOriginal + shiftStart + shiftCountZ * targetRes;				
-					
-					applyBouncebackMarkerFromFunction( markerArray, IJK, Info );
-					
+					Info.oz = ozOriginal + shiftStart + shiftCountZ * targetRes;	
+								
+					markerArray.setValue( 0 );
+					markerArraySTL.setValue( 0 );
 					for ( int STLIndex = 0; STLIndex < (int)STLs.size(); STLIndex++ )
 					{
 						const bool insideMarkerValue = 1;
 						ApplyMarkersInsideSTL( markerArraySTL, IJK, STLs[STLIndex], insideMarkerValue, Info );
 						sumBoolArrays( markerArray, markerArraySTL, markerArray );
 					}
+					applyBouncebackMarkerFromFunction( markerArray, IJK, Info );
 					
 					// Accumulate the findings into the main arrays
 					sumBoolArrays( finestBouncebackMarkerArray, markerArray, finestBouncebackMarkerArray );
@@ -655,14 +657,15 @@ void buildDIADGrids( std::vector<DIADGridStruct> &grids, std::vector<STLStruct> 
 			BoolArrayType bouncebackMarkerArray = BoolArrayType( Info.cellCount );
 			BoolArrayType markerArraySTL = BoolArrayType( Info.cellCount );	
 			BoolArrayType keepCellMarkerArray = BoolArrayType( Info.cellCount );
+			bouncebackMarkerArray.setValue( 0 );
 			
-			applyBouncebackMarkerFromFunction( bouncebackMarkerArray, Grid.IJK, Info );
 			for ( int STLIndex = 0; STLIndex < (int)STLs.size(); STLIndex++ )
 			{
 				const bool insideMarkerValue = 1;
 				ApplyMarkersInsideSTL( markerArraySTL, Grid.IJK, STLs[STLIndex], insideMarkerValue, Info );
 				sumBoolArrays( bouncebackMarkerArray, markerArraySTL, bouncebackMarkerArray );
 			}
+			applyBouncebackMarkerFromFunction( bouncebackMarkerArray, Grid.IJK, Info );
 			
 			if ( gridLevelCount > 1 ) sumBoolArrays( bouncebackMarkerArray, Grid.enforceInterfaceBounceback, bouncebackMarkerArray );
 			fluidMarkerArray = bouncebackMarkerArray;
