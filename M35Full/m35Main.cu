@@ -3,11 +3,11 @@ constexpr int gridLevelCount = 2;
 constexpr int wallRefinementSpan = 1;
 
 constexpr int iterationCount = 500000;
-constexpr int iterationChunk = 100;
+constexpr int iterationChunk = 1000;
 
 constexpr float SmagorinskyConstantGlobal = 0.1f; 										// set to zero to turn off LES
 
-constexpr float uzInlet = 0.05f; 														// also works as nominal LBM Mach number	
+constexpr float uzInlet = 0.01f; 														// also works as nominal LBM Mach number	
 constexpr float nuPhys = 1e-6;															// m2/s water
 constexpr float rhoNominalPhys = 1000.0f;												// kg/m3 water
 constexpr float uzInletPhys = 4.5986f; 													// m/s
@@ -45,10 +45,20 @@ std::string STLPathImpeller = "M-Jet_35_impeller.STL";
 __cuda_callable__ void getMarkers( 	const int& iCell, const int& jCell, const int& kCell, 
 									MarkerStruct &Marker, const InfoStruct& Info )
 {
+	float x, y, z;
+	getXYZFromIJKCellIndex( iCell, jCell, kCell, x, y, z, Info );
+	const float r = std::sqrt( x * x + y * y );
 	if ( kCell < 5 ) Marker.refinement = 1;
 	if ( Info.cellCountZ - kCell < 5 ) Marker.refinement = 1;
-	Marker.movingBounceback = 0;
-	if ( Marker.bounceback ) return;
+	if ( Marker.bounceback ) 
+	{
+		if ( r < 10.f && z < -0.5f ) 
+		{
+			Marker.bounceback = 0;
+			Marker.movingBounceback = 1;
+		}
+		else return;
+	}
 	if ( Marker.forcedVelocity ) return;
 	if ( kCell == 0 ) Marker.givenUxUyUz = 1;
 	else if ( kCell == Info.cellCountZ-1 ) Marker.givenRho = 1;
@@ -67,7 +77,7 @@ __cuda_callable__ void getGivenRhoUxUyUz( 	const int& iCell, const int& jCell, c
 	const float wallDistancePhys = std::max(0.f, std::min(r - RIn, ROut - r));
 	const float delta = std::max( 0.f, std::min( 1.f, wallDistancePhys / boundaryLayerThickness ));
 	const float velocityMultiplier = delta * delta * (3.0f - 2.0f * delta);
-	if ( Marker.forcedVelocity )
+	if ( Marker.forcedVelocity || Marker.movingBounceback )
 	{
 		ux = - vt * (y / r);
 		uy = vt * (x / r);
@@ -106,7 +116,7 @@ __cuda_callable__ float getSmagorinskyConstant( const int  &iCell, const int &jC
 {
 	float x, y, z;
 	getXYZFromIJKCellIndex( iCell, jCell, kCell, x, y, z, Info );
-	if ( z > 14 ) return 1.f;
+	if ( z > 20.f ) return 10.f;
 	else return SmagorinskyConstantGlobal;
 }
 
@@ -243,13 +253,22 @@ int main(int argc, char **argv)
 			float uTemp = 0.f;
 			convertToPhysicalVelocity( uzIn, uTemp, uTemp, grids[0].Info );
 			
-			float pTotalIn = 0.5f * rhoNominalPhys * uzIn * uzIn + pIn;
+			FlowReportStruct FlowReportOut;
+			int iTemp, jTemp;
+			const float xTemp = 0.f;
+			const float yTemp = 0.f;
+			const float zCut = 0.f;
+			getIJKCellIndexFromXYZ( iTemp, jTemp, kCut, xTemp, yTemp, zCut, grids[gridLevelCount-1].Info);
+			getFlowReportXY( grids, kCut, Bounds, FlowReportOut );
+			float pOut = FlowReportOut.rho;
+			convertToPhysicalPressure( pOut );
+			
+			float pTotalIn = 0.5f * rhoNominalPhys * uzIn * uzIn + (pIn - pOut);
 			
 			for ( int shifter = 0; shifter < 20; shifter++ )
 			{
 				historyVector[iteration-shifter] = pTotalIn;
 			}
-			
 		}
 		
 		if ( iteration % iterationChunk == 0) 

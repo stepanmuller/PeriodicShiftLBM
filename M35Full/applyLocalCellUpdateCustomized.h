@@ -62,10 +62,28 @@ void applyLocalCellUpdate( DIADGridStruct &Grid )
 		for ( int direction = 0; direction < 27; direction++ )	f[direction] = fArrayView(fReadIndex[direction], cellReadIndex[direction]);
 		
 		float rho, ux, uy, uz;
+		float gx = 0.f;
+		float gy = 0.f;
+		float gz = 0.f;
+		
+		if ( Marker.movingBounceback )
+		{
+			getGivenRhoUxUyUz( iCell, jCell, kCell, rho, ux, uy, uz, Info, Marker );
+			applyMovingBounceback( f, ux, uy, uz );
+			int cellWriteIndex[27];
+			int fWriteIndex[27];
+			getEsotwistWriteIndex( cell, cellWriteIndex, fWriteIndex, Nbr, esotwistFlipper, Info );
+			for ( int direction = 0; direction < 27; direction++ ) fArrayView( fWriteIndex[direction], cellWriteIndex[direction] ) = f[direction];
+			return;
+		}
 		
 		if ( Marker.fluid )
 		{
 			// do nothing, just skip the else block below
+		}
+		else if ( Marker.forcedVelocity )
+		{
+			getForcing( iCell, jCell, kCell, f, gx, gy, gz, Info );
 		}
 		else if ( Marker.nonReflectiveOutlet )
 		{
@@ -94,15 +112,6 @@ void applyLocalCellUpdate( DIADGridStruct &Grid )
 			applyMBBC( outerNormalX, outerNormalY, outerNormalZ, rho, ux, uy, uz, f );
 		}
 		const float SmagorinskyConstant = getSmagorinskyConstant( iCell, jCell, kCell, Info );
-		
-		float gx = 0.f;
-		float gy = 0.f;
-		float gz = 0.f;
-		
-		if ( Marker.forcedVelocity )
-		{
-			getForcing( iCell, jCell, kCell, f, gx, gy, gz, Info );
-		}
 		
 		applyCollision( f, Info.nu, SmagorinskyConstant, gx, gy, gz );
 		
