@@ -697,7 +697,6 @@ void ApplyMarkersInsideSTL( BoolArrayType &markerArray, IJKArrayStruct &IJK, STL
 
 void rotateSTLAlongX( STLStruct &STL, float &radians )
 {
-	std::cout << "Rotating STL along X axis" << std::endl;
 	auto ayArrayView = STL.ayArray.getView();
 	auto azArrayView = STL.azArray.getView();
 	auto byArrayView = STL.byArray.getView();
@@ -731,12 +730,10 @@ void rotateSTLAlongX( STLStruct &STL, float &radians )
 		czArrayView[ triangleIndex ] = newCz;
 	};
 	TNL::Algorithms::parallelFor<TNL::Devices::Cuda>( 0, STL.triangleCount, rotateLambda );
-	std::cout << "	STL rotated" << std::endl;
 }
 
 void rotateSTLAlongY( STLStruct &STL, float &radians )
 {
-	std::cout << "Rotating STL along Y axis" << std::endl;
 	auto axArrayView = STL.axArray.getView();
 	auto azArrayView = STL.azArray.getView();
 	auto bxArrayView = STL.bxArray.getView();
@@ -772,12 +769,10 @@ void rotateSTLAlongY( STLStruct &STL, float &radians )
 		czArrayView[ triangleIndex ] = newCz;
 	};
 	TNL::Algorithms::parallelFor<TNL::Devices::Cuda>( 0, STL.triangleCount, rotateLambda );
-	std::cout << "	STL rotated" << std::endl;
 }
 
 void rotateSTLAlongZ( STLStruct &STL, const float &radians )
 {
-	std::cout << "Rotating STL along Z axis" << std::endl;
 	auto axArrayView = STL.axArray.getView();
 	auto ayArrayView = STL.ayArray.getView();
 	auto bxArrayView = STL.bxArray.getView();
@@ -811,7 +806,6 @@ void rotateSTLAlongZ( STLStruct &STL, const float &radians )
 		cyArrayView[ triangleIndex ] = newCy;
 	};
 	TNL::Algorithms::parallelFor<TNL::Devices::Cuda>( 0, STL.triangleCount, rotateLambda );
-	std::cout << "	STL rotated" << std::endl;
 }
 
 void multiplyBoolArrays( BoolArrayType &markerArray1, BoolArrayType &markerArray2, BoolArrayType &resultArray )
