@@ -1,9 +1,9 @@
-constexpr float resGlobal = 0.4f; 														// mm
-constexpr int gridLevelCount = 3;
+constexpr float resGlobal = 0.2f; 														// mm
+constexpr int gridLevelCount = 2;
 constexpr int wallRefinementSpan = 1;
 
 constexpr int iterationCount = 500000;
-constexpr int iterationChunk = 1000;
+constexpr int iterationChunk = 100;
 
 constexpr float SmagorinskyConstantGlobal = 0.1f; 										// set to zero to turn off LES
 
@@ -45,6 +45,8 @@ std::string STLPathImpeller = "M-Jet_35_impeller.STL";
 __cuda_callable__ void getMarkers( 	const int& iCell, const int& jCell, const int& kCell, 
 									MarkerStruct &Marker, const InfoStruct& Info )
 {
+	if ( kCell < 5 ) Marker.refinement = 1;
+	if ( Info.cellCountZ - kCell < 5 ) Marker.refinement = 1;
 	Marker.movingBounceback = 0;
 	if ( Marker.bounceback ) return;
 	if ( Marker.forcedVelocity ) return;
@@ -102,7 +104,10 @@ __cuda_callable__ void getForcing( 	const int& iCell, const int& jCell, const in
 
 __cuda_callable__ float getSmagorinskyConstant( const int  &iCell, const int &jCell, const int &kCell, const InfoStruct &Info  )
 {
-	return SmagorinskyConstantGlobal;
+	float x, y, z;
+	getXYZFromIJKCellIndex( iCell, jCell, kCell, x, y, z, Info );
+	if ( z > 14 ) return 1.f;
+	else return SmagorinskyConstantGlobal;
 }
 
 __cuda_callable__ void getInitialRhoUxUyUz( const int &iCell, const int &jCell, const int &kCell, float &rho, float &ux, float &uy, float &uz, const MarkerStruct &Marker, const InfoStruct &Info )
@@ -176,6 +181,18 @@ int main(int argc, char **argv)
 	
 	buildDIADGrids( grids, STLs, 0 );
 	
+	STLStructCPU STLCPUImpeller;
+	readSTL( STLCPUImpeller, STLPathImpeller );
+	STLStruct STLImpeller( STLCPUImpeller );
+	checkSTLEdges( STLImpeller );
+	
+	for ( int level = 0; level < gridLevelCount; level++ )
+	{
+		grids[level].forcedVelocityMarkerArray.setSize( grids[level].Info.cellCount );
+		const bool insideMarkerValue = 1;
+		ApplyMarkersInsideSTL( grids[level].forcedVelocityMarkerArray, grids[level].IJK, STLImpeller, insideMarkerValue, grids[level].Info );
+	}
+	
 	int cellCountTotal = 0;
 	long int cellUpdatesPerIteration = 0;
 	for ( int level = 0; level < gridLevelCount; level++ )
@@ -196,6 +213,18 @@ int main(int argc, char **argv)
 	lapTimer.start();
 	for (int iteration=0; iteration<=iterationCount; iteration++)
 	{
+		if (iteration%2 == 0)
+		{
+			const float rotationAngle = angularVelocity * grids[0].Info.dtPhys * iteration;
+			STLStruct STLImpellerRotated;
+			STLImpellerRotated = STLImpeller;
+			rotateSTLAlongZ( STLImpellerRotated, rotationAngle );
+			for ( int level = 0; level < gridLevelCount; level++ )
+			{
+				const bool insideMarkerValue = 1;
+				ApplyMarkersInsideSTL( grids[level].forcedVelocityMarkerArray, grids[level].IJK, STLImpellerRotated, insideMarkerValue, grids[level].Info );
+			}
+		}
 		updateGrid( grids, 0 );
 		if (iteration%20 == 0 && iteration != 0)
 		{
@@ -252,8 +281,8 @@ int main(int argc, char **argv)
 				system("python3 ../include/plotter/plotterGridID.py");
 				counter++;
 			}	
-			const int kCut = grids[gridLevelCount-1].Info.cellCountZ / 2;
-			exportSectionCutPlotXY( grids, kCut, iteration + 30 + counter + 1 );
+			const int kCut = grids[gridLevelCount-1].Info.cellCountZ - 1;
+			exportSectionCutPlotXY( grids, kCut, iteration + 30 + counter );
 			system("python3 ../include/plotter/plotterGridID.py");
 			
 			const int iCut = grids[gridLevelCount-1].Info.cellCountX / 2;

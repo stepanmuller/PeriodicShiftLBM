@@ -63,6 +63,8 @@ void exportSectionCutPlotGeneral( std::vector<DIADGridStruct> &grids, const int 
 		auto fArrayView  = Grid.fArray.getConstView();
 		bool useBouncebackArray = ( Grid.bouncebackMarkerArray.getSize() > 0 );
 		auto bouncebackMarkerArrayView = Grid.bouncebackMarkerArray.getConstView();
+		bool useForcedVelocityArray = ( Grid.forcedVelocityMarkerArray.getSize() > 0 );
+		auto forcedVelocityMarkerArrayView = Grid.forcedVelocityMarkerArray.getConstView();
 		
 		auto iView = Grid.IJK.iArray.getConstView();
 		auto jView = Grid.IJK.jArray.getConstView();
@@ -127,7 +129,9 @@ void exportSectionCutPlotGeneral( std::vector<DIADGridStruct> &grids, const int 
 
 			MarkerStruct Marker;
 			if ( useBouncebackArray ) Marker.bounceback = bouncebackMarkerArrayView( cell );
-			const float marker = Marker.bounceback;
+			if ( useForcedVelocityArray ) Marker.forcedVelocity = forcedVelocityMarkerArrayView( cell );
+			getMarkers( iCell, jCell, kCell, Marker, Info );
+			const float marker = (Marker.bounceback || Marker.forcedVelocity);
 			
 			// 3. Mapping coordinates to the scaled-down output array
 			int outYStart = indexVertical / targetScale;
@@ -287,6 +291,8 @@ void exportSectionCutPlotToiletPaperZ( std::vector<DIADGridStruct> &grids, const
 		auto fArrayView  = Grid.fArray.getConstView();
 		bool useBouncebackArray = ( Grid.bouncebackMarkerArray.getSize() > 0 );
 		auto bouncebackMarkerArrayView = Grid.bouncebackMarkerArray.getConstView();
+		bool useForcedVelocityArray = ( Grid.forcedVelocityMarkerArray.getSize() > 0 );
+		auto forcedVelocityMarkerArrayView = Grid.forcedVelocityMarkerArray.getConstView();
 		
 		auto iView = Grid.IJK.iArray.getConstView();
 		auto jView = Grid.IJK.jArray.getConstView();
@@ -341,7 +347,9 @@ void exportSectionCutPlotToiletPaperZ( std::vector<DIADGridStruct> &grids, const
 
 			MarkerStruct Marker;
 			if ( useBouncebackArray ) Marker.bounceback = bouncebackMarkerArrayView( cell );
-			const float marker = Marker.bounceback;
+			if ( useForcedVelocityArray ) Marker.forcedVelocity = forcedVelocityMarkerArrayView( cell );
+			getMarkers( iCell, jCell, kCell, Marker, Info );
+			const float marker = (Marker.bounceback || Marker.forcedVelocity);
 			
 			// 3. Mapping coordinates to the scaled-down 2D unrolled array
 			int spanY = max(1, cellScale / targetScale);
@@ -414,11 +422,11 @@ void exportSectionCutPlotToiletPaperZ( std::vector<DIADGridStruct> &grids, const
 			float uRadial = ux * cosf(theta) + uy * sinf(theta);
 			
 			// MODIFICATION FOR IMPELLER FLOW VISUALIZATION			
-			if ( indexHorizontal * TargetInfo.res > 15 && indexHorizontal * TargetInfo.res < 35 )
+			if ( indexHorizontal * TargetInfo.res > 12 && indexHorizontal * TargetInfo.res < 32 )
 			{
 				uTangential -= angularVelocity * (r / 1000.f);
 			}
-			if ( indexHorizontal * TargetInfo.res > 52 && indexHorizontal * TargetInfo.res < 70 )
+			if ( indexHorizontal * TargetInfo.res > 50 && indexHorizontal * TargetInfo.res < 70 )
 			{
 				uTangential -= angularVelocity * (r / 1000.f);
 			}

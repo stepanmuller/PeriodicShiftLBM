@@ -775,7 +775,7 @@ void rotateSTLAlongY( STLStruct &STL, float &radians )
 	std::cout << "	STL rotated" << std::endl;
 }
 
-void rotateSTLAlongZ( STLStruct &STL, float &radians )
+void rotateSTLAlongZ( STLStruct &STL, const float &radians )
 {
 	std::cout << "Rotating STL along Z axis" << std::endl;
 	auto axArrayView = STL.axArray.getView();
