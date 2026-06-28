@@ -263,8 +263,13 @@ __host__ __device__ float getRayHitZCoordinate(	const float &ax, const float &ay
     
     float rayZ;
 
-    if (nz != 0.0f) rayZ = az - (nx * (rayX - ax) + ny * (rayY - ay)) / nz;
-    else rayZ = std::numeric_limits<float>::max();
+    if (nz != 0.0f) 
+    {
+		rayZ = az - (nx * (rayX - ax) + ny * (rayY - ay)) / nz;
+		if ( rayZ > std::max({az, bz, cz}) ) rayZ = std::max({az, bz, cz});
+		else if ( rayZ < std::min({az, bz, cz}) ) rayZ = std::min({az, bz, cz});
+	}
+    else rayZ = 0.5f * ( std::max({az, bz, cz}) + std::min({az, bz, cz}) );
     
     return rayZ;
 }

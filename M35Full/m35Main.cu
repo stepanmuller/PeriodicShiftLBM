@@ -45,6 +45,7 @@ std::string STLPathImpeller = "M-Jet_35_impeller.STL";
 __cuda_callable__ void getMarkers( 	const int& iCell, const int& jCell, const int& kCell, 
 									MarkerStruct &Marker, const InfoStruct& Info )
 {
+	Marker.movingBounceback = 0;
 	if ( Marker.bounceback ) return;
 	if ( Marker.forcedVelocity ) return;
 	if ( kCell == 0 ) Marker.givenUxUyUz = 1;
