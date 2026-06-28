@@ -220,7 +220,7 @@ void exportSectionCutPlotZX( std::vector<DIADGridStruct> &grids, const int &jCel
 }
 
 // DIAD Version of Toilet Paper Plot that dynamically downsamples finest grids to fit VRAM
-void exportSectionCutPlotToiletPaperZ( std::vector<DIADGridStruct> &grids, const float &r, const int &plotNumber )
+void exportSectionCutPlotToiletPaperZ( std::vector<DIADGridStruct> &grids, const float &r, const int &plotNumber, const bool &rotatingFrameOfReference )
 {
 	std::cout << "Exporting DIAD Toilet Paper Z section cut plot " << plotNumber << " at radius " << r << " mm" << std::endl;
 
@@ -422,15 +422,10 @@ void exportSectionCutPlotToiletPaperZ( std::vector<DIADGridStruct> &grids, const
 			float uRadial = ux * cosf(theta) + uy * sinf(theta);
 			
 			// MODIFICATION FOR IMPELLER FLOW VISUALIZATION			
-			if ( indexHorizontal * TargetInfo.res > 12 && indexHorizontal * TargetInfo.res < 32 )
+			if ( rotatingFrameOfReference )
 			{
 				uTangential -= angularVelocity * (r / 1000.f);
-			}
-			if ( indexHorizontal * TargetInfo.res > 50 && indexHorizontal * TargetInfo.res < 70 )
-			{
-				uTangential -= angularVelocity * (r / 1000.f);
-			}
-			
+			}			
 			// Outputs 6 components matching the typical DIAD generic plot shape
 			float data[6] = {p, uz, uTangential, uRadial, marker, (float)gridID};
 			fwrite(data, sizeof(float), 6, fp);

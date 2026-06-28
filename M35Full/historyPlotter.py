@@ -43,29 +43,54 @@ def plot_history(file_number):
     try:
         with open("/dev/shm/historyData.bin", "rb") as f:
             count = np.fromfile(f, dtype=np.int32, count=1)[0]
-            # Assuming the binary file now only contains the Drag Coefficient data
-            drag_coeff = np.fromfile(f, dtype=np.float32, count=count)
+            # Read the 3 arrays sequentially
+            data1 = np.fromfile(f, dtype=np.float32, count=count)
+            data2 = np.fromfile(f, dtype=np.float32, count=count)
+            data3 = np.fromfile(f, dtype=np.float32, count=count)
     except Exception:
         return
 
-    # Single subplot, maintaining the 16:9 aspect ratio
-    fig, ax = plt.subplots(1, 1, figsize=(16, 9))
+    # 3 stacked subplots sharing the x-axis, maintaining the 16:9 overall aspect ratio
+    fig, axs = plt.subplots(3, 1, figsize=(16, 9), sharex=True)
     iterations = np.arange(count)
     bbox_props = dict(boxstyle="square,pad=0.3", fc="white", ec="black", lw=1, alpha=0.8)
 
-    # --- Drag Coefficient Plot ---
-    ax.plot(iterations, drag_coeff, color='black', linewidth=1.2, alpha=0.7)
-    ax.set_ylabel(r"$p$ [Pa]")
-    ax.set_xlabel(r"Iteration")
-    ax.set_title(r"\textbf{Total Pressure In History}")
-    ax.grid(True, linestyle='--', alpha=0.4)
-    ax.yaxis.set_major_locator(MaxNLocator(nbins=8))
+    datasets = [data1, data2, data3]
     
-    set_smart_ylim(ax, drag_coeff)
-    
-    label_cd = add_average_diagnostics(ax, iterations, drag_coeff)
-    ax.text(0.98, 0.95, f'\\textbf{{$p$ [Pa]: {label_cd}}}', 
-            transform=ax.transAxes, ha='right', va='top', bbox=bbox_props)
+    # --- Define your 3 custom titles and y-labels here ---
+    titles = [
+        r"\textbf{Inlet Total Pressure History}",
+        r"\textbf{Mass Flow History}",
+        r"\textbf{Torque History}"
+    ]
+    ylabels = [
+        r"$p_t$ [Pa]",
+        r"$\dot m_p$ [kg/s]",
+        r"$T$ [Nm]"
+    ]
+
+    for i, ax in enumerate(axs):
+        data = datasets[i]
+        
+        # --- Iterative Plot ---
+        ax.plot(iterations, data, color='black', linewidth=1.2, alpha=0.7)
+        ax.set_ylabel(ylabels[i])
+        
+        # Only set the x-label on the bottom plot 
+        if i == 2:
+            ax.set_xlabel(r"Iteration")
+            
+        ax.set_title(titles[i])
+        ax.grid(True, linestyle='--', alpha=0.4)
+        ax.yaxis.set_major_locator(MaxNLocator(nbins=8))
+        
+        set_smart_ylim(ax, data)
+        
+        label_val = add_average_diagnostics(ax, iterations, data)
+        
+        # Synchronize the text box label with the y-axis label
+        ax.text(0.98, 0.95, rf'\textbf{{{ylabels[i]}: {label_val}}}', 
+                transform=ax.transAxes, ha='right', va='top', bbox=bbox_props)
 
     plt.tight_layout()
     os.makedirs("results/history", exist_ok=True)

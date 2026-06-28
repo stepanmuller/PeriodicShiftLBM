@@ -880,6 +880,12 @@ void buildDIADGrids( std::vector<DIADGridStruct> &grids, std::vector<STLStruct> 
 		Grid.enforceInterfaceFluid.resize(Info.cellCount);
 	}
 	
+	// INTERFACE MARKER FOR LATER USE - OPTIONAL
+	Grid.interfaceMarkerArray.setSize(Info.cellCount);
+	Grid.interfaceMarkerArray.setValue( 0 );
+	sumBoolArrays( Grid.interfaceMarkerArray, fineToCoarseMarkerArray, Grid.interfaceMarkerArray );
+	sumBoolArrays( Grid.interfaceMarkerArray, coarseToFineMarkerArray, Grid.interfaceMarkerArray );
+	
 	std::cout << "Final cell count on level " << level <<" : " << Info.cellCount << std::endl;
 	
 	// FINAL BOUNCEBACK PASS

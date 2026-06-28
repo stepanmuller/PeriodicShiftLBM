@@ -21,6 +21,9 @@ constexpr float ROut = 16.5f;															// mm
 constexpr float angularVelocity = 2700.f;												// rad/s
 const float boundaryLayerThickness = 0.2f;												// mm
 
+constexpr float targetInletTotalPressure = 0.f;											// Pa
+constexpr float iRegulatorStrength = 0.1f * 1e-9f;
+
 #include "../include/types.h"
 
 #include <sstream>
@@ -40,6 +43,7 @@ const float boundaryLayerThickness = 0.2f;												// mm
 
 #include "../include/STLFunctions.h"
 std::string STLPathMain = "M-Jet_35_pump_main.STL";
+std::string STLPathShaft = "M-Jet_35_shaft.STL";
 std::string STLPathImpeller = "M-Jet_35_impeller.STL";
 
 __cuda_callable__ void getMarkers( 	const int& iCell, const int& jCell, const int& kCell, 
@@ -67,7 +71,7 @@ __cuda_callable__ void getMarkers( 	const int& iCell, const int& jCell, const in
 
 __cuda_callable__ void getGivenRhoUxUyUz( 	const int& iCell, const int& jCell, const int& kCell, 
 											float& rho, float& ux, float& uy, float& uz,
-											InfoStruct& Info, MarkerStruct &Marker )
+											const InfoStruct& Info, MarkerStruct &Marker )
 {
 	float x, y, z;
 	getXYZFromIJKCellIndex( iCell, jCell, kCell, x, y, z, Info );
@@ -87,7 +91,7 @@ __cuda_callable__ void getGivenRhoUxUyUz( 	const int& iCell, const int& jCell, c
 	{
 		ux = 0.f;
 		uy = 0.f;
-		uz = uzInlet * velocityMultiplier;
+		uz = Info.iRegulator * velocityMultiplier;
 	}
 	rho = 1.f;
 }
@@ -95,7 +99,7 @@ __cuda_callable__ void getGivenRhoUxUyUz( 	const int& iCell, const int& jCell, c
 __cuda_callable__ void getForcing( 	const int& iCell, const int& jCell, const int& kCell, 
 									const float (&f)[27], 
 									float& gx, float& gy, float& gz,
-									InfoStruct& Info )
+									const InfoStruct& Info )
 {
 	float rho, ux, uy, uz;
 	getRhoUxUyUz( rho, ux, uy, uz, f );
@@ -114,10 +118,7 @@ __cuda_callable__ void getForcing( 	const int& iCell, const int& jCell, const in
 
 __cuda_callable__ float getSmagorinskyConstant( const int  &iCell, const int &jCell, const int &kCell, const InfoStruct &Info  )
 {
-	float x, y, z;
-	getXYZFromIJKCellIndex( iCell, jCell, kCell, x, y, z, Info );
-	if ( z > 20.f ) return 10.f;
-	else return SmagorinskyConstantGlobal;
+	return SmagorinskyConstantGlobal;
 }
 
 __cuda_callable__ void getInitialRhoUxUyUz( const int &iCell, const int &jCell, const int &kCell, float &rho, float &ux, float &uy, float &uz, const MarkerStruct &Marker, const InfoStruct &Info )
@@ -148,16 +149,129 @@ void updateGrid( std::vector<DIADGridStruct>& grids, int level )
     }
 }
 
-void exportHistoryData( const std::vector<float>& historyVector, const int &currentIteration, int fileNumber ) {
+void exportHistoryData( const std::vector<float>& historyTotalPressure, 
+                        const std::vector<float>& historyMassFlow, 
+                        const std::vector<float>& historyTorque, 
+                        const int &currentIteration, int fileNumber ) {
     FILE* fp = fopen("/dev/shm/historyData.bin", "wb");
     if (!fp) return;
+    
     int count = currentIteration + 1;
     fwrite(&count, sizeof(int), 1, fp);
-    fwrite(historyVector.data(), sizeof(float), count, fp);
+    
+    // Write all three vectors sequentially
+    fwrite(historyTotalPressure.data(), sizeof(float), count, fp);
+    fwrite(historyMassFlow.data(), sizeof(float), count, fp);
+    fwrite(historyTorque.data(), sizeof(float), count, fp);
+    
     fclose(fp);
+    
     // Construct the command string to pass the number as an argument
     std::string cmd = "python3 historyPlotter.py " + std::to_string(fileNumber) + " &";
     system(cmd.c_str());
+}
+
+float getTorque( DIADGridStruct &Grid )
+{
+	auto fArrayView  = Grid.fArray.getConstView();
+	InfoStruct Info = Grid.Info;
+	
+	bool esotwistFlipper = Grid.esotwistFlipper;
+	auto iNbrView = Grid.EsotwistNbrArray.iNbrArray.getConstView();
+	auto jNbrView = Grid.EsotwistNbrArray.jNbrArray.getConstView();
+	auto kNbrView = Grid.EsotwistNbrArray.kNbrArray.getConstView();
+	auto ijNbrView = Grid.EsotwistNbrArray.ijNbrArray.getConstView();
+	auto ikNbrView = Grid.EsotwistNbrArray.ikNbrArray.getConstView();
+	auto jkNbrView = Grid.EsotwistNbrArray.jkNbrArray.getConstView();
+	auto ijkNbrView = Grid.EsotwistNbrArray.ijkNbrArray.getConstView();
+	
+	auto iView = Grid.IJK.iArray.getConstView();
+	auto jView = Grid.IJK.jArray.getConstView();
+	auto kView = Grid.IJK.kArray.getConstView();
+	
+	bool useBouncebackArray = ( Grid.bouncebackMarkerArray.getSize() > 0 );
+	auto bouncebackMarkerArrayView = Grid.bouncebackMarkerArray.getConstView();
+	bool useForcedVelocityArray = ( Grid.forcedVelocityMarkerArray.getSize() > 0 );
+	auto forcedVelocityMarkerArrayView = Grid.forcedVelocityMarkerArray.getConstView();
+	bool useInterfaceMarkerArray = ( Grid.interfaceMarkerArray.getSize() > 0 );
+	auto interfaceMarkerArrayView = Grid.interfaceMarkerArray.getConstView();
+	
+	auto fetch = [ = ] __cuda_callable__( const int cell )
+	{		
+		if ( useInterfaceMarkerArray ) 
+		{
+			if ( interfaceMarkerArrayView( cell ) ) return 0.f;
+		}
+		
+		const int iCell = iView( cell );
+		const int jCell = jView( cell );
+		const int kCell = kView( cell );
+		
+		if ( kCell < 5 ) return 0.f;
+		
+		MarkerStruct Marker;
+		if ( useBouncebackArray ) Marker.bounceback = bouncebackMarkerArrayView( cell );
+		if ( useForcedVelocityArray ) Marker.forcedVelocity = forcedVelocityMarkerArrayView( cell );
+		getMarkers( iCell, jCell, kCell, Marker, Info );
+		
+		if ( !Marker.movingBounceback && !Marker.forcedVelocity ) return 0.f;
+		
+		float x, y, z;
+		getXYZFromIJKCellIndex( iCell, jCell, kCell, x, y, z, Info );
+		
+		DIADEsotwistNbrStruct Nbr;
+		Nbr.i = iNbrView( cell );
+		Nbr.j = jNbrView( cell );
+		Nbr.k = kNbrView( cell );
+		Nbr.ij = ijNbrView( cell );
+		Nbr.ik = ikNbrView( cell );
+		Nbr.jk = jkNbrView( cell );
+		Nbr.ijk = ijkNbrView( cell );
+		
+		float f[27];
+		int cellReadIndex[27];
+		int fReadIndex[27];
+		getEsotwistReadIndex( cell, cellReadIndex, fReadIndex, Nbr, esotwistFlipper, Info );
+		for ( int direction = 0; direction < 27; direction++ )	f[direction] = fArrayView(fReadIndex[direction], cellReadIndex[direction]);
+		
+		float rho, ux, uy, uz;
+		getRhoUxUyUz( rho, ux, uy, uz, f );
+		float gx = 0.f;
+		float gy = 0.f;
+		float gz = 0.f;
+		
+		if ( Marker.movingBounceback )
+		{
+			float uxPrev = ux;
+			float uyPrev = uy;
+			float uzPrev = uz;
+			getGivenRhoUxUyUz( iCell, jCell, kCell, rho, ux, uy, uz, Info, Marker );
+			applyMovingBounceback( f, ux, uy, uz );
+			getRhoUxUyUz( rho, ux, uy, uz, f );
+			gx = rho * ( ux - uxPrev );
+			gy = rho * ( uy - uyPrev );
+			gz = rho * ( uz - uzPrev );
+			convertToPhysicalForce( gx, gy, gz, Info );
+			float T = - gx * y + gy * x;
+			return T;
+		}
+		if ( Marker.forcedVelocity )
+		{
+			getForcing( iCell, jCell, kCell, f, gx, gy, gz, Info );
+			convertToPhysicalForce( gx, gy, gz, Info );
+			float T = - gx * y + gy * x;
+			return T;
+		}
+		else return 0.f;
+	};
+	auto reduction = [] __cuda_callable__( const float& a, const float& b )
+	{
+		return a + b;
+	};
+	
+	float TSum = TNL::Algorithms::reduce<TNL::Devices::Cuda>( 0, Info.cellCount, fetch, reduction, 0.f );
+	TSum = TSum / 1000.f; // converting from Nmm to Nm
+	return TSum;
 }
 
 int main(int argc, char **argv)
@@ -173,7 +287,12 @@ int main(int argc, char **argv)
 	STLStruct STLMain( STLCPUMain );
 	checkSTLEdges( STLMain );
 	
-	std::vector<STLStruct> STLs = { STLMain };
+	STLStructCPU STLCPUShaft;
+	readSTL( STLCPUShaft, STLPathShaft );
+	STLStruct STLShaft( STLCPUShaft );
+	checkSTLEdges( STLShaft );
+	
+	std::vector<STLStruct> STLs = { STLMain, STLShaft };
 	
 	std::vector<DIADGridStruct> grids(gridLevelCount);
 	// Coarse grid: Grid0
@@ -201,6 +320,7 @@ int main(int argc, char **argv)
 		grids[level].forcedVelocityMarkerArray.setSize( grids[level].Info.cellCount );
 		const bool insideMarkerValue = 1;
 		ApplyMarkersInsideSTL( grids[level].forcedVelocityMarkerArray, grids[level].IJK, STLImpeller, insideMarkerValue, grids[level].Info );
+		grids[level].Info.iRegulator = uzInlet;
 	}
 	
 	int cellCountTotal = 0;
@@ -214,7 +334,9 @@ int main(int argc, char **argv)
 	std::cout << "Cell count total: " << cellCountTotal << std::endl;
 	std::cout << "Cell updates per iteration: " << cellUpdatesPerIteration << std::endl;	
 	
-	std::vector<float> historyVector( iterationCount, 0.f );
+	std::vector<float> historyTotalPressure( iterationCount, 0.f );
+	std::vector<float> historyMassFlow( iterationCount, 0.f );
+	std::vector<float> historyTorque( iterationCount, 0.f );
 	
 	std::cout << "Starting simulation" << std::endl;
 	
@@ -253,21 +375,27 @@ int main(int argc, char **argv)
 			float uTemp = 0.f;
 			convertToPhysicalVelocity( uzIn, uTemp, uTemp, grids[0].Info );
 			
-			FlowReportStruct FlowReportOut;
-			int iTemp, jTemp;
-			const float xTemp = 0.f;
-			const float yTemp = 0.f;
-			const float zCut = 0.f;
-			getIJKCellIndexFromXYZ( iTemp, jTemp, kCut, xTemp, yTemp, zCut, grids[gridLevelCount-1].Info);
-			getFlowReportXY( grids, kCut, Bounds, FlowReportOut );
-			float pOut = FlowReportOut.rho;
-			convertToPhysicalPressure( pOut );
+			float pTotalIn = 0.5f * rhoNominalPhys * uzIn * uzIn + pIn;
 			
-			float pTotalIn = 0.5f * rhoNominalPhys * uzIn * uzIn + (pIn - pOut);
+			const float massFlow = uzIn * ( FlowReportIn.areamm2 / 1000000.f ) * FlowReportIn.rho * rhoNominalPhys;
+			
+			grids[0].Info.iRegulator -= (pTotalIn - targetInletTotalPressure) * iRegulatorStrength;
+			for ( int level = 0; level < gridLevelCount; level++ )
+			{
+				grids[level].Info.iRegulator = grids[0].Info.iRegulator;
+			}
+			
+			float torque = 0.f;
+			for ( int level = 0; level < gridLevelCount; level++ )
+			{
+				torque += getTorque( grids[level] );
+			}
 			
 			for ( int shifter = 0; shifter < 20; shifter++ )
 			{
-				historyVector[iteration-shifter] = pTotalIn;
+				historyTotalPressure[iteration-shifter] = pTotalIn;
+				historyMassFlow[iteration-shifter] = massFlow;
+				historyTorque[iteration-shifter] = torque;
 			}
 		}
 		
@@ -280,8 +408,9 @@ int main(int argc, char **argv)
 			const float glups = updateCount / lapTime / 1000000000.f;
 			std::cout << "GLUPS: " << glups << std::endl;
 			
-			exportHistoryData( historyVector, iteration, 0 );
+			exportHistoryData( historyTotalPressure, historyMassFlow, historyTorque, iteration, 0 );
 			
+			/*
 			int counter = 1;
 			for (float r = RIn + 1.f; r < ROut; r = r + 1.f) 
 			{
@@ -307,7 +436,19 @@ int main(int argc, char **argv)
 			const int iCut = grids[gridLevelCount-1].Info.cellCountX / 2;
 			exportSectionCutPlotZY( grids, iCut, iteration + 60 );
 			system("python3 ../include/plotter/plotterGridID.py");
-
+			*/
+			
+			const float r = 13.25f;
+			bool rotatingFrameOfReference = 0;
+			exportSectionCutPlotToiletPaperZ( grids, r, iteration, rotatingFrameOfReference );
+			system("python3 ../include/plotter/plotterGridID.py");
+			rotatingFrameOfReference = 1;
+			exportSectionCutPlotToiletPaperZ( grids, r, iteration + 1, rotatingFrameOfReference );
+			system("python3 ../include/plotter/plotterGridID.py");
+			const int iCut = grids[gridLevelCount-1].Info.cellCountX / 2;
+			exportSectionCutPlotZY( grids, iCut, iteration + 2 );
+			system("python3 ../include/plotter/plotterGridID.py");
+			
 			lapTimer.reset();
 			lapTimer.start();	
 		}

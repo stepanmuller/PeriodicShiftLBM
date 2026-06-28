@@ -163,7 +163,7 @@ struct DIADEsotwistNbrArrayStruct { 	IntArrayType iNbrArray; IntArrayType jNbrAr
 // This holds cell indexes of the neighbour cells in only positive i,j,k directions for Esotwist streaming for a single cell
 struct DIADEsotwistNbrStruct { int i; int j; int k; int ij; int ik; int jk; int ijk; }; 
 
-struct DIADGridStruct { InfoStruct Info; FloatArray2DType fArray; BoolArrayType bouncebackMarkerArray; BoolArrayType forcedVelocityMarkerArray;
+struct DIADGridStruct { InfoStruct Info; FloatArray2DType fArray; BoolArrayType bouncebackMarkerArray; BoolArrayType forcedVelocityMarkerArray; BoolArrayType interfaceMarkerArray;
 						IJKArrayStruct IJK; DIADEsotwistNbrArrayStruct EsotwistNbrArray; 
 						IntArrayType fineToCoarseWriteArray; IntArrayType fineToCoarseReadArray; 
 						IntArrayType coarseToFineWriteArray; IntArrayType coarseToFineReadArray; 
