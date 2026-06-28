@@ -3,7 +3,7 @@ constexpr int gridLevelCount = 2;
 constexpr int wallRefinementSpan = 1;
 
 constexpr int iterationCount = 500000;
-constexpr int iterationChunk = 1000;
+constexpr int iterationChunk = 5000;
 
 constexpr float SmagorinskyConstantGlobal = 0.1f; 										// set to zero to turn off LES
 
@@ -52,7 +52,8 @@ __cuda_callable__ void getMarkers( 	const int& iCell, const int& jCell, const in
 	float x, y, z;
 	getXYZFromIJKCellIndex( iCell, jCell, kCell, x, y, z, Info );
 	const float r = std::sqrt( x * x + y * y );
-	if ( kCell < 5 ) Marker.refinement = 1;
+	if ( r < 17.f ) Marker.refinement = 1;
+	//if ( kCell < 5 ) Marker.refinement = 1;
 	if ( Info.cellCountZ - kCell < 5 ) Marker.refinement = 1;
 	if ( Marker.bounceback ) 
 	{
@@ -214,10 +215,13 @@ float getTorque( DIADGridStruct &Grid )
 		if ( useForcedVelocityArray ) Marker.forcedVelocity = forcedVelocityMarkerArrayView( cell );
 		getMarkers( iCell, jCell, kCell, Marker, Info );
 		
-		if ( !Marker.movingBounceback && !Marker.forcedVelocity ) return 0.f;
+		if ( Marker.movingBounceback ) return 0.f;
+		
+		if ( !Marker.forcedVelocity ) return 0.f;
 		
 		float x, y, z;
 		getXYZFromIJKCellIndex( iCell, jCell, kCell, x, y, z, Info );
+		const float r = std::sqrt( x * x + y * y );
 		
 		DIADEsotwistNbrStruct Nbr;
 		Nbr.i = iNbrView( cell );
@@ -231,38 +235,18 @@ float getTorque( DIADGridStruct &Grid )
 		float f[27];
 		int cellReadIndex[27];
 		int fReadIndex[27];
-		getEsotwistReadIndex( cell, cellReadIndex, fReadIndex, Nbr, esotwistFlipper, Info );
+		const bool flippedFlipper = !esotwistFlipper;
+		getEsotwistReadIndex( cell, cellReadIndex, fReadIndex, Nbr, flippedFlipper, Info );
 		for ( int direction = 0; direction < 27; direction++ )	f[direction] = fArrayView(fReadIndex[direction], cellReadIndex[direction]);
 		
-		float rho, ux, uy, uz;
-		getRhoUxUyUz( rho, ux, uy, uz, f );
 		float gx = 0.f;
 		float gy = 0.f;
 		float gz = 0.f;
 		
-		if ( Marker.movingBounceback )
-		{
-			float uxPrev = ux;
-			float uyPrev = uy;
-			float uzPrev = uz;
-			getGivenRhoUxUyUz( iCell, jCell, kCell, rho, ux, uy, uz, Info, Marker );
-			applyMovingBounceback( f, ux, uy, uz );
-			getRhoUxUyUz( rho, ux, uy, uz, f );
-			gx = rho * ( ux - uxPrev );
-			gy = rho * ( uy - uyPrev );
-			gz = rho * ( uz - uzPrev );
-			convertToPhysicalForce( gx, gy, gz, Info );
-			float T = - gx * y + gy * x;
-			return T;
-		}
-		if ( Marker.forcedVelocity )
-		{
-			getForcing( iCell, jCell, kCell, f, gx, gy, gz, Info );
-			convertToPhysicalForce( gx, gy, gz, Info );
-			float T = - gx * y + gy * x;
-			return T;
-		}
-		else return 0.f;
+		getForcing( iCell, jCell, kCell, f, gx, gy, gz, Info );
+		convertToPhysicalForce( gx, gy, gz, Info );
+		float T = - gx * y + gy * x;
+		return T;
 	};
 	auto reduction = [] __cuda_callable__( const float& a, const float& b )
 	{
@@ -410,11 +394,15 @@ int main(int argc, char **argv)
 			
 			exportHistoryData( historyTotalPressure, historyMassFlow, historyTorque, iteration, 0 );
 			
-			/*
 			int counter = 1;
 			for (float r = RIn + 1.f; r < ROut; r = r + 1.f) 
 			{
-				exportSectionCutPlotToiletPaperZ( grids, r, iteration + counter );
+				bool rotatingFrameOfReference = 0;
+				exportSectionCutPlotToiletPaperZ( grids, r, iteration + counter, rotatingFrameOfReference );
+				system("python3 ../include/plotter/plotterGridID.py");
+				counter++;
+				rotatingFrameOfReference = 1;
+				exportSectionCutPlotToiletPaperZ( grids, r, iteration + counter, rotatingFrameOfReference );
 				system("python3 ../include/plotter/plotterGridID.py");
 				counter++;
 			}	
@@ -436,8 +424,8 @@ int main(int argc, char **argv)
 			const int iCut = grids[gridLevelCount-1].Info.cellCountX / 2;
 			exportSectionCutPlotZY( grids, iCut, iteration + 60 );
 			system("python3 ../include/plotter/plotterGridID.py");
-			*/
 			
+			/*
 			const float r = 13.25f;
 			bool rotatingFrameOfReference = 0;
 			exportSectionCutPlotToiletPaperZ( grids, r, iteration, rotatingFrameOfReference );
@@ -450,7 +438,8 @@ int main(int argc, char **argv)
 			system("python3 ../include/plotter/plotterGridID.py");
 			
 			lapTimer.reset();
-			lapTimer.start();	
+			lapTimer.start();
+			*/	
 		}
 	}
 	return EXIT_SUCCESS;
