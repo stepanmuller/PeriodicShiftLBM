@@ -1,9 +1,9 @@
-constexpr float resGlobal = 0.2f; 														// mm
+constexpr float resGlobal = 0.3f; 														// mm
 constexpr int gridLevelCount = 3;
 constexpr int wallRefinementSpan = 1;
 
-constexpr int iterationCount = 50000;
-constexpr int iterationChunk = 1000;
+constexpr int iterationCount = 500000;
+constexpr int iterationChunk = 2000;
 
 constexpr float SmagorinskyConstantGlobal = 0.1f; 										// set to zero to turn off LES
 constexpr float SmagorinskyZoneLength = 5.f;
@@ -24,7 +24,7 @@ constexpr float tipGap = 0.2f;															// mm
 constexpr float C = 0.14523f;															// m2/s
 constexpr float angularVelocity = 2700.f;												// rad/s
 const float boundaryLayerThickness = 0.2f;												// mm
-constexpr int bladeCount = 2;
+constexpr int bladeCount = 3;
 
 #include "../include/types.h"
 

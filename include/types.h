@@ -76,7 +76,7 @@ struct InfoStruct { float gridID = 0; float res = 1.f; int cellCountX; int cellC
 								
 struct GridStruct { InfoStruct Info; FloatArray2DType fArray; IntArrayType shifter; BoolArrayType bouncebackMarkerArray; }; 
 
-struct MarkerStruct { bool fluid = 0; bool bounceback = 0; bool movingBounceback = 0;
+struct MarkerStruct { bool fluid = 0; bool bounceback = 0; bool movingBounceback = 0; bool forcedVelocity = 0;
 	bool periodicX = 0; bool periodicY = 0; bool periodicZ = 0; bool givenRho = 0; bool givenUxUyUz = 0; bool nonReflectiveOutlet = 0; bool refinement = 0; bool ghost = 0; };
 
 struct ScalarTransportMarkerStruct { bool givenT = 0; };
@@ -163,7 +163,7 @@ struct DIADEsotwistNbrArrayStruct { 	IntArrayType iNbrArray; IntArrayType jNbrAr
 // This holds cell indexes of the neighbour cells in only positive i,j,k directions for Esotwist streaming for a single cell
 struct DIADEsotwistNbrStruct { int i; int j; int k; int ij; int ik; int jk; int ijk; }; 
 
-struct DIADGridStruct { InfoStruct Info; FloatArray2DType fArray; BoolArrayType bouncebackMarkerArray; 
+struct DIADGridStruct { InfoStruct Info; FloatArray2DType fArray; BoolArrayType bouncebackMarkerArray; BoolArrayType forcedVelocityMarkerArray;
 						IJKArrayStruct IJK; DIADEsotwistNbrArrayStruct EsotwistNbrArray; 
 						IntArrayType fineToCoarseWriteArray; IntArrayType fineToCoarseReadArray; 
 						IntArrayType coarseToFineWriteArray; IntArrayType coarseToFineReadArray; 

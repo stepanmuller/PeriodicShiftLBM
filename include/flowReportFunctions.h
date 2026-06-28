@@ -91,6 +91,8 @@ void getFlowReportGeneral( std::vector<DIADGridStruct> &grids, const int &cutInd
 		auto fArrayView  = Grid.fArray.getConstView();
 		bool useBouncebackArray = ( Grid.bouncebackMarkerArray.getSize() > 0 );
 		auto bouncebackMarkerArrayView = Grid.bouncebackMarkerArray.getConstView();
+		bool useForcedVelocityArray = ( Grid.forcedVelocityMarkerArray.getSize() > 0 );
+		auto forcedVelocityMarkerArrayView = Grid.forcedVelocityMarkerArray.getConstView();
 		
 		auto iView = Grid.IJK.iArray.getConstView();
 		auto jView = Grid.IJK.jArray.getConstView();
@@ -156,8 +158,9 @@ void getFlowReportGeneral( std::vector<DIADGridStruct> &grids, const int &cutInd
 
 			MarkerStruct Marker;
 			if ( useBouncebackArray ) Marker.bounceback = bouncebackMarkerArrayView( cell );
+			if ( useForcedVelocityArray ) Marker.forcedVelocity = forcedVelocityMarkerArrayView( cell );
 			getMarkers( iCell, jCell, kCell, Marker, Info );
-			const float marker = Marker.bounceback;
+			const float marker = (Marker.bounceback || Marker.forcedVelocity);
 			
 			int outYStart = (indexVertical / targetScale) - vMinTarget;
 			int outXStart = (indexHorizontal / targetScale) - hMinTarget;
