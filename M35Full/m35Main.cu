@@ -442,11 +442,11 @@ int main(int argc, char **argv)
 			system("python3 ../include/plotter/plotterGridID.py");
 			const int iCut = grids[gridLevelCount-1].Info.cellCountX / 2;
 			exportSectionCutPlotZY( grids, iCut, iteration + 2 );
-			system("python3 ../include/plotter/plotterGridID.py");
+			system("python3 ../include/plotter/plotterGridID.py");			
+			*/	
 			
 			lapTimer.reset();
 			lapTimer.start();
-			*/	
 		}
 	}
 	return EXIT_SUCCESS;
