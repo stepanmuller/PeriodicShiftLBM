@@ -21,8 +21,8 @@ constexpr float ROut = 16.5f;															// mm
 constexpr float angularVelocity = 2700.f;												// rad/s
 const float boundaryLayerThickness = 0.2f;												// mm
 
-constexpr float targetInletTotalPressure = 0.f;											// Pa
-constexpr float iRegulatorStrength = 0.1f * 1e-9f;
+constexpr float targetInletPower = 0.f;													// W
+constexpr float iRegulatorStrength = 0.25f * 1e-7f;
 
 #include "../include/types.h"
 
@@ -150,7 +150,7 @@ void updateGrid( std::vector<DIADGridStruct>& grids, int level )
     }
 }
 
-void exportHistoryData( const std::vector<float>& historyTotalPressure, 
+void exportHistoryData( const std::vector<float>& historyInletPower, 
                         const std::vector<float>& historyMassFlow, 
                         const std::vector<float>& historyTorque, 
                         const int &currentIteration, int fileNumber ) {
@@ -161,7 +161,7 @@ void exportHistoryData( const std::vector<float>& historyTotalPressure,
     fwrite(&count, sizeof(int), 1, fp);
     
     // Write all three vectors sequentially
-    fwrite(historyTotalPressure.data(), sizeof(float), count, fp);
+    fwrite(historyInletPower.data(), sizeof(float), count, fp);
     fwrite(historyMassFlow.data(), sizeof(float), count, fp);
     fwrite(historyTorque.data(), sizeof(float), count, fp);
     
@@ -318,7 +318,7 @@ int main(int argc, char **argv)
 	std::cout << "Cell count total: " << cellCountTotal << std::endl;
 	std::cout << "Cell updates per iteration: " << cellUpdatesPerIteration << std::endl;	
 	
-	std::vector<float> historyTotalPressure( iterationCount, 0.f );
+	std::vector<float> historyInletPower( iterationCount, 0.f );
 	std::vector<float> historyMassFlow( iterationCount, 0.f );
 	std::vector<float> historyTorque( iterationCount, 0.f );
 	
@@ -327,6 +327,7 @@ int main(int argc, char **argv)
 	TNL::Timer lapTimer;
 	lapTimer.reset();
 	lapTimer.start();
+	
 	for (int iteration=0; iteration<=iterationCount; iteration++)
 	{
 		if (iteration%2 == 0)
@@ -342,7 +343,7 @@ int main(int argc, char **argv)
 			}
 		}
 		updateGrid( grids, 0 );
-		if (iteration%20 == 0 && iteration != 0)
+		if (iteration%19 == 0 && iteration != 0)
 		{
 			XYZBoundsStruct Bounds;
 			Bounds.xmin = -ROut;
@@ -359,11 +360,13 @@ int main(int argc, char **argv)
 			float uTemp = 0.f;
 			convertToPhysicalVelocity( uzIn, uTemp, uTemp, grids[0].Info );
 			
-			float pTotalIn = 0.5f * rhoNominalPhys * uzIn * uzIn + pIn;
+			const float pTotalIn = 0.5f * rhoNominalPhys * uzIn * uzIn + pIn;
 			
 			const float massFlow = uzIn * ( FlowReportIn.areamm2 / 1000000.f ) * FlowReportIn.rho * rhoNominalPhys;
 			
-			grids[0].Info.iRegulator -= (pTotalIn - targetInletTotalPressure) * iRegulatorStrength;
+			const float inletPower = pTotalIn * massFlow / rhoNominalPhys;
+			
+			grids[0].Info.iRegulator -= (inletPower - targetInletPower) * iRegulatorStrength;
 			for ( int level = 0; level < gridLevelCount; level++ )
 			{
 				grids[level].Info.iRegulator = grids[0].Info.iRegulator;
@@ -377,7 +380,7 @@ int main(int argc, char **argv)
 			
 			for ( int shifter = 0; shifter < 20; shifter++ )
 			{
-				historyTotalPressure[iteration-shifter] = pTotalIn;
+				historyInletPower[iteration-shifter] = inletPower;
 				historyMassFlow[iteration-shifter] = massFlow;
 				historyTorque[iteration-shifter] = torque;
 			}
@@ -392,7 +395,7 @@ int main(int argc, char **argv)
 			const float glups = updateCount / lapTime / 1000000000.f;
 			std::cout << "GLUPS: " << glups << std::endl;
 			
-			exportHistoryData( historyTotalPressure, historyMassFlow, historyTorque, iteration, 0 );
+			exportHistoryData( historyInletPower, historyMassFlow, historyTorque, iteration, 0 );
 			
 			int counter = 1;
 			for (float r = RIn + 1.f; r < ROut; r = r + 1.f) 

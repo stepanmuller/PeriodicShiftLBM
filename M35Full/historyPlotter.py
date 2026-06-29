@@ -59,12 +59,12 @@ def plot_history(file_number):
     
     # --- Define your 3 custom titles and y-labels here ---
     titles = [
-        r"\textbf{Inlet Total Pressure History}",
+        r"\textbf{Inlet Power History}",
         r"\textbf{Mass Flow History}",
         r"\textbf{Torque History}"
     ]
     ylabels = [
-        r"$p_t$ [Pa]",
+        r"$P_{inlet}$ [W]",
         r"$\dot m_p$ [kg/s]",
         r"$T$ [Nm]"
     ]
