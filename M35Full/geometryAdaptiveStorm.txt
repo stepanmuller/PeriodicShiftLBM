@@ -1,0 +1,89 @@
+Cíl:
+Maximálně jednoduchá verze sítě adaptivní na rotující geometrii, umožňující simulovat turbostroje.
+
+Předpoklady:
+1) 	Hrubé buňky se nachází pouze uvnitř oblasti. Na okrajích i podél *všech* stěn je automaticky zjemnění, které se nedá vypnout. 
+	Tím zaniká problém s interfacem na stěně. Dále to znamená, že voxelizace se dělá pouze na nejjemnější úrovni, žádná jiná není potřeba.
+
+2) 	Hrubé buňky, přes které je položeno zjemnění, se nemažou. Pod libovolnou jemnou buňkou se nachází hrubá buňka. 
+	Tím se zjednodušuje hledání oblasti zjemnění v dalších iteracích - není potřeba marker spread přes rozhraní, stačí marker spread od stěny na hrubé síti.
+	
+3)	Geometrie musí rotovat dostatečně pomalu na to, aby se oblast zjemnění posunula maximálně o jedinou vrstvu za update. 
+	Díky tomu stačí po updatu sítě projet rozhraní, není třeba doplňovat informace uvnitř sítě, tam už jsou od předtím.
+	Posunutí maximálně o jedinou vrstvu není striktně zajištěno algoritmem zjemnění, je potřeba to hlídat přes rychlost pohybu geometrie.
+	
+4)	Alokace paměti proběhne na začátku podle počátečního stavu. K cellCount se přidá buffer (10%?) a dále se velikost polí v paměti nemění. 
+	Ve všech aktivních smyčkách se pracuje pouze do cellCount, který lze měnit podle aktuálního stavu. Aktivní buňky se řadí na začátek, zbytek je slop.
+	
+Přání:
+1)	Negenerovat pokaždé celou síť znova, ale pouze upravit existující. 
+		- Nechat skoro všechnu konektivitu, jenom upravit kraje (lze upravit pouze rozhraní?)
+		- Nechat distribuční funkce uložené tam kde jsou, pouze přidat nové IJK a nakonec sesortovat (zatím hodně vágní)
+
+2) Umožnit update *pouze* jemnějších levelů sítě nezávisle na hrubších. Dává smysl updatovat jemné častěji než hrubé.
+
+Struktury
+
+Grid
+	IJK - zásadní
+	
+	memoryCount - počet buněk alokovaných v paměti
+	cellCount - počet existujících buněk se smysluplným IJK a platnou konektivitou, přes tyto budu dělat marker spread
+	activeCellCount - to stejné co výše ALE bez buněk, které jsou překryty hlubokým zjemněním
+	cellCountX - rozměry sítě v daném směru
+	cellCountY
+	cellCountZ
+	
+	markerSpreadSet - 27 bool polí, kterými je přes esotwist možné provést markerSpread. Je třeba automaticky aplikovat OP, aby se marker nešířil periodicky přes hranici.
+	
+	refinementMarkerArray -> markuje oblast zjemnění mimo interface (inteface má jiný marker)
+		Buňky flagnuté refinement markerem je třeba zařadit na konec, aby se nemusely počítat, iteruje se jen do activeCellCount.
+		
+	coarseToFineMarkerArray
+	fineToCoarseMarkerArray
+	
+	finerLevelMapArray -> obsahuje indexy buněk jemnější úrovně, pokud tam zjemnění není, napíšu -1. 
+		Po sesortování jemnější úrovně je potřeba přemapovat! 
+		
+	interfaceIndexArray ... drží indexy obou interfaců. 
+		Inicializuju jako indexy 01234..., následně seřadím podle interface markerů tak aby coarseToFine šlo první a fineToCoarse hned za tím
+	coarseToFineCellCount ... podle toho vím jak daleko iterovat
+	fineToCoarseCellCount ... podle toho vím jak daleko pokračovat
+		
+	NBR - drží konektivitu
+		Snaha zachovat existující konektivitu a jen dopočítat to co je nové
+	
+	keepCellMarkerArray ... tady markuju co odstranit, když zjistím že je to moc hluboko v solidu?
+	
+	bouncebackMarkerArray
+	movingBouncebackMarkerArray
+
+Něco pro držení 2D voxelizace, staticky alokováno	
+
+Algoritmy
+
+markerSpread ( Grid, spreadCount )
+1) 	Zkopíruj nulté pole markerSpreadSetu do všech ostatních. Nulté pole funguje jako input, tyto booly se samy nešíří.
+2) 	for spread in spreadCount: 
+		Proveď upravený esotwist a kolizi. Kolize = pokud je libovolné m=1, všechna m přepíšu na 1.
+		Okrajové podmínky: "neznámé" m přicházející z okrajů přepisuju na nulu.
+		Otázka: Co dělám, když je tam bounceback nebo movingBounceback??
+
+První sestavení sítě.
+1) 	Sestavím nejjemnější voxelizaci pro bounceback. Ten se dál nemění a budu ho držet celou dobu.
+2)	Sestavím nejjemnější voxelizaci pro movingBounceback. Ten budu později přepisovat.
+3) 	Sestavím kvádrové IJK a NBR pro nejhrubší level - přímé adresování. Toto pošlu jako input nejhrubší síti.
+
+4)	Nejhrubší síť. Hledám buňky, které je třeba zachovat. Označím všechny, které mohou obsahovat nejjemnější tekutinu.
+	Pustím Marker spread. Tím jsem přidal hranici. 
+5)	Sečtu markery a výsledek uložím jako cellCount. Nastavím memoryCount = cellCount + cellCount / 10
+5)	Teď je čas sortovat a mazat buňky. Žádný další sort ani mazání nebude potřeba!
+	
+	
+	
+	
+	
+	
+	
+	
+	
