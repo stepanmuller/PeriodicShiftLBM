@@ -1,9 +1,10 @@
-constexpr float resGlobal = 0.2f; 														// mm
+constexpr float resGlobal = 0.24f; 														// mm
 constexpr int gridLevelCount = 2;
 constexpr int wallRefinementSpan = 1;
 
 constexpr int iterationCount = 500000;
 constexpr int iterationChunk = 5000;
+constexpr int historyChunk = 19;
 
 constexpr float SmagorinskyConstantGlobal = 0.1f; 										// set to zero to turn off LES
 
@@ -18,7 +19,7 @@ constexpr float soundspeedPhys = invSqrt3 * (resGlobal/1000) / dtPhysGlobal; 			
 
 constexpr float RIn = 3.75f;															// mm
 constexpr float ROut = 16.5f;															// mm
-constexpr float angularVelocity = 2700.f;												// rad/s
+constexpr float angularVelocity = 2000.f;												// rad/s
 const float boundaryLayerThickness = 0.2f;												// mm
 
 constexpr float targetInletPower = 0.f;													// W
@@ -343,7 +344,7 @@ int main(int argc, char **argv)
 			}
 		}
 		updateGrid( grids, 0 );
-		if (iteration%19 == 0 && iteration != 0)
+		if (iteration%historyChunk == 0)
 		{
 			XYZBoundsStruct Bounds;
 			Bounds.xmin = -ROut;
@@ -378,11 +379,14 @@ int main(int argc, char **argv)
 				torque += getTorque( grids[level] );
 			}
 			
-			for ( int shifter = 0; shifter < 20; shifter++ )
+			for ( int shifter = 0; shifter < historyChunk; shifter++ )
 			{
-				historyInletPower[iteration-shifter] = inletPower;
-				historyMassFlow[iteration-shifter] = massFlow;
-				historyTorque[iteration-shifter] = torque;
+				if ( iteration+shifter < iterationCount )
+				{
+					historyInletPower[iteration+shifter] = inletPower;
+					historyMassFlow[iteration+shifter] = massFlow;
+					historyTorque[iteration+shifter] = torque;
+				}
 			}
 		}
 		
