@@ -73,7 +73,7 @@ markerSpread ( Grid, markerArray, spreadCount )
 		Geometrická podmínka: Pokud soused není geometrickým sousedem, data z něj čtu jako 0 a zpět do něj zapisuju také 0.
 		Tím zajistím, aby se nešířilo info přes díry nebo okraje oblasti.
 		
-neighbourRepair ( IJK, NBR, keepCellMarkerArray )
+neighbourRepair ( IJK, NBR, keepCellMarkerArray ) -> Provádět po jednom směru!
 -> dostane funkční IJK a NBR, ovšem NBR ukazuje i na buňky, které budou odstraněny
 -> cílem je opravit NBR tak, aby unikátním způsobem ukazoval pouze na existující buňky
 1) 	invalidNeighbourMarkerArray inicializováno s jedničkami
@@ -102,8 +102,9 @@ neighbourRepair ( IJK, NBR, keepCellMarkerArray )
 První sestavení sítě.
 1) 	Sestavím nejjemnější voxelizaci pro bounceback. Ten se dál nemění a budu ho držet celou dobu.
 2)	Sestavím nejjemnější voxelizaci pro movingBounceback. Ten budu později přepisovat.
-3) 	Sestavím kvádrové IJK a NBR plus pro nejhrubší level - přímé adresování. Toto pošlu jako input nejhrubší síti.
-4)	Nejhrubší síť. Hledám buňky, které je třeba zachovat. Označím všechny, které mohou obsahovat nejjemnější tekutinu.
+2.5) Virtuální nejhrubší strukturovaná síť!
+3) 	Sestavím kvádrové IJK a NBR plus pro jemnější level - přímé adresování. Toto pošlu jako input každé jemnější síti.
+4)	Rekurzivní jemnější síť. Hledám buňky, které je třeba zachovat. Označím všechny, které mohou obsahovat nejjemnější tekutinu.
 	Pustím Marker spread. Tím jsem přidal hranici. Výslednou markerArray uložím jako keepCellMarkerArray.
 Teď vím, které buňky budu zachovávat a které mazat -> opravím sousedy, které by ukazovaly na neexistující buňky.
 5)  neighbourRepair
