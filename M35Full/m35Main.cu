@@ -1,4 +1,4 @@
-constexpr float resGlobal = 0.24f; 														// mm
+constexpr float resGlobal = 0.20f; 														// mm
 constexpr int gridLevelCount = 2;
 constexpr int wallRefinementSpan = 1;
 

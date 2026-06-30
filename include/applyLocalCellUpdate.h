@@ -51,11 +51,7 @@ void applyLocalCellUpdate( GridStruct &Grid )
 				if ( Marker.periodicY ) outerNormalY = 0;
 				if ( Marker.periodicZ ) outerNormalZ = 0;
 				getGivenRhoUxUyUz( iCell, jCell, kCell, rho, ux, uy, uz, Info );
-				if ( Marker.mirror )
-				{
-					applyMirror( outerNormalX, outerNormalY, outerNormalZ, f );
-				}
-				else if ( Marker.givenRho && !Marker.givenUxUyUz )
+				if ( Marker.givenRho && !Marker.givenUxUyUz )
 				{
 					restoreUxUyUz( outerNormalX, outerNormalY, outerNormalZ, rho, ux, uy, uz, f );
 				}
@@ -147,11 +143,7 @@ void applyLocalCellUpdate( DIADGridStruct &Grid )
 			if ( Marker.periodicY ) outerNormalY = 0;
 			if ( Marker.periodicZ ) outerNormalZ = 0;
 			getGivenRhoUxUyUz( iCell, jCell, kCell, rho, ux, uy, uz, Info );
-			if ( Marker.mirror )
-			{
-				applyMirror( outerNormalX, outerNormalY, outerNormalZ, f );
-			}
-			else if ( Marker.givenRho && !Marker.givenUxUyUz )
+			if ( Marker.givenRho && !Marker.givenUxUyUz )
 			{
 				restoreUxUyUz( outerNormalX, outerNormalY, outerNormalZ, rho, ux, uy, uz, f );
 			}

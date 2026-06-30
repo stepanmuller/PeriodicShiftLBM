@@ -36,7 +36,6 @@ constexpr float rhoOutlet = pOutletPhys / ( rhoNominalPhys * soundspeedPhys * so
 #include "../include/applyCollision.h"
 
 #include "../include/boundaryConditions/applyBounceback.h"
-#include "../include/boundaryConditions/applyMirror.h"
 #include "../include/boundaryConditions/restoreRho.h"
 #include "../include/boundaryConditions/restoreUxUyUz.h"
 #include "../include/boundaryConditions/restoreRhoUxUyUz.h"

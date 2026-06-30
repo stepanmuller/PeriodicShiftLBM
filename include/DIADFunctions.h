@@ -867,7 +867,18 @@ void buildDIADGrids( std::vector<DIADGridStruct> &grids, std::vector<STLStruct> 
 	grids[level + 1].enforceInterfaceFluid = fineFluidMarkerArrayCPU;
 	
 	// SORT ALL CELLS BY KEY: keepCell, k, j, i
+	
+	// TIMER
+	//TNL::Timer lapTimer;
+	//lapTimer.reset();
+	//lapTimer.start();
+	
 	sortCoarseGrid( Grid, keepCellMarkerArray, fineToCoarseMarkerArray, coarseToFineMarkerArray );
+	
+	//lapTimer.stop();
+	//auto lapTime = lapTimer.getRealTime();
+	//std::cout << "Sorting took " << lapTime << " s" << std::endl;
+	
 	Info.cellCount = countMarkerCells( keepCellMarkerArray );
 	Grid.IJK.iArray.resize(Info.cellCount);
 	Grid.IJK.jArray.resize(Info.cellCount);
