@@ -2,7 +2,7 @@ Cíl:
 Maximálně jednoduchá verze sítě adaptivní na rotující geometrii, umožňující simulovat turbostroje.
 
 Předpoklady:
-1) 	Hrubé buňky se nachází pouze uvnitř oblasti. Na okrajích i podél *všech* stěn je automaticky zjemnění, které se nedá vypnout. 
+1) 	Hrubé buňky se nachází pouze uvnitř oblasti. Na okrajích i podél všech stěn je automaticky zjemnění, které se nedá vypnout. 
 	Tím zaniká problém s interfacem na stěně. Dále to znamená, že voxelizace se dělá pouze na nejjemnější úrovni, žádná jiná není potřeba.
 
 2) 	Hrubé buňky, přes které je položeno zjemnění, se nemažou. Pod libovolnou jemnou buňkou se nachází hrubá buňka. 
@@ -15,23 +15,24 @@ Předpoklady:
 4)	Alokace paměti proběhne na začátku podle počátečního stavu. K cellCount se přidá buffer (10%?) a dále se velikost polí v paměti nemění. 
 	Ve všech aktivních smyčkách se pracuje pouze do cellCount, který lze měnit podle aktuálního stavu. Aktivní buňky se řadí na začátek, zbytek je slop.
 	
-Přání:
-1)	Negenerovat pokaždé celou síť znova, ale pouze upravit existující. 
-		- Nechat skoro všechnu konektivitu, jenom upravit kraje (lze upravit pouze rozhraní?)
-		- Nechat distribuční funkce uložené tam kde jsou, pouze přidat nové IJK a nakonec sesortovat (zatím hodně vágní)
+5)	IJK i NBR libovolné sítě jsou řízeny hrubším levelem zvrchu. Síť samotná nemění svou konektivitu, nesortuje se ani nemaže svoje buňky. 
+	Tím se zjednodušuje celý postup, práce s rozhraním a zkracuje se čas vypuštěním sortů; nevýhodou je větší spotřeba paměti, v závislosti na případu ale klidně 30%
 
-2) Umožnit update *pouze* jemnějších levelů sítě nezávisle na hrubších. Dává smysl updatovat jemné častěji než hrubé.
+6) 	Umožnit update *pouze* jemnějších levelů sítě nezávisle na hrubších. Dává smysl updatovat jemné častěji než hrubé.
 
 Struktury
 
 Grid
-	IJK - zásadní
+	IJK - definuje síť
 	
-	NBR - drží konektivitu: Plusové esotwist sousedy a minusové sousedy pouze v hlavních směrech
-		- Pro esotwist sousedy si pamatuje, které z nich jsou zároveň skutečně geometrickými sousedy (7 bool polí)
-		Snaha zachovat existující konektivitu a jen dopočítat to co je nové
+	NBR - drží konektivitu pro esotwist -> 7 sousedů v plusových směrech i, j, k, ij, ik, jk, ijk
+		- navíc obsahuje 7 bool polí, které nabývají 1 pokud daný soused je i geometrickým sousedem (esotwist link nevede přes díru)
+	
+	Stencil - drží sousedy v hlavních směrech, potřebuju pro interpolaci. V kladných směrech je to stejné jako NBR i, j, k (použiju &), záporné směry jsou navíc
 	
 	fArray
+	
+	fBuffer - potřebuju při změně tvaru sítě
 	
 	memoryCount - počet buněk alokovaných v paměti
 	cellCount - počet existujících buněk se smysluplným IJK a platnou konektivitou, přes tyto budu dělat marker spread
@@ -43,21 +44,15 @@ Grid
 	cellCountY
 	cellCountZ
 	
-	markerSpreadSet - 26 bool polí, kterými je přes esotwist možné provést markerSpread.
-	
 	deepRefinementMarkerArray -> markuje oblast zjemnění mimo interface (inteface má jiný marker)
-		Buňky flagnuté deepRefinement markerem je třeba zařadit na konec, aby se nemusely počítat, iteruje se jen do activeCellCount.
 		
 	fineToCoarseMarkerArray
 	coarseToFineMarkerArray
 	
 	finerLevelMapArray -> obsahuje indexy buněk jemnější úrovně, pokud tam zjemnění není, napíšu -1. 
-		Po sesortování jemnější úrovně je potřeba přemapovat! 
 		
 	interfaceIndexArray ... drží indexy obou interfaců. 
 		Inicializuju jako indexy 01234..., následně seřadím podle interface markerů tak aby coarseToFine šlo první a fineToCoarse hned za tím
-	
-	keepCellMarkerArray ... tady markuju co odstranit, když zjistím že je to moc hluboko v solidu?
 	
 	bouncebackMarkerArray
 	movingBouncebackMarkerArray
@@ -66,20 +61,19 @@ Něco pro držení 2D voxelizace, staticky alokováno
 
 Algoritmy
 
-markerSpread ( Grid, markerArray, spreadCount )
-1) 	Zkopíruj markerArray do všech ostatních. Jako nulté pole použij markerArray, tyto booly se samy nešíří.
-2) 	for spread in spreadCount: 
-		Proveď upravený esotwist a kolizi. Kolize = pokud je libovolné m=1, všechna m přepíšu na 1.
-		Geometrická podmínka: Pokud soused není geometrickým sousedem, data z něj čtu jako 0 a zpět do něj zapisuju také 0.
-		Tím zajistím, aby se nešířilo info přes díry nebo okraje oblasti.
+markerSpread ( markerArraySource, markerArrayTarget, NBR )
+	Pro každou buňku:
+	Podívej se do všech 8 sousedů (já plus NBR)
+	Šířím oběma směry: Pokud já anebo kterýkoli soused je 1, přepisuju vše na 1
+	Ovšem, každý link při čtení i zápisu násobím geometrickou validitou linku definovanou v NBR
 		
-neighbourRepair ( NBRArray, NBRArrayNew, NBRArrayTemp, markerArray, Info )
--> dostane NBR array, která ovšem ukazuje i na buňky, které budou odstraněny
--> cílem je opravit NBR array tak, aby ukazovala pouze na existující buňky
--> výsledek odevzdá v NBRArrayNew, starou nechá, temp používá pro přepisování
+neighbourSkip ( NBRArray, NBRArrayTemp, markerArray, markerArrayTemp, Info )
+-> dostane NBR array, která ovšem ukazuje i na buňky, které chceme přeskočit
+-> cílem je opravit NBR array tak, aby ukazovala pouze na omarkované buňky
+-> přepíše NBRArray, temp používá pro přepisování
 1) 	invalidNeighbourMarkerArray inicializováno s jedničkami
 2)	invalidCount = cellCount
-3)	while invalidCount > 0: ALE zastropováno aby uražená vzdálenost byla menší než max(cellCountX, cellCountY, cellCountZ)
+3)	while invalidCount > 0: ALE zastropováno aby 2^it bylo menší než max(cellCountX, cellCountY, cellCountZ)
 		for cell in cells:
 			check invalidNeighbourMarkerArray[cell]. If valid already, skip cell.
 			load neighbour
@@ -92,61 +86,46 @@ neighbourRepair ( NBRArray, NBRArrayNew, NBRArrayTemp, markerArray, Info )
 				for neighbour in neighbours:
 					if neighbour is invalid:
 					invalid = 1
-			if invalid == 0:
-				v NBR vyplň, jestli jsou sousedé geometricky správní.
 			invalidNeighbourMarkerArray[cell] = invalid
 		invalidCount = suma invalidNeighbourMarkerArray
 
-Rekurzivní sestavení sítě.
+Inicializace?
 1) 	Sestavím nejjemnější voxelizaci pro bounceback. Ten se dál nemění a budu ho držet celou dobu.
 2)	Sestavím nejjemnější voxelizaci pro movingBounceback. Ten budu později přepisovat.
 2.5) Virtuální nejhrubší strukturovaná síť!
 3) 	Sestavím kvádrové IJK a NBR plus pro jemnější level - přímé adresování. Toto pošlu jako input každé jemnější síti.
 
-
-6)	Hledám oblast zjemnění. Označím všechny, které mohou obsahovat nejjemnější solid. 
+Tvorba jemné sítě z hrubé sítě. Cílem je vytvořit jemné IJK, NBR a namapovat interface. Svou hrubou síť nijak neměním.
+1)	Hledám oblast tekutiny. Označím všechny, které mohou obsahovat nejjemnější tekutinu. 
+	Pustím Marker spread právě jednou. Výsledek označím jako keepCellMarkerArray.
+2)	Hledám oblast zjemnění. Označím všechny, které mohou obsahovat nejjemnější solid. 
 	Pustím Marker spread tolikrát, kolik chci přidat vrstev (wallRefinementCount?). 
 	Výsledek přenásobím keepCellMarkerArray a uložím do deepRefinementMarkerArray.
-7)	Hledám fineToCoarse interface. Pustím Marker spread na deepRefinementMarkerArray. 
+3)	Hledám fineToCoarse interface. Pustím Marker spread na deepRefinementMarkerArray. 
 	Výsledek přenásobím keepCellMarkerArray. Dále přenásobím inverzí deepRefinementMarkerArray.
-8)	Hledám coarseToFine interface. Pustím Marker spread na fineToCoarseMarkerArray.
+4)	Hledám coarseToFine interface. Pustím Marker spread na fineToCoarseMarkerArray.
 	Výsledek přenásobím keepCellMarkerArray. Dále přenásobím inverzí deepRefinementMarkerArray. Nakonec přenásobím inverzí fineToCoarseMarkerArray.
 V této fázi mám všechno správně označené.
-9)	cellCount = suma keepCellMarkerArray
-	deepRefinementCount = suma deepRefinementMarkerArray
+5)	deepRefinementCount = suma deepRefinementMarkerArray
 	activeCount = cellCount - deepRefinementCount
-	memoryCount = cellCount + cellCount / 10
 	fineToCoarseCount = suma fineToCoarseMarkerArray
 	coarseToFineCount = suma coarseToFineMarkerArray
-10)	Teď je čas sortovat a mazat buňky. Žádný další sort ani mazání nebude potřeba!
-	Co sortuju? IJK, NBR, keepCellMarkerArray, deepRefinementMarkerArray, fineToCoarseMarkerArray, coarseToFineMarkerArray
-	Klíč? 	1. keepCellMarkerArray 1 first
-			2. deepRefinementMarkerArray 0 first
-			3. k lower first
-			4. j lower first
-			5. i lower first
-
-
-11)	Na všechny existující pole aplikuju resize(memoryCount)
-12) Inicializuju interfaceIndexArray jako permutaci 0, 1, 2 ..., 
-	Zkopíruju si coarseToFineMarkerArray a fineToCoarseMarkerArray na nějaké dočasné místo, třeba nějaké 2 pole z marker spreadu
+6) 	Inicializuju interfaceIndexArray jako permutaci 0, 1, 2 ..., 
+	Zkopíruju si coarseToFineMarkerArray a fineToCoarseMarkerArray
 	Sortuju interfaceIndexArray, coarseToFineMarkerArray, fineToCoarseMarkerArray
 	Klíč?	1. fineToCoarseMarkerArray 1 first
 			2. coarseToFineMarkerArray 1 first
 			3. interfaceIndexArray
 Teď mám v interfaceIndexArray na začátku FC a pak CF a vím jak je to dlouhé.
-Zároveň vím, že úplně na konci mám deepRefinement oblast (začíná od activeCount), o které taky vím, jak je dlouhá.
-13) Inicializuju fArray a NBR minus
-14) Naplním NBR minus: loop všech buněk, koukneš na plus, do toho plusu jako minus zapíšeš sebe, easy
-Teď mám i všechno alokované a sesortované, moje síť je úplně hotová. Jdu stavět jemnější level.
-15) Pro jemnější level potřebuju IJKfine a NBRfine. 
-	Sečtu deepRefinementCount, fineToCoarseCount, coarseToFineCount a vynásobím 8 -> mám cellCount pro jemnější level
-	Projíždím nejprve fineToCoarse, coarseToFine a nakonec deepRefinement. Každé z těchto buněk dokážu přiřadit jednoznačný index, 
-	potom index nulté zjemněné buňky je 8x index hrubé buňky a dalších 7 je vždy plus 1. Takto naplním IJKfine a finerLevelMapArray.
-	Zároveň vyplním NBRfine které můžu.
-16) Potřebuju dokončit NBRfine. Dělám to po jednotlivých směrech. 
+7)  Sestavení IJK jemné sítě
+	Předpokládáme, že pole IJK je už nějak alokované. Cíl je:
+	Pro každou jemnou buňku zapsat správné IJK na správné místo tak, aby výsledek byl rovnou seřazený. Asi nejtěžší krok algoritmu.
+	Zároveň s tímhle krokem zapíšu všechny jemné NBR, které můžu.
+	Ještě zároveň vyplňuju finerLevelMapArray
+
+8) Potřebuju dokončit NBRfine. Dělám to po jednotlivých směrech. 
 	Pro každý směr:
-		Udělám si NBRRefinementAreaTemp a aplikuju neighbour repair, pošlu tomu součet deepRefinement, CF a FC interface jako markery.
+		Udělám si NBRRefinementAreaTemp a aplikuju neighbour skip, pošlu tomu součet deepRefinement, CF a FC interface jako markery.
 		Projíždím přes všechny hrubé buňky, v nich dělám vnitřní loop přes jemné buňky, každé jemné buňce jednoznačně přiřadím souseda
 		v daném směru pomocí této dočasné NBRRefinement.
 17)	Rekurzivní jemnější síť. Hledám buňky, které je třeba zachovat. Označím všechny, které mohou obsahovat nejjemnější tekutinu.

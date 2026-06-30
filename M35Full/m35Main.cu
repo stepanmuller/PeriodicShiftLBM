@@ -1,5 +1,5 @@
-constexpr float resGlobal = 0.20f; 														// mm
-constexpr int gridLevelCount = 2;
+constexpr float resGlobal = 0.40f; 														// mm
+constexpr int gridLevelCount = 3;
 constexpr int wallRefinementSpan = 1;
 
 constexpr int iterationCount = 500000;
@@ -53,8 +53,8 @@ __cuda_callable__ void getMarkers( 	const int& iCell, const int& jCell, const in
 	float x, y, z;
 	getXYZFromIJKCellIndex( iCell, jCell, kCell, x, y, z, Info );
 	const float r = std::sqrt( x * x + y * y );
-	if ( r < 17.f ) Marker.refinement = 1;
-	//if ( kCell < 5 ) Marker.refinement = 1;
+	//if ( r < 17.f ) Marker.refinement = 1;
+	if ( kCell < 5 ) Marker.refinement = 1;
 	if ( Info.cellCountZ - kCell < 5 ) Marker.refinement = 1;
 	if ( Marker.bounceback ) 
 	{
