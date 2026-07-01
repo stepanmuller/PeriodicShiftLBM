@@ -25,10 +25,8 @@ Struktury
 Grid
 	IJK - definuje síť
 	
-	NBR - drží konektivitu pro esotwist -> 7 sousedů v plusových směrech i, j, k, ij, ik, jk, ijk
+	NBR - drží konektivitu pro esotwist -> 3 sousedé v plusových směrech j, k, jk, díky řazení kde x běží nejrychleji jsou 4 zbylí sousedé dopočítáni jako prosté +1
 		- navíc obsahuje 7 bool polí, které nabývají 1 pokud daný soused je i geometrickým sousedem (esotwist link nevede přes díru)
-	
-	Stencil - drží sousedy v hlavních směrech, potřebuju pro interpolaci. V kladných směrech je to stejné jako NBR i, j, k (použiju &), záporné směry jsou navíc
 	
 	fArray
 	
@@ -44,8 +42,8 @@ Grid
 	cellCountY
 	cellCountZ
 	
+	refinementMarkerArray -> tady se nachází zjemnění
 	deepRefinementMarkerArray -> markuje oblast zjemnění mimo interface (inteface má jiný marker)
-		
 	fineToCoarseMarkerArray
 	coarseToFineMarkerArray
 	
@@ -95,39 +93,60 @@ Inicializace?
 2.5) Virtuální nejhrubší strukturovaná síť!
 3) 	Sestavím kvádrové IJK a NBR plus pro jemnější level - přímé adresování. Toto pošlu jako input každé jemnější síti.
 
-Tvorba jemné sítě z hrubé sítě. Cílem je vytvořit jemné IJK, NBR a namapovat interface. Svou hrubou síť nijak neměním.
-1)	Hledám oblast tekutiny. Označím všechny, které mohou obsahovat nejjemnější tekutinu. 
+Update jemné sítě z hrubé sítě. Cílem je vytvořit nové jemné IJK, sestavit mapník IJKold -> IJKnew, sestavit NBR a namapovat interface. Svou hrubou síť nijak neměním.
+1)	Na jemné síti pomocí bufferu přendám všechny data do své vlastní buňky (pryč ze sousedů) -> Nyní už nepotřebuju "staré" NBR jemné sítě
+
+2)	Hledám oblast tekutiny. Označím všechny, které mohou obsahovat nejjemnější tekutinu. 
 	Pustím Marker spread právě jednou. Výsledek označím jako keepCellMarkerArray.
-2)	Hledám oblast zjemnění. Označím všechny, které mohou obsahovat nejjemnější solid. 
+4)	Hledám oblast zjemnění. Označím všechny, které mohou obsahovat nejjemnější solid. 
 	Pustím Marker spread tolikrát, kolik chci přidat vrstev (wallRefinementCount?). 
 	Výsledek přenásobím keepCellMarkerArray a uložím do deepRefinementMarkerArray.
-3)	Hledám fineToCoarse interface. Pustím Marker spread na deepRefinementMarkerArray. 
+5)	Hledám fineToCoarse interface. Pustím Marker spread na deepRefinementMarkerArray. 
 	Výsledek přenásobím keepCellMarkerArray. Dále přenásobím inverzí deepRefinementMarkerArray.
-4)	Hledám coarseToFine interface. Pustím Marker spread na fineToCoarseMarkerArray.
+6)	Hledám coarseToFine interface. Pustím Marker spread na fineToCoarseMarkerArray.
 	Výsledek přenásobím keepCellMarkerArray. Dále přenásobím inverzí deepRefinementMarkerArray. Nakonec přenásobím inverzí fineToCoarseMarkerArray.
 V této fázi mám všechno správně označené.
-5)	deepRefinementCount = suma deepRefinementMarkerArray
+7)	deepRefinementCount = suma deepRefinementMarkerArray
 	activeCount = cellCount - deepRefinementCount
 	fineToCoarseCount = suma fineToCoarseMarkerArray
 	coarseToFineCount = suma coarseToFineMarkerArray
-6) 	Inicializuju interfaceIndexArray jako permutaci 0, 1, 2 ..., 
-	Zkopíruju si coarseToFineMarkerArray a fineToCoarseMarkerArray
-	Sortuju interfaceIndexArray, coarseToFineMarkerArray, fineToCoarseMarkerArray
-	Klíč?	1. fineToCoarseMarkerArray 1 first
-			2. coarseToFineMarkerArray 1 first
-			3. interfaceIndexArray
-Teď mám v interfaceIndexArray na začátku FC a pak CF a vím jak je to dlouhé.
-7)  Sestavení IJK jemné sítě
+
+6)  Sestavení IJK jemné sítě
+6.1)	Do finerLevelMapArray uložím 1 tam kde je refinementMarker, zbytek nuly. Přes to projedu sumační exkluzivní sken.
+6.2)	Někde v paměti jemné sítě si vyhradím 7 integer polí: IJKparent a 4 pomocná pole, abych mohl sestavit IJK fine
+6.3)	Jedu přes hrubou síť. Pro každou buňku označenou jako refinement načtu index z finerLevelMapArray a do IJKparent[index] uložím IJK hrubé sítě
+6.4)	Dále pracuju pouze s daty alokovanými v jemné síti. Potřebuju vytvořit 4 pomocná pole.
+		firstInPlane: 	index první buňky v dané Z=const rovině
+						loop přes všechny, pokud se má buňka liší v Z oproti minulé, zapíšu můj index, jinak píšu nulu
+						Přes to projedu maximový inkluzivní sken.
+		lastInPlane: 	index poslední buňky v dané Z=const rovině
+						Projíždím přes pole 1. Pokud zjistím, že následující buňka leží v rozdílné rovině, zapíšu index své buňky do pole 2[pole 1[cell]], jinak píšu nulu
+						Přes to projedu maximový inkluzivní sken.
+		firstInRow:		index první buňky v daném ZY=const řádku -> jako pole 1
+		lastInRow:		index poslední buňky v daném ZY=const řádku -> jako pole 2
+6.5)	Hledám funkci, která pro každé hrubé IJK najde 8 fine IJK a určí jejich indexy v jemné síti. K tomu se použijou 4 pole výše.
+		iFine = 2*iCoarse + iAdd, jFine = 2*jCoarse + jAdd, kFine = 2*kCoarse + kAdd, add jde od 0 do 1
+		fineIndex(coarseIndex, )
+		
+	
+	
 	Předpokládáme, že pole IJK je už nějak alokované. Cíl je:
 	Pro každou jemnou buňku zapsat správné IJK na správné místo tak, aby výsledek byl rovnou seřazený. Asi nejtěžší krok algoritmu.
-	Zároveň s tímhle krokem zapíšu všechny jemné NBR, které můžu.
 	Ještě zároveň vyplňuju finerLevelMapArray
-8) Potřebuju dokončit NBRfine. Dělám to po jednotlivých směrech. 
+	
+7)  Potřebuju vyplnit NBRfine. Dělám to po jednotlivých směrech. 
 	Pro každý směr:
 		Udělám si NBRRefinementAreaTemp a aplikuju neighbour skip, pošlu tomu součet deepRefinement, CF a FC interface jako markery.
 		Projíždím přes všechny hrubé buňky, v nich dělám vnitřní loop přes jemné buňky, každé jemné buňce jednoznačně přiřadím souseda
 		v daném směru pomocí této dočasné NBRRefinement.
 	
+8) 	Inicializuju interfaceIndexArray jako permutaci 0, 1, 2 ..., 
+	Zkopíruju si coarseToFineMarkerArray a fineToCoarseMarkerArray
+	Sortuju interfaceIndexArray, coarseToFineMarkerArray, fineToCoarseMarkerArray -> tohle by chtělo udělat jinak, vyhnout se sortu
+	Klíč?	1. fineToCoarseMarkerArray 1 first
+			2. coarseToFineMarkerArray 1 first
+			3. interfaceIndexArray
+	Teď mám v interfaceIndexArray na začátku FC a pak CF a vím jak je to dlouhé.
 	
 	
 	
