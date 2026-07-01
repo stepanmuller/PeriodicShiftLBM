@@ -134,13 +134,12 @@ V této fázi mám všechno správně označené.
 			+ (coarseIndex - firstInRow[coarseIndex]) * 2 // to je předchozí půlřádek
 			+ iAdd
 	
-	Předpokládáme, že pole IJK je už nějak alokované. Cíl je:
-	Pro každou jemnou buňku zapsat správné IJK na správné místo tak, aby výsledek byl rovnou seřazený. Asi nejtěžší krok algoritmu.
-	Ještě zároveň vyplňuju finerLevelMapArray
-	
-7)  Potřebuju vyplnit NBRfine. Dělám to po jednotlivých směrech. 
+7)  Potřebuju vyplnit NBRfine. To znamená projet všechny coarse buňky a v nich přistoupit ke každé jemné buňce a vyplnit její sousedy. -> to je docela dost readů
+
+	Dělám to po jednotlivých směrech.
+
 	Pro každý směr:
-		Udělám si NBRRefinementAreaTemp a aplikuju neighbour skip, pošlu tomu součet deepRefinement, CF a FC interface jako markery.
+		Udělám si NBRRefinementAreaTemp a aplikuju neighbour skip, pošlu tomu refinementMarker jako platnou oblast.
 		Projíždím přes všechny hrubé buňky, v nich dělám vnitřní loop přes jemné buňky, každé jemné buňce jednoznačně přiřadím souseda
 		v daném směru pomocí této dočasné NBRRefinement.
 	
