@@ -126,9 +126,13 @@ V této fázi mám všechno správně označené.
 		lastInRow:		index poslední buňky v daném ZY=const řádku -> jako pole 2
 6.5)	Hledám funkci, která pro každé hrubé IJK najde 8 fine IJK a určí jejich indexy v jemné síti. K tomu se použijou 4 pole výše.
 		iFine = 2*iCoarse + iAdd, jFine = 2*jCoarse + jAdd, kFine = 2*kCoarse + kAdd, add jde od 0 do 1
-		fineIndex(coarseIndex, )
-		
-	
+		fineIndex(coarseIndex, iAdd, jAdd, kAdd) = 
+			firstInPlane[coarseIndex] * 8 // to jsou předchozí Z vrstvy
+			+ (lastInPlane[coarseIndex] - firstInPlane[coarseIndex] + 1) * 4 * kAdd // to je jedna předchozí Z vrstva
+			+ (firstInRow[coarseIndex] - firstInPlane[coarseIndex]) * 4 // to je předchozí polorovina
+			+ (lastInRow[coarseIndex] - firstInRow[coarseIndex] + 1) * 2 * jAdd // to je jeden předchozí řádek
+			+ (coarseIndex - firstInRow[coarseIndex]) * 2 // to je předchozí půlřádek
+			+ iAdd
 	
 	Předpokládáme, že pole IJK je už nějak alokované. Cíl je:
 	Pro každou jemnou buňku zapsat správné IJK na správné místo tak, aby výsledek byl rovnou seřazený. Asi nejtěžší krok algoritmu.
