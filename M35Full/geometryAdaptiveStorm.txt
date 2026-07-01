@@ -64,28 +64,17 @@ markerSpread ( markerArraySource, markerArrayTarget, NBR )
 	Podívej se do všech 8 sousedů (já plus NBR)
 	Šířím oběma směry: Pokud já anebo kterýkoli soused je 1, přepisuju vše na 1
 	Ovšem, každý link při čtení i zápisu násobím geometrickou validitou linku definovanou v NBR
-		
-neighbourSkip ( NBRArray, NBRArrayTemp, markerArray, markerArrayTemp, Info )
--> dostane NBR array, která ovšem ukazuje i na buňky, které chceme přeskočit
--> cílem je opravit NBR array tak, aby ukazovala pouze na omarkované buňky
--> přepíše NBRArray, temp používá pro přepisování
-1) 	invalidNeighbourMarkerArray inicializováno s jedničkami
-2)	invalidCount = cellCount
-3)	while invalidCount > 0: ALE zastropováno aby 2^it bylo menší než max(cellCountX, cellCountY, cellCountZ)
-		for cell in cells:
-			check invalidNeighbourMarkerArray[cell]. If valid already, skip cell.
-			load neighbour
-			if neighbour is invalid:
-				load neighbour of my neighbour
-				overwrite: neighbour = neighbour of my neighbour
-				overwrite in memory too
-			if invalid == 1: // to znamená že jsme změnili nějakého souseda -> zkontrolujeme jestli náhodou už není správný
-				invalid = 0
-				for neighbour in neighbours:
-					if neighbour is invalid:
-					invalid = 1
-			invalidNeighbourMarkerArray[cell] = invalid
-		invalidCount = suma invalidNeighbourMarkerArray
+	
+
+neighbourRepair V2 ( NBRArray )
+-> pro buňky, které nemají souseda, najde unikátního souseda a tím spraví NBRArray
+1)	iAmNotNeighbourMarker (sestavení: init 1, projedu sousedy a každého souseda označím 0)
+2)	sumační exkluzivní "sken 1" přes iAmNotNeighbourMarker -> tím pro každou buňku, která není sousedem, vím její pořadí
+3)	Vytvořím pořadník, loop přes "sken 1", pokud jsem označen jako "iAmNotNeighbour", zapíšu svůj index na místo v pořadníku určené skenem 1
+4)	iMissNeighbourMarker
+5)	sumační exkluzivní "sken 2" přes iMissNeighbourMarker -> tím pro každou buňku, která hledá souseda, vím její pořadí
+6)	Čtu pořadník, loop přes "sken 2", pokud jsem označen jako "iMissNeighbour", zapíšu jako svého souseda index načtený z pořadníku
+
 
 Inicializace?
 1) 	Sestavím nejjemnější voxelizaci pro bounceback. Ten se dál nemění a budu ho držet celou dobu.
@@ -135,12 +124,11 @@ V této fázi mám všechno správně označené.
 			+ iAdd
 	
 7)  Potřebuju vyplnit NBRfine. To znamená projet všechny coarse buňky a v nich přistoupit ke každé jemné buňce a vyplnit její sousedy. -> to je docela dost readů
-
-	Dělám to po jednotlivých směrech.
-
-	Pro každý směr:
-		Udělám si NBRRefinementAreaTemp a aplikuju neighbour skip, pošlu tomu refinementMarker jako platnou oblast.
-		Projíždím přes všechny hrubé buňky, v nich dělám vnitřní loop přes jemné buňky, každé jemné buňce jednoznačně přiřadím souseda
+	Dělám to po jednotlivých směrech. Směry jsou 3: j, k, jk.
+		Smyčka přes směry j, k, jk. Pro každý směr:
+7.1)	Zkopíruju si relevantní NBR do NBRSkipped. Aplikuju neighbour skip, pošlu tomu refinementMarker jako platnou oblast.
+7.2)	Projíždím přes hrubé buňky a čtu refinementMarker. Pokud je 1, načtu index z finerLevelMapArray. Tento index určuje polohu v polích firstInPlane, etc.
+7.2)	Projdu všechny jemné buňky v mé hrubé buňce. 
 		v daném směru pomocí této dočasné NBRRefinement.
 	
 8) 	Inicializuju interfaceIndexArray jako permutaci 0, 1, 2 ..., 
